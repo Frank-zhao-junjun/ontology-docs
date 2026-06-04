@@ -313,8 +313,8 @@ PR #19：https://github.com/Frank-zhao-junjun/Ontology/pull/19
 |------|------|----------|------------|--------------|
 | 对象类型 | `objectTypes[].id` | kebab-case 稳定 id（如 `production-order`） | `Entity.id` | 导入找不到类型 |
 | 对象类型 | `nameEn` | PascalCase 业务英文名（如 `ProductionOrder`） | `Entity.nameEn` | 代码生成/表名错位 |
-| 属性 | `properties[].id` | snake_case（如 `order_id`） | `Attribute.id` 或编译拼接 | 字段映射失败 |
-| 属性 | `nameEn` | 与 `id` 同义或 camelCase — **二选一，平台定稿** | `Attribute.nameEn` | round-trip 丢字段 |
+| 属性 | `properties[].id` | Manifest 内稳定键（如 `attr-order-id`，可带 `entityId--` 前缀防冲突） | `Attribute.id` + compiler 去重 | 引用/校验断裂 |
+| 属性 | `properties[].nameEn` | **平台表列 / snake_case**（如 `order_id`、`cost_price`）；**方案 A**：导入器以 `nameEn` 为列名 | `Attribute.nameEn` | 表字段映射失败、治理 `fieldPermissions` 对不上 |
 | 领域事件 | `domainEvents[].nameEn` | 过去式 PascalCase（如 `OrderCreated`） | `EventDefinition.nameEn` | V08 警告或拒绝 |
 | 动作/规则 | `id` | 全局唯一，引用用 **id** 非显示名 | `Action`/`Rule` id | V05–V07 断裂 |
 
@@ -326,7 +326,7 @@ PR #19：https://github.com/Frank-zhao-junjun/Ontology/pull/19
 
 - `value_object` 是否单独 UI 库 → 建议 P1
 - EPC 是否仅 `extensions.epc` → P1
-- `nameEn` / `id` → 见上表，**联调前与平台团队定稿**（阻塞 US-A01，不阻塞 P0-15/16/P0-12）
+- 属性 `id` vs `nameEn` → **方案 A 已采纳**（见上表）；联调时仅确认平台导入器是否以 `nameEn` 为列名（阻塞 US-A01，不阻塞 P0-15/16/P0-12）
 
 ---
 

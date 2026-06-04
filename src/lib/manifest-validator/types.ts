@@ -1,0 +1,159 @@
+/**
+ * OntologyManifest 类型（对齐 ontology-manifest-spec.md）
+ */
+
+export const ONTOLOGY_MANIFEST_KIND = 'OntologyManifest' as const;
+
+export const SUPPORTED_API_VERSIONS = ['ontology.platform/v1'] as const;
+
+export type SupportedApiVersion = (typeof SUPPORTED_API_VERSIONS)[number];
+
+export type ObjectTypeKind = 'aggregate_root' | 'entity' | 'value_object';
+
+export type ManifestValidationCode =
+  | 'V01'
+  | 'V02'
+  | 'V03'
+  | 'V04'
+  | 'V05'
+  | 'V06'
+  | 'V07'
+  | 'V08'
+  | 'V09'
+  | 'V10'
+  | 'V11'
+  | 'STRUCTURE';
+
+export type ManifestValidationSeverity = 'error' | 'warning';
+
+export interface ManifestValidationIssue {
+  code: ManifestValidationCode;
+  severity: ManifestValidationSeverity;
+  elementType: string;
+  id?: string;
+  field?: string;
+  message: string;
+}
+
+export interface ManifestValidationResult {
+  valid: boolean;
+  errors: ManifestValidationIssue[];
+  warnings: ManifestValidationIssue[];
+}
+
+export interface OntologyManifestMetadata {
+  id: string;
+  version: string;
+  name: string;
+  displayName?: string;
+  description?: string;
+  boundedContext: string;
+  domainTags?: string[];
+  compiledAt?: string;
+  compiledBy?: string;
+  source?: 'ontology-designer' | 'ontology-platform';
+  status?: string;
+}
+
+export interface ManifestProperty {
+  id: string;
+  name?: string;
+  nameEn: string;
+  dataType: string;
+  required?: boolean;
+  reference?: Record<string, unknown>;
+  valueObjectRef?: string;
+  sensitive?: boolean;
+}
+
+export interface ManifestObjectType {
+  id: string;
+  name?: string;
+  nameEn?: string;
+  kind: ObjectTypeKind;
+  aggregateRootId?: string;
+  properties?: ManifestProperty[];
+  relations?: Array<{ id: string; sourceObjectTypeId?: string; targetObjectTypeId?: string }>;
+}
+
+export interface ManifestState {
+  name?: string;
+  code?: string;
+  isInitial?: boolean;
+  isFinal?: boolean;
+}
+
+export interface ManifestStateMachine {
+  id: string;
+  name?: string;
+  objectTypeId?: string;
+  states?: ManifestState[];
+}
+
+export interface ManifestAction {
+  id: string;
+  name?: string;
+  nameEn?: string;
+  aggregateRootId: string;
+  preRuleIds?: string[];
+  publishesEventIds?: string[];
+}
+
+export interface ManifestRule {
+  id: string;
+  name?: string;
+  type?: string;
+}
+
+export interface ManifestDomainEvent {
+  id: string;
+  name?: string;
+  nameEn: string;
+  aggregateRootId?: string;
+  triggerActionId?: string;
+}
+
+export interface OntologyManifestSemantic {
+  boundedContext?: Record<string, unknown>;
+  businessScenarios?: Array<{ id: string }>;
+  objectTypes?: ManifestObjectType[];
+  valueObjects?: Array<{ id: string }>;
+  stateMachines?: ManifestStateMachine[];
+}
+
+export interface OntologyManifestBehavior {
+  actions?: ManifestAction[];
+  rules?: ManifestRule[];
+  metrics?: Array<{ id: string }>;
+  transactionBoundaries?: Array<{ id: string }>;
+  sideEffects?: Array<{ id: string }>;
+}
+
+export interface OntologyManifestEvents {
+  domainEvents?: ManifestDomainEvent[];
+  integrationEvents?: Array<{ id: string }>;
+  routes?: Array<{ id: string }>;
+  handlers?: Array<{ id: string }>;
+  eventStore?: Record<string, unknown>;
+}
+
+export interface OntologyManifestGovernance {
+  roles?: Array<{ id: string }>;
+  fieldPermissions?: Array<{ objectTypeId: string; propertyNameEn: string }>;
+  agentPolicies?: Array<{ id: string }>;
+}
+
+export interface OntologyManifestSpec {
+  semantic?: OntologyManifestSemantic;
+  behavior?: OntologyManifestBehavior;
+  events?: OntologyManifestEvents;
+  governance?: OntologyManifestGovernance;
+  dataSources?: Array<Record<string, unknown>>;
+}
+
+export interface OntologyManifest {
+  apiVersion: string;
+  kind: typeof ONTOLOGY_MANIFEST_KIND;
+  metadata: OntologyManifestMetadata;
+  spec: OntologyManifestSpec;
+}

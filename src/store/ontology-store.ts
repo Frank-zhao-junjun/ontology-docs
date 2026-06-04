@@ -8,6 +8,12 @@ import { resolveEntityRole } from '@/lib/entity-role';
 import { parseFieldNames } from '@/lib/masterdata/field-parser';
 import { normalizeMasterDataRecord } from '@/lib/masterdata/record-factory';
 import { normalizeEntity, normalizeOntologyProject } from '@/lib/ontology-normalizer';
+import {
+  createEmptyDataSourcesModel,
+  createEmptyGovernanceModel,
+  ensureDataSourcesModel,
+  ensureGovernanceModel,
+} from '@/lib/ontology-layer-defaults';
 import type { 
   OntologyProject, 
   Domain, 
@@ -34,7 +40,13 @@ import type {
   MasterData,
   MasterDataRecord,
   ProjectVersion,
-  PublishConfig
+  PublishConfig,
+  GovernanceModel,
+  GovernanceRole,
+  GovernanceFieldPermission,
+  GovernanceAgentPolicy,
+  DataSourcesModel,
+  DataSourceDefinition,
 } from '@/types/ontology';
 
 interface OntologyState {
@@ -109,6 +121,26 @@ interface OntologyState {
   addSubscription: (subscription: Subscription) => void;
   updateSubscription: (subId: string, subscription: Subscription) => void;
   deleteSubscription: (subId: string) => void;
+
+  // 治理层
+  ensureGovernanceModel: () => GovernanceModel;
+  setGovernanceModel: (model: GovernanceModel) => void;
+  addGovernanceRole: (role: GovernanceRole) => void;
+  updateGovernanceRole: (roleId: string, role: GovernanceRole) => void;
+  deleteGovernanceRole: (roleId: string) => void;
+  addFieldPermission: (permission: GovernanceFieldPermission) => void;
+  updateFieldPermission: (index: number, permission: GovernanceFieldPermission) => void;
+  deleteFieldPermission: (index: number) => void;
+  addAgentPolicy: (policy: GovernanceAgentPolicy) => void;
+  updateAgentPolicy: (policyId: string, policy: GovernanceAgentPolicy) => void;
+  deleteAgentPolicy: (policyId: string) => void;
+
+  // 数据源层
+  ensureDataSourcesModel: () => DataSourcesModel;
+  setDataSourcesModel: (model: DataSourcesModel) => void;
+  addDataSource: (source: DataSourceDefinition) => void;
+  updateDataSource: (sourceId: string, source: DataSourceDefinition) => void;
+  deleteDataSource: (sourceId: string) => void;
 
   // EPC模型操作
   setEpcModel: (model: EpcModel) => void;
@@ -557,6 +589,8 @@ export const useOntologyStore = create<OntologyState>()(
             processModel: null,
             eventModel: null,
             epcModel: null,
+            governanceModel: createEmptyGovernanceModel(),
+            dataSourcesModel: createEmptyDataSourcesModel(),
             createdAt: now,
             updatedAt: now,
           },
@@ -1359,6 +1393,297 @@ export const useOntologyStore = create<OntologyState>()(
         });
       },
 
+      ensureGovernanceModel: () => {
+        const state = get();
+        if (!state.project) {
+          throw new Error('没有活动项目');
+        }
+        const model = ensureGovernanceModel(state.project.governanceModel);
+        if (!state.project.governanceModel) {
+          set({
+            project: {
+              ...state.project,
+              governanceModel: model,
+              updatedAt: new Date().toISOString(),
+            },
+          });
+        }
+        return model;
+      },
+
+      setGovernanceModel: (model) => {
+        set((state) => ({
+          project: state.project
+            ? { ...state.project, governanceModel: model, updatedAt: new Date().toISOString() }
+            : null,
+        }));
+      },
+
+      addGovernanceRole: (role) => {
+        set((state) => {
+          if (!state.project) return state;
+          const governance = ensureGovernanceModel(state.project.governanceModel);
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              governanceModel: {
+                ...governance,
+                roles: [...governance.roles, role],
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      updateGovernanceRole: (roleId, role) => {
+        set((state) => {
+          if (!state.project?.governanceModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              governanceModel: {
+                ...state.project.governanceModel,
+                roles: state.project.governanceModel.roles.map((r) =>
+                  r.id === roleId ? role : r
+                ),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      deleteGovernanceRole: (roleId) => {
+        set((state) => {
+          if (!state.project?.governanceModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              governanceModel: {
+                ...state.project.governanceModel,
+                roles: state.project.governanceModel.roles.filter((r) => r.id !== roleId),
+                fieldPermissions: state.project.governanceModel.fieldPermissions.map((fp) => ({
+                  ...fp,
+                  allowedRoleIds: fp.allowedRoleIds.filter((id) => id !== roleId),
+                })),
+                agentPolicies: state.project.governanceModel.agentPolicies.filter(
+                  (p) => p.roleId !== roleId
+                ),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      addFieldPermission: (permission) => {
+        set((state) => {
+          if (!state.project) return state;
+          const governance = ensureGovernanceModel(state.project.governanceModel);
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              governanceModel: {
+                ...governance,
+                fieldPermissions: [...governance.fieldPermissions, permission],
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      updateFieldPermission: (index, permission) => {
+        set((state) => {
+          if (!state.project?.governanceModel) return state;
+          const now = new Date().toISOString();
+          const next = [...state.project.governanceModel.fieldPermissions];
+          next[index] = permission;
+          return {
+            project: {
+              ...state.project,
+              governanceModel: {
+                ...state.project.governanceModel,
+                fieldPermissions: next,
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      deleteFieldPermission: (index) => {
+        set((state) => {
+          if (!state.project?.governanceModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              governanceModel: {
+                ...state.project.governanceModel,
+                fieldPermissions: state.project.governanceModel.fieldPermissions.filter(
+                  (_, i) => i !== index
+                ),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      addAgentPolicy: (policy) => {
+        set((state) => {
+          if (!state.project) return state;
+          const governance = ensureGovernanceModel(state.project.governanceModel);
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              governanceModel: {
+                ...governance,
+                agentPolicies: [...governance.agentPolicies, policy],
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      updateAgentPolicy: (policyId, policy) => {
+        set((state) => {
+          if (!state.project?.governanceModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              governanceModel: {
+                ...state.project.governanceModel,
+                agentPolicies: state.project.governanceModel.agentPolicies.map((p) =>
+                  p.id === policyId ? policy : p
+                ),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      deleteAgentPolicy: (policyId) => {
+        set((state) => {
+          if (!state.project?.governanceModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              governanceModel: {
+                ...state.project.governanceModel,
+                agentPolicies: state.project.governanceModel.agentPolicies.filter(
+                  (p) => p.id !== policyId
+                ),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      ensureDataSourcesModel: () => {
+        const state = get();
+        if (!state.project) {
+          throw new Error('没有活动项目');
+        }
+        const model = ensureDataSourcesModel(state.project.dataSourcesModel);
+        if (!state.project.dataSourcesModel) {
+          set({
+            project: {
+              ...state.project,
+              dataSourcesModel: model,
+              updatedAt: new Date().toISOString(),
+            },
+          });
+        }
+        return model;
+      },
+
+      setDataSourcesModel: (model) => {
+        set((state) => ({
+          project: state.project
+            ? { ...state.project, dataSourcesModel: model, updatedAt: new Date().toISOString() }
+            : null,
+        }));
+      },
+
+      addDataSource: (source) => {
+        set((state) => {
+          if (!state.project) return state;
+          const dataSources = ensureDataSourcesModel(state.project.dataSourcesModel);
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              dataSourcesModel: {
+                ...dataSources,
+                sources: [...dataSources.sources, source],
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      updateDataSource: (sourceId, source) => {
+        set((state) => {
+          if (!state.project?.dataSourcesModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              dataSourcesModel: {
+                ...state.project.dataSourcesModel,
+                sources: state.project.dataSourcesModel.sources.map((s) =>
+                  s.id === sourceId ? source : s
+                ),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      deleteDataSource: (sourceId) => {
+        set((state) => {
+          if (!state.project?.dataSourcesModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              dataSourcesModel: {
+                ...state.project.dataSourcesModel,
+                sources: state.project.dataSourcesModel.sources.filter((s) => s.id !== sourceId),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
       setEpcModel: (model) => {
         set((state) => ({
           project: state.project ? { ...state.project, epcModel: model, updatedAt: new Date().toISOString() } : null,
@@ -1596,6 +1921,8 @@ export const useOntologyStore = create<OntologyState>()(
               processModel: null,
               eventModel: null,
               epcModel: null,
+              governanceModel: createEmptyGovernanceModel(),
+              dataSourcesModel: createEmptyDataSourcesModel(),
               updatedAt: now,
             },
             activeModelType: null,

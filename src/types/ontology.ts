@@ -625,6 +625,73 @@ export interface ModelingManual {
   generatedAt: string;
 }
 
+// ========== 治理层（Manifest spec.governance）==========
+export type GovernancePermissionOp = 'READ' | 'WRITE' | 'EXECUTE' | 'DELETE';
+
+export interface GovernanceRolePermission {
+  objectTypeId: string;
+  ops: GovernancePermissionOp[];
+  denyActionIds?: string[];
+}
+
+export interface GovernanceRole {
+  id: string;
+  name: string;
+  permissions: GovernanceRolePermission[];
+}
+
+export interface GovernanceFieldPermission {
+  objectTypeId: string;
+  propertyNameEn: string;
+  allowedRoleIds: string[];
+}
+
+export interface GovernanceAgentPolicy {
+  id: string;
+  roleId: string;
+  manifestVersion?: string;
+  allowedMcpTools?: string[];
+  allowedAggregateRootIds?: string[];
+  allowedActionIds?: string[];
+  defaultDeny?: boolean;
+}
+
+export interface GovernanceModel {
+  id: string;
+  roles: GovernanceRole[];
+  fieldPermissions: GovernanceFieldPermission[];
+  agentPolicies: GovernanceAgentPolicy[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ========== 数据源层（Manifest spec.dataSources）==========
+export type DataSourceType = 'api' | 'database' | 'file';
+
+export interface DataSourceApiConfig {
+  baseUrl?: string;
+  entitySet?: string;
+  /** 仅 SecretRef，禁止明文密钥（V10） */
+  authSecretRef: string;
+}
+
+export interface DataSourceDefinition {
+  id: string;
+  name: string;
+  type: DataSourceType;
+  boundObjectTypeId?: string;
+  api?: DataSourceApiConfig;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DataSourcesModel {
+  id: string;
+  sources: DataSourceDefinition[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ========== 项目状态 ==========
 export interface OntologyProject {
   id: string;
@@ -637,6 +704,8 @@ export interface OntologyProject {
   processModel: ProcessModel | null; // 兼容保留字段
   eventModel: EventModel | null;
   epcModel?: EpcModel | null;
+  governanceModel?: GovernanceModel | null;
+  dataSourcesModel?: DataSourcesModel | null;
   createdAt: string;
   updatedAt: string;
 }

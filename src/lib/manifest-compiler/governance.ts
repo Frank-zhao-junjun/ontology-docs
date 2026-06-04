@@ -1,10 +1,33 @@
 import type { OntologyManifestGovernance } from '@/lib/manifest-validator';
+import { ensureGovernanceModel } from '@/lib/ontology-layer-defaults';
+import type { OntologyProject } from '@/types/ontology';
 
-/** P0：无治理 UI 时输出空结构，满足 spec 段完整性 */
-export function compileGovernance(): OntologyManifestGovernance {
+export function compileGovernance(project: OntologyProject): OntologyManifestGovernance {
+  const governance = ensureGovernanceModel(project.governanceModel);
+
   return {
-    roles: [],
-    fieldPermissions: [],
-    agentPolicies: [],
+    roles: governance.roles.map((role) => ({
+      id: role.id,
+      name: role.name,
+      permissions: role.permissions.map((permission) => ({
+        objectTypeId: permission.objectTypeId,
+        ops: permission.ops,
+        denyActionIds: permission.denyActionIds ?? [],
+      })),
+    })),
+    fieldPermissions: governance.fieldPermissions.map((fp) => ({
+      objectTypeId: fp.objectTypeId,
+      propertyNameEn: fp.propertyNameEn,
+      allowedRoleIds: fp.allowedRoleIds,
+    })),
+    agentPolicies: governance.agentPolicies.map((policy) => ({
+      id: policy.id,
+      roleId: policy.roleId,
+      manifestVersion: policy.manifestVersion,
+      allowedMcpTools: policy.allowedMcpTools,
+      allowedAggregateRootIds: policy.allowedAggregateRootIds,
+      allowedActionIds: policy.allowedActionIds,
+      defaultDeny: policy.defaultDeny,
+    })),
   };
 }

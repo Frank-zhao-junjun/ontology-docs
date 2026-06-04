@@ -188,16 +188,17 @@ gh issue create --title "P0-02: POST /api/manifest/validate" --body "依赖 P0-0
 
 ---
 
-### P0-15 — 治理 / 数据源 Tab（空结构可编辑）
+### P0-15 — 治理 / 数据源 Tab（空结构可编辑） **【已落地】**
 
 | 项 | 内容 |
 |----|------|
 | **标题** | feat(ui): governance + dataSources tabs (US-D02) |
-| **描述** | 新增 Tab；store 增加 `governanceModel`、`dataSources`；允许空数组导出。 |
+| **描述** | 项目级 Tab「治理」「数据源」；`governanceModel` / `dataSourcesModel`；compiler 从 store 编译。 |
 | **验收标准** | 五层 Tab 与 spec 段名一致；V10 编辑器禁止明文 token。 |
-| **涉及文件** | `ontology-store.ts`、`governance-editor.tsx`、`data-source-editor.tsx` |
+| **涉及文件** | `ontology-store.ts`、`governance-editor.tsx`、`data-source-editor.tsx`、`modeling-workspace.tsx` |
 | **依赖** | P0-08 |
 | **估算** | L |
+| **状态** | ✅ 已落地（分支 `feat/p0-15-governance-datasources`） |
 
 ---
 
@@ -295,7 +296,7 @@ PR #19：https://github.com/Frank-zhao-junjun/Ontology/pull/19
 | 顺序 | 任务 | 说明 |
 |------|------|------|
 | 1 | 合并 [#19](https://github.com/Frank-zhao-junjun/Ontology/pull/19) | compiler + 前端 Manifest 导出已就绪 |
-| 2 | **P0-15 / P0-16** | 设计台侧收尾：五层 Tab（治理/数据源空结构）、`publish-dialog` 与 Manifest 导出引导 |
+| 2 | **P0-16**（P0-15 ✅） | `publish-dialog` 与 Manifest 导出引导 |
 | 3 | **P0-12** | 制造域 golden：`compile` → `validate`，联调前安全网 |
 | 4 | **命名约定固化** | 与 ontology-platform 对齐 `id` / `nameEn`（见下表），写入双方 ADR 或 import 文档 |
 | 5 | **US-A01 联调** | **依赖平台侧 import/发布就绪**；设计台先保证导出 YAML 稳定 + P0-12 绿 |

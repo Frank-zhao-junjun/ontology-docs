@@ -31,7 +31,7 @@
 | **涉及文件** | `src/lib/manifest-validator/*`、`tests/fixtures/*.yaml`、`tests/unit/manifest-validator.spec.ts` |
 | **依赖** | 无 |
 | **估算** | M |
-| **PR** | [#18](https://github.com/Frank-zhao-junjun/Ontology/pull/18) · `feat/p0-manifest-validator` → `main` |
+| **PR** | [#18](https://github.com/Frank-zhao-junjun/Ontology/pull/18) · `feat/p0-manifest-validator` → `main`（**已合并**） |
 
 **GitHub Issue 模板（可复制）**
 
@@ -100,10 +100,11 @@ gh issue create --title "P0-02: POST /api/manifest/validate" --body "依赖 P0-0
 | **涉及文件** | `src/lib/manifest-compiler/*`、`tests/unit/manifest-compiler.spec.ts`、`tests/fixtures/manifest-compile-project.json` |
 | **依赖** | P0-01 |
 | **估算** | M |
+| **PR** | [#19](https://github.com/Frank-zhao-junjun/Ontology/pull/19) · `feat/p0-manifest-compiler` → `main`（rebase 后 diff 不含 #18） |
 
 ---
 
-### P0-05 — 语义层映射 objectTypes / relations / scenarios **【done @ feat/p0-manifest-compiler】**
+### P0-05 — 语义层映射 objectTypes / relations / scenarios **【done @ #19】**
 
 | 项 | 内容 |
 |----|------|
@@ -159,7 +160,7 @@ gh issue create --title "P0-02: POST /api/manifest/validate" --body "依赖 P0-0
 
 > **决策（2026-06-04）**：US-D03 采用浏览器内 `compileManifest` + `validateManifest` + 下载，**不依赖** HTTP API。实现见 `src/lib/manifest-export.ts`。
 
-### P0-13 — 主按钮「导出 OntologyManifest」 **【已落地 @ 1f53382】**
+### P0-13 — 主按钮「导出 OntologyManifest」 **【已落地 @ #19】**
 
 | 项 | 内容 |
 |----|------|
@@ -280,12 +281,12 @@ git -c safe.directory='E:/00 - AI/Ontology/repo-main' -C "E:\00 - AI\Ontology\re
 
 ### PR 链接
 
-| PR / 分支 | 内容 | 状态 |
-|-----------|------|------|
-| [#18](https://github.com/Frank-zhao-junjun/Ontology/pull/18) · `feat/p0-manifest-validator` | P0-01 validator | 见 GitHub |
-| `feat/p0-manifest-compiler` | P0-04～P0-08 compiler + P0-13/14 前端导出 | 本地含 `271e778`、`1f53382` |
+| PR | 分支 | 内容 | 状态 |
+|----|------|------|------|
+| [#18](https://github.com/Frank-zhao-junjun/Ontology/pull/18) | `feat/p0-manifest-validator` | P0-01 validator（V01–V11） | **已合并** |
+| [#19](https://github.com/Frank-zhao-junjun/Ontology/pull/19) | `feat/p0-manifest-compiler` | P0-04～P0-08 compiler + P0-13/14 前端导出 + 本文档 | **open** · rebase 后 diff 仅含 compiler/导出/文档（不含 #18） |
 
-Compare（compiler 栈）：https://github.com/Frank-zhao-junjun/Ontology/compare/main...feat/p0-manifest-compiler?expand=1
+PR #19：https://github.com/Frank-zhao-junjun/Ontology/pull/19
 
 ---
 

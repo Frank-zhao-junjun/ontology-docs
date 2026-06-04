@@ -32,8 +32,8 @@ export function compileManifest(
       semantic: compileSemantic(project, metadata),
       behavior: compileBehavior(project),
       events: compileEvents(project),
-      governance: compileGovernance(),
-      dataSources: compileDataSources(),
+      governance: compileGovernance(project),
+      dataSources: compileDataSources(project),
     },
   };
 }

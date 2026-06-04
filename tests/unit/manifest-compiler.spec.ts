@@ -98,6 +98,44 @@ describe('manifest-compiler', () => {
     });
   });
 
+  describe('治理与数据源', () => {
+    it('应编译 store 中的 governance 与 dataSources', () => {
+      const project = loadCompileFixture();
+      const now = fixedTime;
+      project.governanceModel = {
+        id: 'gov-1',
+        roles: [{ id: 'role-a', name: '角色A', permissions: [] }],
+        fieldPermissions: [],
+        agentPolicies: [],
+        createdAt: now,
+        updatedAt: now,
+      };
+      project.dataSourcesModel = {
+        id: 'ds-model-1',
+        sources: [
+          {
+            id: 'ds-test',
+            name: 'Test API',
+            type: 'api',
+            boundObjectTypeId: 'production-order',
+            api: { authSecretRef: 'secret/test-ref' },
+            createdAt: now,
+            updatedAt: now,
+          },
+        ],
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      const manifest = compileManifest(project, { compiledAt: fixedTime });
+      expect(manifest.spec.governance?.roles?.map((r) => r.id)).toContain('role-a');
+      expect(manifest.spec.dataSources?.[0]).toMatchObject({
+        id: 'ds-test',
+        api: { authSecretRef: 'secret/test-ref' },
+      });
+    });
+  });
+
   describe('行为与事件引用', () => {
     it('action 应含 preRuleIds 与 publishesEventIds', () => {
       const manifest = compileManifest(loadCompileFixture(), { compiledAt: fixedTime });

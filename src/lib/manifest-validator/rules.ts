@@ -1,4 +1,4 @@
-import { collectManifestIds } from './collect-ids';
+import { collectManifestIds, type IdOccurrence } from './collect-ids';
 import {
   SUPPORTED_API_VERSIONS,
   ONTOLOGY_MANIFEST_KIND,

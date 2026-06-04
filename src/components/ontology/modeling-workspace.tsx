@@ -26,6 +26,7 @@ import { ManualGenerator } from './manual-generator';
 import { MetadataManager } from './metadata-manager';
 import { MasterDataManager } from './masterdata-manager';
 import { PublishDialog } from './publish-dialog';
+import { ManifestExportDialog } from './manifest-export-dialog';
 import { updateProject, deleteProject } from '@/services/project-service';
 import type { OntologyProject, Entity, EntityProject, BusinessScenario } from '@/types/ontology';
 
@@ -566,9 +567,10 @@ export function ModelingWorkspace({ project }: ModelingWorkspaceProps) {
               <Button variant="outline" onClick={() => setShowMasterData(true)}>
                 📊 主数据管理
               </Button>
+              <ManifestExportDialog project={project} />
               <PublishDialog />
               <Button variant="outline" onClick={handleExport}>
-                导出项目
+                导出 JSON 备份
               </Button>
               {selectedEntityId && relatedModels?.entity ? (
                 <Button onClick={() => setShowManual(true)} className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">

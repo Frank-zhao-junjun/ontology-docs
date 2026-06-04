@@ -290,12 +290,43 @@ PR #19：https://github.com/Frank-zhao-junjun/Ontology/pull/19
 
 ---
 
+## 后续实施顺序（2026-06-04 共识）
+
+| 顺序 | 任务 | 说明 |
+|------|------|------|
+| 1 | 合并 [#19](https://github.com/Frank-zhao-junjun/Ontology/pull/19) | compiler + 前端 Manifest 导出已就绪 |
+| 2 | **P0-15 / P0-16** | 设计台侧收尾：五层 Tab（治理/数据源空结构）、`publish-dialog` 与 Manifest 导出引导 |
+| 3 | **P0-12** | 制造域 golden：`compile` → `validate`，联调前安全网 |
+| 4 | **命名约定固化** | 与 ontology-platform 对齐 `id` / `nameEn`（见下表），写入双方 ADR 或 import 文档 |
+| 5 | **US-A01 联调** | **依赖平台侧 import/发布就绪**；设计台先保证导出 YAML 稳定 + P0-12 绿 |
+
+**暂缓（P1）**：P0-09 API 导出、P0-10 schema API、P0-11 deprecated 标记（纯前端已满足 US-D03）。
+
+---
+
+## 与平台对齐：`id` / `nameEn` 约定（草案）
+
+联调前与 ontology-platform 确认并**单一化**下列规则（建议以 `manufacturing-manifest.yaml` 为样例基准）：
+
+| 层级 | 字段 | 建议约定 | 设计台现状 | 风险若不一致 |
+|------|------|----------|------------|--------------|
+| 对象类型 | `objectTypes[].id` | kebab-case 稳定 id（如 `production-order`） | `Entity.id` | 导入找不到类型 |
+| 对象类型 | `nameEn` | PascalCase 业务英文名（如 `ProductionOrder`） | `Entity.nameEn` | 代码生成/表名错位 |
+| 属性 | `properties[].id` | snake_case（如 `order_id`） | `Attribute.id` 或编译拼接 | 字段映射失败 |
+| 属性 | `nameEn` | 与 `id` 同义或 camelCase — **二选一，平台定稿** | `Attribute.nameEn` | round-trip 丢字段 |
+| 领域事件 | `domainEvents[].nameEn` | 过去式 PascalCase（如 `OrderCreated`） | `EventDefinition.nameEn` | V08 警告或拒绝 |
+| 动作/规则 | `id` | 全局唯一，引用用 **id** 非显示名 | `Action`/`Rule` id | V05–V07 断裂 |
+
+**动作项**：平台提供「导入器字段对照表」或样例 PR；设计台 `manifest-compiler` 按约定输出；P0-12 golden 断言关键 id。
+
+---
+
 ## 待确认项（来自修改建议3 §2.5）
 
 - `value_object` 是否单独 UI 库 → 建议 P1
 - EPC 是否仅 `extensions.epc` → P1
-- `nameEn` / `id` 与平台导入器单一约定 → 联调前与 ontology-platform 固化
+- `nameEn` / `id` → 见上表，**联调前与平台团队定稿**（阻塞 US-A01，不阻塞 P0-15/16/P0-12）
 
 ---
 
-**文档版本**：2026-06-04
+**文档版本**：2026-06-04（含后续顺序与命名草案）

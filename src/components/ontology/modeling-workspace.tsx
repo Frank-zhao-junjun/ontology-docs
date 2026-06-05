@@ -29,6 +29,7 @@ import { PublishDialog } from './publish-dialog';
 import { ManifestExportDialog } from './manifest-export-dialog';
 import { GovernanceEditor } from './governance-editor';
 import { DataSourceEditor } from './data-source-editor';
+import { MetricsEditor } from './metrics-editor';
 import { updateProject, deleteProject } from '@/services/project-service';
 import type { OntologyProject, Entity, EntityProject, BusinessScenario } from '@/types/ontology';
 
@@ -109,10 +110,11 @@ interface ModelingWorkspaceProps {
 }
 
 type ModelType = 'data' | 'behavior' | 'rule' | 'event' | 'epc';
-type WorkspaceScope = 'entity' | 'governance' | 'dataSources';
+type WorkspaceScope = 'entity' | 'metrics' | 'governance' | 'dataSources';
 
 const PROJECT_LAYER_TABS: { id: WorkspaceScope; label: string; icon: string }[] = [
   { id: 'entity', label: '实体建模', icon: '🏗️' },
+  { id: 'metrics', label: '指标', icon: '📊' },
   { id: 'governance', label: '治理', icon: '🛡️' },
   { id: 'dataSources', label: '数据源', icon: '🔌' },
 ];
@@ -1149,7 +1151,12 @@ export function ModelingWorkspace({ project }: ModelingWorkspaceProps) {
 
         {/* Right Content */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {workspaceScope === 'governance' ? (
+          {workspaceScope === 'metrics' ? (
+            <div className="flex-1 overflow-auto p-6">
+              <h2 className="text-lg font-semibold mb-4">指标 (metrics)</h2>
+              <MetricsEditor />
+            </div>
+          ) : workspaceScope === 'governance' ? (
             <div className="flex-1 overflow-auto p-6">
               <h2 className="text-lg font-semibold mb-4">治理层 (governance)</h2>
               <GovernanceEditor />

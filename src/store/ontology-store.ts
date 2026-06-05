@@ -47,6 +47,8 @@ import type {
   GovernanceAgentPolicy,
   DataSourcesModel,
   DataSourceDefinition,
+  MetricsModel,
+  BusinessMetric,
 } from '@/types/ontology';
 
 interface OntologyState {
@@ -141,6 +143,12 @@ interface OntologyState {
   addDataSource: (source: DataSourceDefinition) => void;
   updateDataSource: (sourceId: string, source: DataSourceDefinition) => void;
   deleteDataSource: (sourceId: string) => void;
+
+  // 业务指标层 (B05)
+  setMetricsModel: (model: MetricsModel | null) => void;
+  addMetric: (metric: BusinessMetric) => void;
+  updateMetric: (metricId: string, metric: Partial<BusinessMetric>) => void;
+  deleteMetric: (metricId: string) => void;
 
   // EPC模型操作
   setEpcModel: (model: EpcModel) => void;
@@ -574,6 +582,7 @@ export const useOntologyStore = create<OntologyState>()(
       masterDataRecords: {},
       versions: [],
       activeModelType: null,
+      metricsModel: null,
       
       createProject: (name, domain, description) => {
         const now = new Date().toISOString();
@@ -1687,6 +1696,80 @@ export const useOntologyStore = create<OntologyState>()(
               dataSourcesModel: {
                 ...state.project.dataSourcesModel,
                 sources: state.project.dataSourcesModel.sources.filter((s) => s.id !== sourceId),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      // 业务指标层操作 (B05)
+      setMetricsModel: (model) => {
+        set((state) => ({
+          project: state.project
+            ? { ...state.project, metricsModel: model, updatedAt: new Date().toISOString() }
+            : null,
+        }));
+      },
+
+      addMetric: (metric) => {
+        set((state) => {
+          if (!state.project) return state;
+          const now = new Date().toISOString();
+          const currentModel = state.project.metricsModel || {
+            id: generateId(),
+            name: `${state.project.domain.name}指标模型`,
+            version: '1.0.0',
+            domain: state.project.domain.id,
+            metrics: [],
+            createdAt: now,
+            updatedAt: now,
+          };
+          return {
+            project: {
+              ...state.project,
+              metricsModel: {
+                ...currentModel,
+                metrics: [...currentModel.metrics, metric],
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      updateMetric: (metricId, partialMetric) => {
+        set((state) => {
+          if (!state.project?.metricsModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              metricsModel: {
+                ...state.project.metricsModel,
+                metrics: state.project.metricsModel.metrics.map((m) =>
+                  m.id === metricId ? { ...m, ...partialMetric } : m
+                ),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      deleteMetric: (metricId) => {
+        set((state) => {
+          if (!state.project?.metricsModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              metricsModel: {
+                ...state.project.metricsModel,
+                metrics: state.project.metricsModel.metrics.filter((m) => m.id !== metricId),
                 updatedAt: now,
               },
               updatedAt: now,

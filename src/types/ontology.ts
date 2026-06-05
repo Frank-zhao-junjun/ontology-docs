@@ -704,6 +704,30 @@ export interface DataSourcesModel {
 }
 
 // ========== 项目状态 ==========
+// ========== Business Metrics (B05) ==========
+export interface BusinessMetric {
+  id: string;
+  name: string;
+  nameEn: string;
+  description?: string;
+  formula: string;
+  unit: string;
+  targetValue?: number;
+  boundActionId: string;
+  measurementType: 'automatic' | 'manual';
+  dataSourceRef?: string;
+}
+
+export interface MetricsModel {
+  id: string;
+  name: string;
+  version: string;
+  domain: string;
+  metrics: BusinessMetric[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface OntologyProject {
   id: string;
   name: string;
@@ -717,6 +741,7 @@ export interface OntologyProject {
   epcModel?: EpcModel | null;
   governanceModel?: GovernanceModel | null;
   dataSourcesModel?: DataSourcesModel | null;
+  metricsModel?: MetricsModel | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -265,13 +265,29 @@ export interface Action {
   postEffects?: string[];
   executionType?: 'sync' | 'async' | 'approval';
   requiredRoles?: string[];
-  
+  sideEffects?: SideEffect[];
+
   // V1 State Transition backwards compatibility
   transition?: string;
   ruleRefs?: string[];
   template?: string;
   recipients?: string[];
   script?: string;
+}
+
+// ========== Side Effect (B07) ==========
+export interface RetryPolicy {
+  maxAttempts: number;
+  backoffMs: number;
+}
+
+export interface SideEffect {
+  id: string;
+  type: 'notification' | 'sync' | 'log' | 'webhook';
+  description?: string;
+  async: boolean;
+  retryPolicy?: RetryPolicy;
+  config?: Record<string, unknown>;
 }
 
 export interface FunctionDefinition {
@@ -303,6 +319,7 @@ export interface BehaviorModel {
   stateMachines: StateMachine[];
   actions?: Action[];
   functions?: FunctionDefinition[];
+  transactionBoundaries?: TransactionBoundary[];
   createdAt: string;
   updatedAt: string;
 }
@@ -704,6 +721,18 @@ export interface DataSourcesModel {
 }
 
 // ========== 项目状态 ==========
+// ========== Transaction Boundary (B06) ==========
+export interface TransactionBoundary {
+  id: string;
+  name: string;
+  nameEn: string;
+  description?: string;
+  actionIds: string[];
+  aggregateRootIds: string[];
+  isolation: 'read_committed' | 'repeatable_read' | 'serializable';
+  compensationActionId?: string;
+}
+
 // ========== Business Metrics (B05) ==========
 export interface BusinessMetric {
   id: string;

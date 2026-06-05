@@ -103,6 +103,14 @@ export interface ManifestRule {
   id: string;
   name?: string;
   type?: string;
+  version?: string;
+  status?: string;
+  grayscale?: { enabled: boolean; percentage: number; targetScenarioIds?: string[] };
+  effectiveFrom?: string;
+  effectiveUntil?: string;
+  expression?: unknown;
+  errorMessage?: string;
+  enabled?: boolean;
 }
 
 export interface ManifestDomainEvent {

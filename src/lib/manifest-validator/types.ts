@@ -129,12 +129,45 @@ export interface OntologyManifestSemantic {
   stateMachines?: ManifestStateMachine[];
 }
 
+export interface ManifestMetric {
+  id: string;
+  name?: string;
+  nameEn: string;
+  formula: string;
+  unit: string;
+  boundActionId: string;
+  measurementType: string;
+  targetValue?: number;
+  dataSourceRef?: string;
+}
+
+export interface ManifestTransactionBoundary {
+  id: string;
+  name?: string;
+  nameEn: string;
+  actionIds: string[];
+  aggregateRootIds: string[];
+  isolation: string;
+  compensationActionId?: string;
+  description?: string;
+}
+
+export interface ManifestSideEffect {
+  id: string;
+  type: string;
+  description?: string;
+  async: boolean;
+  actionId?: string;
+  retryPolicy?: { maxAttempts: number; backoffMs: number };
+  config?: Record<string, unknown>;
+}
+
 export interface OntologyManifestBehavior {
   actions?: ManifestAction[];
   rules?: ManifestRule[];
-  metrics?: Array<{ id: string }>;
-  transactionBoundaries?: Array<{ id: string }>;
-  sideEffects?: Array<{ id: string }>;
+  metrics?: ManifestMetric[];
+  transactionBoundaries?: ManifestTransactionBoundary[];
+  sideEffects?: ManifestSideEffect[];
 }
 
 export interface OntologyManifestEvents {

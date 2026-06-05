@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { StateMachine, State, Transition, Action, FunctionDefinition } from '@/types/ontology';
+import type { StateMachine, State, Transition, Action, FunctionDefinition, TransactionBoundary } from '@/types/ontology';
+import { SideEffectSection } from './side-effect-section';
 
 interface BehaviorModelEditorProps {
   mode?: 'full' | 'entity-detail';
@@ -45,7 +46,7 @@ function getExecutionStatusLabel(status: 'success' | 'failed'): string {
 }
 
 export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEditorProps) {
-  const { project, addStateMachine, updateStateMachine, deleteStateMachine, addAction, updateAction, deleteAction, addFunction, updateFunction, deleteFunction } = useOntologyStore();
+  const { project, addStateMachine, updateStateMachine, deleteStateMachine, addAction, updateAction, deleteAction, addFunction, updateFunction, deleteFunction, addTransactionBoundary, updateTransactionBoundary, deleteTransactionBoundary } = useOntologyStore();
   const [selectedSmId, setSelectedSmId] = useState<string | null>(null);
   const [showStateDialog, setShowStateDialog] = useState(false);
   const [showTransitionDialog, setShowTransitionDialog] = useState(false);
@@ -55,7 +56,9 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
   const [showFunctionDialog, setShowFunctionDialog] = useState(false);
   const [editingAction, setEditingAction] = useState<Partial<Action>>({ parameters: [], preConditions: [], postEffects: [] });
   const [editingFunction, setEditingFunction] = useState<Partial<FunctionDefinition>>({ parameters: [] });
-  
+  const [showTbDialog, setShowTbDialog] = useState(false);
+  const [editingTb, setEditingTb] = useState<Partial<TransactionBoundary>>({ actionIds: [], aggregateRootIds: [] });
+
   const [editingState, setEditingState] = useState<Partial<State>>({});
   const [editingTransition, setEditingTransition] = useState<Partial<Transition>>({});
   const [newSmName, setNewSmName] = useState('');
@@ -269,6 +272,28 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
     }
     setEditingFunction({ parameters: [] });
     setShowFunctionDialog(false);
+  };
+
+  // TransactionBoundary handling
+  const handleSaveTb = () => {
+    if (!editingTb.name || !editingTb.nameEn) return;
+    const tbData: TransactionBoundary = {
+      id: editingTb.id || generateId(),
+      name: editingTb.name,
+      nameEn: editingTb.nameEn,
+      description: editingTb.description,
+      actionIds: editingTb.actionIds || [],
+      aggregateRootIds: editingTb.aggregateRootIds || [],
+      isolation: editingTb.isolation || 'read_committed',
+      compensationActionId: editingTb.compensationActionId,
+    };
+    if (editingTb.id) {
+      updateTransactionBoundary(editingTb.id, tbData);
+    } else {
+      addTransactionBoundary(tbData);
+    }
+    setEditingTb({ actionIds: [], aggregateRootIds: [] });
+    setShowTbDialog(false);
   };
 
   // Entity Detail Mode
@@ -807,6 +832,11 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
                         placeholder="业务动作的详细说明..."
                       />
                     </div>
+                    
+                    <SideEffectSection 
+                      sideEffects={editingAction.sideEffects ?? []} 
+                      onChange={(se) => setEditingAction({...editingAction, sideEffects: se})} 
+                    />
                   </div>
                   <div className="flex justify-end gap-2 pt-4 border-t mt-4">
                     <Button variant="outline" onClick={() => setShowActionDialog(false)}>取消</Button>

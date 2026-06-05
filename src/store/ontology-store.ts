@@ -1095,6 +1095,11 @@ export const useOntologyStore = create<OntologyState>()(
         set((state) => {
           if (!state.project) return state;
           const normalizedRule = ensureRuleDefinitionRules(rule, state.project);
+          const ruleWithDefaults = {
+            ...normalizedRule,
+            version: normalizedRule.version || '1.0.0',
+            status: normalizedRule.status || 'active',
+          };
           const currentModel = state.project.ruleModel || {
             id: generateId(),
             name: `${state.project.domain.name}规则模型`,
@@ -1109,7 +1114,7 @@ export const useOntologyStore = create<OntologyState>()(
               ...state.project,
               ruleModel: {
                 ...currentModel,
-                rules: [...currentModel.rules, normalizedRule]
+                rules: [...currentModel.rules, ruleWithDefaults]
                   .sort((a, b) => (a.priority || 100) - (b.priority || 100)),
                 updatedAt: new Date().toISOString(),
               },
@@ -1123,13 +1128,19 @@ export const useOntologyStore = create<OntologyState>()(
         set((state) => {
           if (!state.project?.ruleModel) return state;
           const normalizedRule = ensureRuleDefinitionRules(rule, state.project);
+          const existingRule = state.project.ruleModel.rules.find((r) => r.id === ruleId);
+          const mergedRule = {
+            ...normalizedRule,
+            version: rule.version !== undefined ? rule.version : (existingRule?.version ?? '1.0.0'),
+            status: rule.status !== undefined ? rule.status : (existingRule?.status ?? 'active'),
+          };
           return {
             project: {
               ...state.project,
               ruleModel: {
                 ...state.project.ruleModel,
                 rules: state.project.ruleModel.rules
-                  .map((r) => (r.id === ruleId ? normalizedRule : r))
+                  .map((r) => (r.id === ruleId ? mergedRule : r))
                   .sort((a, b) => (a.priority || 100) - (b.priority || 100)),
                 updatedAt: new Date().toISOString(),
               },

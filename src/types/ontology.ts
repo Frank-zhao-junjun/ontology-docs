@@ -338,6 +338,12 @@ export interface RuleCondition {
   customScript?: string;
 }
 
+export interface GrayscaleConfig {
+  enabled: boolean;
+  percentage: number;
+  targetScenarioIds?: string[];
+}
+
 export interface Rule {
   id: string;
   name: string;
@@ -350,6 +356,11 @@ export interface Rule {
   severity?: 'error' | 'warning' | 'info';
   enabled?: boolean;
   description?: string;
+  version?: string;
+  status?: 'draft' | 'active' | 'deprecated' | 'archived';
+  effectiveFrom?: string;
+  effectiveUntil?: string;
+  grayscale?: GrayscaleConfig;
   executionLogs?: RuleExecutionLog[];
 }
 

@@ -265,13 +265,29 @@ export interface Action {
   postEffects?: string[];
   executionType?: 'sync' | 'async' | 'approval';
   requiredRoles?: string[];
-  
+  sideEffects?: SideEffect[];
+
   // V1 State Transition backwards compatibility
   transition?: string;
   ruleRefs?: string[];
   template?: string;
   recipients?: string[];
   script?: string;
+}
+
+// ========== Side Effect (B07) ==========
+export interface RetryPolicy {
+  maxAttempts: number;
+  backoffMs: number;
+}
+
+export interface SideEffect {
+  id: string;
+  type: 'notification' | 'sync' | 'log' | 'webhook';
+  description?: string;
+  async: boolean;
+  retryPolicy?: RetryPolicy;
+  config?: Record<string, unknown>;
 }
 
 export interface FunctionDefinition {
@@ -303,6 +319,7 @@ export interface BehaviorModel {
   stateMachines: StateMachine[];
   actions?: Action[];
   functions?: FunctionDefinition[];
+  transactionBoundaries?: TransactionBoundary[];
   createdAt: string;
   updatedAt: string;
 }
@@ -338,6 +355,12 @@ export interface RuleCondition {
   customScript?: string;
 }
 
+export interface GrayscaleConfig {
+  enabled: boolean;
+  percentage: number;
+  targetScenarioIds?: string[];
+}
+
 export interface Rule {
   id: string;
   name: string;
@@ -350,6 +373,11 @@ export interface Rule {
   severity?: 'error' | 'warning' | 'info';
   enabled?: boolean;
   description?: string;
+  version?: string;
+  status?: 'draft' | 'active' | 'deprecated' | 'archived';
+  effectiveFrom?: string;
+  effectiveUntil?: string;
+  grayscale?: GrayscaleConfig;
   executionLogs?: RuleExecutionLog[];
 }
 
@@ -693,6 +721,42 @@ export interface DataSourcesModel {
 }
 
 // ========== 项目状态 ==========
+// ========== Transaction Boundary (B06) ==========
+export interface TransactionBoundary {
+  id: string;
+  name: string;
+  nameEn: string;
+  description?: string;
+  actionIds: string[];
+  aggregateRootIds: string[];
+  isolation: 'read_committed' | 'repeatable_read' | 'serializable';
+  compensationActionId?: string;
+}
+
+// ========== Business Metrics (B05) ==========
+export interface BusinessMetric {
+  id: string;
+  name: string;
+  nameEn: string;
+  description?: string;
+  formula: string;
+  unit: string;
+  targetValue?: number;
+  boundActionId: string;
+  measurementType: 'automatic' | 'manual';
+  dataSourceRef?: string;
+}
+
+export interface MetricsModel {
+  id: string;
+  name: string;
+  version: string;
+  domain: string;
+  metrics: BusinessMetric[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface OntologyProject {
   id: string;
   name: string;
@@ -706,6 +770,7 @@ export interface OntologyProject {
   epcModel?: EpcModel | null;
   governanceModel?: GovernanceModel | null;
   dataSourcesModel?: DataSourcesModel | null;
+  metricsModel?: MetricsModel | null;
   createdAt: string;
   updatedAt: string;
 }

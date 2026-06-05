@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { StateMachine, State, Transition, Action, FunctionDefinition } from '@/types/ontology';
+import type { StateMachine, State, Transition, Action, FunctionDefinition, TransactionBoundary } from '@/types/ontology';
+import { SideEffectSection } from './side-effect-section';
 
 interface BehaviorModelEditorProps {
   mode?: 'full' | 'entity-detail';
@@ -45,7 +46,7 @@ function getExecutionStatusLabel(status: 'success' | 'failed'): string {
 }
 
 export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEditorProps) {
-  const { project, addStateMachine, updateStateMachine, deleteStateMachine, addAction, updateAction, deleteAction, addFunction, updateFunction, deleteFunction } = useOntologyStore();
+  const { project, addStateMachine, updateStateMachine, deleteStateMachine, addAction, updateAction, deleteAction, addFunction, updateFunction, deleteFunction, addTransactionBoundary, updateTransactionBoundary, deleteTransactionBoundary } = useOntologyStore();
   const [selectedSmId, setSelectedSmId] = useState<string | null>(null);
   const [showStateDialog, setShowStateDialog] = useState(false);
   const [showTransitionDialog, setShowTransitionDialog] = useState(false);
@@ -55,7 +56,9 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
   const [showFunctionDialog, setShowFunctionDialog] = useState(false);
   const [editingAction, setEditingAction] = useState<Partial<Action>>({ parameters: [], preConditions: [], postEffects: [] });
   const [editingFunction, setEditingFunction] = useState<Partial<FunctionDefinition>>({ parameters: [] });
-  
+  const [showTbDialog, setShowTbDialog] = useState(false);
+  const [editingTb, setEditingTb] = useState<Partial<TransactionBoundary>>({ actionIds: [], aggregateRootIds: [] });
+
   const [editingState, setEditingState] = useState<Partial<State>>({});
   const [editingTransition, setEditingTransition] = useState<Partial<Transition>>({});
   const [newSmName, setNewSmName] = useState('');
@@ -269,6 +272,28 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
     }
     setEditingFunction({ parameters: [] });
     setShowFunctionDialog(false);
+  };
+
+  // TransactionBoundary handling
+  const handleSaveTb = () => {
+    if (!editingTb.name || !editingTb.nameEn) return;
+    const tbData: TransactionBoundary = {
+      id: editingTb.id || generateId(),
+      name: editingTb.name,
+      nameEn: editingTb.nameEn,
+      description: editingTb.description,
+      actionIds: editingTb.actionIds || [],
+      aggregateRootIds: editingTb.aggregateRootIds || [],
+      isolation: editingTb.isolation || 'read_committed',
+      compensationActionId: editingTb.compensationActionId,
+    };
+    if (editingTb.id) {
+      updateTransactionBoundary(editingTb.id, tbData);
+    } else {
+      addTransactionBoundary(tbData);
+    }
+    setEditingTb({ actionIds: [], aggregateRootIds: [] });
+    setShowTbDialog(false);
   };
 
   // Entity Detail Mode
@@ -721,6 +746,148 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
             )}
           </CardContent>
         </Card>
+
+        {/* Transaction Boundaries Section */}
+        <Card className="mt-4">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">事务边界 (Transaction Boundaries)</CardTitle>
+                <CardDescription>
+                  定义事务边界，确保数据一致性
+                </CardDescription>
+              </div>
+              <Dialog open={showTbDialog} onOpenChange={setShowTbDialog}>
+                <DialogTrigger asChild>
+                  <Button size="sm" onClick={() => setEditingTb({ actionIds: [], aggregateRootIds: [] })}>
+                    + 添加事务边界
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>{editingTb.id ? '编辑' : '新建'}事务边界</DialogTitle>
+                    <DialogDescription>定义事务边界，确保数据一致性</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>名称</Label>
+                        <Input
+                          value={editingTb.name || ''}
+                          onChange={(e) => setEditingTb({ ...editingTb, name: e.target.value })}
+                          placeholder="例如: 订单创建事务"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>标识 (英文)</Label>
+                        <Input
+                          value={editingTb.nameEn || ''}
+                          onChange={(e) => setEditingTb({ ...editingTb, nameEn: e.target.value })}
+                          placeholder="例如: orderCreation"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>描述</Label>
+                      <Textarea
+                        value={editingTb.description || ''}
+                        onChange={(e) => setEditingTb({ ...editingTb, description: e.target.value })}
+                        placeholder="事务边界的详细说明..."
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>隔离级别</Label>
+                      <Select
+                        value={editingTb.isolation || 'read_committed'}
+                        onValueChange={(v) => setEditingTb({ ...editingTb, isolation: v as TransactionBoundary['isolation'] })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="read_committed">读已提交</SelectItem>
+                          <SelectItem value="repeatable_read">可重复读</SelectItem>
+                          <SelectItem value="serializable">串行化</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>动作 ID 列表</Label>
+                      <Textarea
+                        value={formatLineList(editingTb.actionIds)}
+                        onChange={(e) => setEditingTb({ ...editingTb, actionIds: parseLineList(e.target.value) })}
+                        placeholder="一行一个动作 ID"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>聚合根 ID 列表</Label>
+                      <Textarea
+                        value={formatLineList(editingTb.aggregateRootIds)}
+                        onChange={(e) => setEditingTb({ ...editingTb, aggregateRootIds: parseLineList(e.target.value) })}
+                        placeholder="一行一个聚合根 ID"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>补偿动作 ID</Label>
+                      <Input
+                        value={editingTb.compensationActionId || ''}
+                        onChange={(e) => setEditingTb({ ...editingTb, compensationActionId: e.target.value })}
+                        placeholder="补偿动作的 ID"
+                      />
+                    </div>
+
+                    <Button onClick={handleSaveTb} className="w-full">
+                      {editingTb.id ? '保存' : '添加'}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {((project?.behaviorModel?.transactionBoundaries) || []).length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                <div className="text-2xl mb-2">⚡</div>
+                <p>暂无事务边界</p>
+                <p className="text-sm mt-1">定义事务边界以确保数据一致性</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {(project?.behaviorModel?.transactionBoundaries || []).map((tb) => (
+                  <div key={tb.id} className="flex items-center justify-between p-4 border rounded-lg hover:border-primary/50 transition-colors">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-foreground">{tb.name}</span>
+                        <span className="text-sm text-muted-foreground font-mono">{tb.nameEn}</span>
+                        <Badge variant="outline" className="bg-primary/5 text-primary">
+                          {tb.isolation === 'read_committed' ? '读已提交' : tb.isolation === 'repeatable_read' ? '可重复读' : '串行化'}
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {tb.actionIds?.length || 0} 动作
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {tb.aggregateRootIds?.length || 0} 聚合根
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{tb.description || '无描述'}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => { setEditingTb(tb); setShowTbDialog(true); }}>
+                        编辑
+                      </Button>
+                      <Button variant="ghost" size="sm" className="text-destructive" onClick={() => tb.id && deleteTransactionBoundary(tb.id)}>
+                        删除
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </TabsContent>
 
       <TabsContent value="actions" className="mt-4">
@@ -807,6 +974,11 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
                         placeholder="业务动作的详细说明..."
                       />
                     </div>
+                    
+                    <SideEffectSection 
+                      sideEffects={editingAction.sideEffects ?? []} 
+                      onChange={(se) => setEditingAction({...editingAction, sideEffects: se})} 
+                    />
                   </div>
                   <div className="flex justify-end gap-2 pt-4 border-t mt-4">
                     <Button variant="outline" onClick={() => setShowActionDialog(false)}>取消</Button>

@@ -47,6 +47,9 @@ import type {
   GovernanceAgentPolicy,
   DataSourcesModel,
   DataSourceDefinition,
+  MetricsModel,
+  BusinessMetric,
+  TransactionBoundary,
 } from '@/types/ontology';
 
 interface OntologyState {
@@ -141,6 +144,17 @@ interface OntologyState {
   addDataSource: (source: DataSourceDefinition) => void;
   updateDataSource: (sourceId: string, source: DataSourceDefinition) => void;
   deleteDataSource: (sourceId: string) => void;
+
+  // 业务指标层 (B05)
+  setMetricsModel: (model: MetricsModel | null) => void;
+  addMetric: (metric: BusinessMetric) => void;
+  updateMetric: (metricId: string, metric: Partial<BusinessMetric>) => void;
+  deleteMetric: (metricId: string) => void;
+
+  // 事务边界 (B06)
+  addTransactionBoundary: (boundary: TransactionBoundary) => void;
+  updateTransactionBoundary: (boundaryId: string, boundary: Partial<TransactionBoundary>) => void;
+  deleteTransactionBoundary: (boundaryId: string) => void;
 
   // EPC模型操作
   setEpcModel: (model: EpcModel) => void;
@@ -574,6 +588,7 @@ export const useOntologyStore = create<OntologyState>()(
       masterDataRecords: {},
       versions: [],
       activeModelType: null,
+      metricsModel: null,
       
       createProject: (name, domain, description) => {
         const now = new Date().toISOString();
@@ -1095,6 +1110,11 @@ export const useOntologyStore = create<OntologyState>()(
         set((state) => {
           if (!state.project) return state;
           const normalizedRule = ensureRuleDefinitionRules(rule, state.project);
+          const ruleWithDefaults = {
+            ...normalizedRule,
+            version: normalizedRule.version || '1.0.0',
+            status: normalizedRule.status || 'active',
+          };
           const currentModel = state.project.ruleModel || {
             id: generateId(),
             name: `${state.project.domain.name}规则模型`,
@@ -1109,7 +1129,7 @@ export const useOntologyStore = create<OntologyState>()(
               ...state.project,
               ruleModel: {
                 ...currentModel,
-                rules: [...currentModel.rules, normalizedRule]
+                rules: [...currentModel.rules, ruleWithDefaults]
                   .sort((a, b) => (a.priority || 100) - (b.priority || 100)),
                 updatedAt: new Date().toISOString(),
               },
@@ -1123,13 +1143,19 @@ export const useOntologyStore = create<OntologyState>()(
         set((state) => {
           if (!state.project?.ruleModel) return state;
           const normalizedRule = ensureRuleDefinitionRules(rule, state.project);
+          const existingRule = state.project.ruleModel.rules.find((r) => r.id === ruleId);
+          const mergedRule = {
+            ...normalizedRule,
+            version: rule.version !== undefined ? rule.version : (existingRule?.version ?? '1.0.0'),
+            status: rule.status !== undefined ? rule.status : (existingRule?.status ?? 'active'),
+          };
           return {
             project: {
               ...state.project,
               ruleModel: {
                 ...state.project.ruleModel,
                 rules: state.project.ruleModel.rules
-                  .map((r) => (r.id === ruleId ? normalizedRule : r))
+                  .map((r) => (r.id === ruleId ? mergedRule : r))
                   .sort((a, b) => (a.priority || 100) - (b.priority || 100)),
                 updatedAt: new Date().toISOString(),
               },
@@ -1676,6 +1702,151 @@ export const useOntologyStore = create<OntologyState>()(
               dataSourcesModel: {
                 ...state.project.dataSourcesModel,
                 sources: state.project.dataSourcesModel.sources.filter((s) => s.id !== sourceId),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      // 业务指标层操作 (B05)
+      setMetricsModel: (model) => {
+        set((state) => ({
+          project: state.project
+            ? { ...state.project, metricsModel: model, updatedAt: new Date().toISOString() }
+            : null,
+        }));
+      },
+
+      addMetric: (metric) => {
+        set((state) => {
+          if (!state.project) return state;
+          const now = new Date().toISOString();
+          const currentModel = state.project.metricsModel || {
+            id: generateId(),
+            name: `${state.project.domain.name}指标模型`,
+            version: '1.0.0',
+            domain: state.project.domain.id,
+            metrics: [],
+            createdAt: now,
+            updatedAt: now,
+          };
+          return {
+            project: {
+              ...state.project,
+              metricsModel: {
+                ...currentModel,
+                metrics: [...currentModel.metrics, metric],
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      updateMetric: (metricId, partialMetric) => {
+        set((state) => {
+          if (!state.project?.metricsModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              metricsModel: {
+                ...state.project.metricsModel,
+                metrics: state.project.metricsModel.metrics.map((m) =>
+                  m.id === metricId ? { ...m, ...partialMetric } : m
+                ),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      deleteMetric: (metricId) => {
+        set((state) => {
+          if (!state.project?.metricsModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              metricsModel: {
+                ...state.project.metricsModel,
+                metrics: state.project.metricsModel.metrics.filter((m) => m.id !== metricId),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      // 事务边界 (B06)
+      addTransactionBoundary: (boundary) => {
+        set((state) => {
+          if (!state.project) return state;
+          const now = new Date().toISOString();
+          const currentModel = state.project.behaviorModel || {
+            id: generateId(),
+            name: `${state.project.domain.name}行为模型`,
+            version: '1.0.0',
+            domain: state.project.domain.id,
+            stateMachines: [],
+            actions: [],
+            functions: [],
+            transactionBoundaries: [],
+            createdAt: now,
+            updatedAt: now,
+          };
+          return {
+            project: {
+              ...state.project,
+              behaviorModel: {
+                ...currentModel,
+                transactionBoundaries: [...(currentModel.transactionBoundaries || []), boundary],
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      updateTransactionBoundary: (boundaryId, partialBoundary) => {
+        set((state) => {
+          if (!state.project?.behaviorModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              behaviorModel: {
+                ...state.project.behaviorModel,
+                transactionBoundaries: (state.project.behaviorModel.transactionBoundaries || []).map((tb) =>
+                  tb.id === boundaryId ? { ...tb, ...partialBoundary } : tb
+                ),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      deleteTransactionBoundary: (boundaryId) => {
+        set((state) => {
+          if (!state.project?.behaviorModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              behaviorModel: {
+                ...state.project.behaviorModel,
+                transactionBoundaries: (state.project.behaviorModel.transactionBoundaries || []).filter(
+                  (tb) => tb.id !== boundaryId
+                ),
                 updatedAt: now,
               },
               updatedAt: now,

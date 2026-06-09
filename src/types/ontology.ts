@@ -266,13 +266,29 @@ export interface Action {
   postEffects?: string[];
   executionType?: 'sync' | 'async' | 'approval';
   requiredRoles?: string[];
-  
+  sideEffects?: SideEffect[];
+
   // V1 State Transition backwards compatibility
   transition?: string;
   ruleRefs?: string[];
   template?: string;
   recipients?: string[];
   script?: string;
+}
+
+// ========== Side Effect (B07) ==========
+export interface RetryPolicy {
+  maxAttempts: number;
+  backoffMs: number;
+}
+
+export interface SideEffect {
+  id: string;
+  type: 'notification' | 'sync' | 'log' | 'webhook';
+  description?: string;
+  async: boolean;
+  retryPolicy?: RetryPolicy;
+  config?: Record<string, unknown>;
 }
 
 export interface FunctionDefinition {
@@ -304,6 +320,7 @@ export interface BehaviorModel {
   stateMachines: StateMachine[];
   actions?: Action[];
   functions?: FunctionDefinition[];
+  transactionBoundaries?: TransactionBoundary[];
   createdAt: string;
   updatedAt: string;
 }
@@ -339,6 +356,12 @@ export interface RuleCondition {
   customScript?: string;
 }
 
+export interface GrayscaleConfig {
+  enabled: boolean;
+  percentage: number;
+  targetScenarioIds?: string[];
+}
+
 export interface Rule {
   id: string;
   name: string;
@@ -351,6 +374,11 @@ export interface Rule {
   severity?: 'error' | 'warning' | 'info';
   enabled?: boolean;
   description?: string;
+  version?: string;
+  status?: 'draft' | 'active' | 'deprecated' | 'archived';
+  effectiveFrom?: string;
+  effectiveUntil?: string;
+  grayscale?: GrayscaleConfig;
   executionLogs?: RuleExecutionLog[];
 }
 
@@ -626,7 +654,110 @@ export interface ModelingManual {
   generatedAt: string;
 }
 
+// ========== 治理层（Manifest spec.governance）==========
+export type GovernancePermissionOp = 'READ' | 'WRITE' | 'EXECUTE' | 'DELETE';
+
+export interface GovernanceRolePermission {
+  objectTypeId: string;
+  ops: GovernancePermissionOp[];
+  denyActionIds?: string[];
+}
+
+export interface GovernanceRole {
+  id: string;
+  name: string;
+  permissions: GovernanceRolePermission[];
+}
+
+export interface GovernanceFieldPermission {
+  objectTypeId: string;
+  propertyNameEn: string;
+  allowedRoleIds: string[];
+}
+
+export interface GovernanceAgentPolicy {
+  id: string;
+  roleId: string;
+  manifestVersion?: string;
+  allowedMcpTools?: string[];
+  allowedAggregateRootIds?: string[];
+  allowedActionIds?: string[];
+  defaultDeny?: boolean;
+}
+
+export interface GovernanceModel {
+  id: string;
+  roles: GovernanceRole[];
+  fieldPermissions: GovernanceFieldPermission[];
+  agentPolicies: GovernanceAgentPolicy[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ========== 数据源层（Manifest spec.dataSources）==========
+export type DataSourceType = 'api' | 'database' | 'file';
+
+export interface DataSourceApiConfig {
+  baseUrl?: string;
+  entitySet?: string;
+  /** 仅 SecretRef，禁止明文密钥（V10） */
+  authSecretRef: string;
+}
+
+export interface DataSourceDefinition {
+  id: string;
+  name: string;
+  type: DataSourceType;
+  boundObjectTypeId?: string;
+  api?: DataSourceApiConfig;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DataSourcesModel {
+  id: string;
+  sources: DataSourceDefinition[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ========== 项目状态 ==========
+// ========== Transaction Boundary (B06) ==========
+export interface TransactionBoundary {
+  id: string;
+  name: string;
+  nameEn: string;
+  description?: string;
+  actionIds: string[];
+  aggregateRootIds: string[];
+  isolation: 'read_committed' | 'repeatable_read' | 'serializable';
+  compensationActionId?: string;
+}
+
+// ========== Business Metrics (B05) ==========
+export interface BusinessMetric {
+  id: string;
+  name: string;
+  nameEn: string;
+  description?: string;
+  formula: string;
+  unit: string;
+  targetValue?: number;
+  boundActionId: string;
+  measurementType: 'automatic' | 'manual';
+  dataSourceRef?: string;
+}
+
+export interface MetricsModel {
+  id: string;
+  name: string;
+  version: string;
+  domain: string;
+  metrics: BusinessMetric[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface OntologyProject {
   id: string;
   name: string;
@@ -638,6 +769,9 @@ export interface OntologyProject {
   processModel: ProcessModel | null; // 兼容保留字段
   eventModel: EventModel | null;
   epcModel?: EpcModel | null;
+  governanceModel?: GovernanceModel | null;
+  dataSourcesModel?: DataSourcesModel | null;
+  metricsModel?: MetricsModel | null;
   createdAt: string;
   updatedAt: string;
 }

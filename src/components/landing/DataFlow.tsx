@@ -9,7 +9,6 @@ import {
   FileCode,
   Cpu,
   Container,
-  HardDrive,
   Save
 } from 'lucide-react';
 
@@ -20,9 +19,7 @@ const DataFlow = () => {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const phase1Ref = useRef<HTMLDivElement>(null);
   const phase2Ref = useRef<HTMLDivElement>(null);
-  const phase3Ref = useRef<HTMLDivElement>(null);
   const arrow1Ref = useRef<HTMLDivElement>(null);
-  const arrow2Ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -94,39 +91,6 @@ const DataFlow = () => {
         }
       );
 
-      // Arrow 2 animation
-      gsap.fromTo(
-        arrow2Ref.current,
-        { scaleX: 0, opacity: 0 },
-        {
-          scaleX: 1,
-          opacity: 1,
-          duration: 0.5,
-          ease: 'expo.out',
-          scrollTrigger: {
-            trigger: arrow2Ref.current,
-            start: 'top 75%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
-
-      // Phase 3 animation
-      gsap.fromTo(
-        phase3Ref.current,
-        { x: 100, opacity: 0 },
-        {
-          x: 0,
-          opacity: 1,
-          duration: 0.7,
-          ease: 'expo.out',
-          scrollTrigger: {
-            trigger: phase3Ref.current,
-            start: 'top 75%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
     }, sectionRef);
 
     return () => ctx.revert();
@@ -148,14 +112,6 @@ const DataFlow = () => {
     { icon: Container, label: 'Docker配置' },
   ];
 
-  const runtimeComponents = [
-    { icon: Database, label: 'SQLite数据库' },
-    { icon: Server, label: 'Flask REST API' },
-    { icon: FileCode, label: 'React前端' },
-    { icon: Cpu, label: 'AI编排器服务' },
-    { icon: Container, label: 'Docker容器' },
-  ];
-
   return (
     <section
       ref={sectionRef}
@@ -171,7 +127,7 @@ const DataFlow = () => {
         </h2>
 
         {/* Data Flow Diagram */}
-        <div className="flex flex-col lg:flex-row items-stretch gap-6">
+        <div className="max-w-5xl mx-auto flex flex-col lg:flex-row items-stretch gap-6">
           {/* Phase 1: Modeling */}
           <div
             ref={phase1Ref}
@@ -249,50 +205,6 @@ const DataFlow = () => {
             </div>
           </div>
 
-          {/* Arrow 2 */}
-          <div
-            ref={arrow2Ref}
-            className="hidden lg:flex items-center justify-center"
-            style={{ transformOrigin: 'left center' }}
-          >
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-16 h-1 bg-gradient-to-r from-[#171717] to-[#ff6e00] rounded-full"/>
-              <span className="text-xs text-[#b7b7b7]">加载</span>
-            </div>
-          </div>
-
-          {/* Phase 3: Runtime */}
-          <div
-            ref={phase3Ref}
-            className="flex-1 bg-gradient-to-br from-[#ff6e00]/5 to-[#171717]/5 rounded-2xl p-6"
-          >
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#ff6e00] to-[#171717] flex items-center justify-center">
-                <Server className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="heading-5 text-[#171717]">运行期（运行时）</h3>
-                <p className="text-sm text-[#b7b7b7]">Runtime Phase</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              {runtimeComponents.map((comp, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-2 p-3 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <comp.icon className="w-4 h-4 text-[#ff6e00]" />
-                  <span className="text-sm text-[#171717]">{comp.label}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4 p-3 bg-white/50 rounded-lg flex items-center gap-2">
-              <HardDrive className="w-4 h-4 text-[#b7b7b7]" />
-              <span className="text-sm text-[#b7b7b7]">文件监听热载 + 元模型缓存</span>
-            </div>
-          </div>
         </div>
       </div>
     </section>

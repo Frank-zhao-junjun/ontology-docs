@@ -173,8 +173,8 @@ const Hero = () => {
 
           {/* Description */}
           <p ref={descRef} className="body-text text-[#171717]/70 max-w-2xl mx-auto mb-10">
-            涵盖从建模工具到运行时框架的完整演进路径。实施完成后，系统将具备
-            <span className="text-[#ff6e00] font-medium">&quot;本体抽象→模型共识→AI生成底座+AI动态运行&quot;</span>
+            聚焦建模工具与发布能力的完整演进路径。实施完成后，系统将具备
+            <span className="text-[#ff6e00] font-medium">&quot;本体抽象→模型共识→AI辅助建模+版本化发布&quot;</span>
             的完整闭环能力。
           </p>
 

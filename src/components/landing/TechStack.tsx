@@ -100,7 +100,7 @@ const TechStack = () => {
       description: 'AI & Deployment',
       technologies: [
         { name: 'OpenAI/DeepSeek', desc: 'Function Calling' },
-        { name: 'Docker Compose', desc: '一键启动' },
+        { name: '版本化代码包', desc: '发布与交付' },
       ],
       color: '#10B981',
     },

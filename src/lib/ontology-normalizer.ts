@@ -1,4 +1,8 @@
 import { normalizeEntityRoleFields, normalizeOntologyProjectEntityRoles } from '@/lib/entity-role';
+import {
+  createEmptyDataSourcesModel,
+  createEmptyGovernanceModel,
+} from '@/lib/ontology-layer-defaults';
 import type { Attribute, AttributeDataType, AttributeReferenceKind, BusinessScenario, Entity, OntologyProject } from '@/types/ontology';
 
 type LegacyAttribute = Partial<Attribute> & {
@@ -104,17 +108,23 @@ export function normalizeEntity(entity: LegacyEntity, scenarios: BusinessScenari
 export function normalizeOntologyProject(project: OntologyProject): OntologyProject {
   const roleNormalized = normalizeOntologyProjectEntityRoles(project);
 
-  if (!roleNormalized.dataModel) {
-    return roleNormalized;
+  const withLayers = {
+    ...roleNormalized,
+    governanceModel: roleNormalized.governanceModel ?? createEmptyGovernanceModel(),
+    dataSourcesModel: roleNormalized.dataSourcesModel ?? createEmptyDataSourcesModel(),
+  };
+
+  if (!withLayers.dataModel) {
+    return withLayers;
   }
 
-  const scenarios = roleNormalized.dataModel.businessScenarios || [];
+  const scenarios = withLayers.dataModel.businessScenarios || [];
 
   return {
-    ...roleNormalized,
+    ...withLayers,
     dataModel: {
-      ...roleNormalized.dataModel,
-      entities: roleNormalized.dataModel.entities.map((entity) => normalizeEntity(entity, scenarios)),
+      ...withLayers.dataModel,
+      entities: withLayers.dataModel.entities.map((entity) => normalizeEntity(entity, scenarios)),
     },
   };
 }

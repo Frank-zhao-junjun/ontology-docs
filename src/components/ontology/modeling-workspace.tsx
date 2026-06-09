@@ -26,6 +26,10 @@ import { ManualGenerator } from './manual-generator';
 import { MetadataManager } from './metadata-manager';
 import { MasterDataManager } from './masterdata-manager';
 import { PublishDialog } from './publish-dialog';
+import { ManifestExportDialog } from './manifest-export-dialog';
+import { GovernanceEditor } from './governance-editor';
+import { DataSourceEditor } from './data-source-editor';
+import { MetricsEditor } from './metrics-editor';
 import { updateProject, deleteProject } from '@/services/project-service';
 import type { OntologyProject, Entity, EntityProject, BusinessScenario } from '@/types/ontology';
 
@@ -106,6 +110,14 @@ interface ModelingWorkspaceProps {
 }
 
 type ModelType = 'data' | 'behavior' | 'rule' | 'event' | 'epc';
+type WorkspaceScope = 'entity' | 'metrics' | 'governance' | 'dataSources';
+
+const PROJECT_LAYER_TABS: { id: WorkspaceScope; label: string; icon: string }[] = [
+  { id: 'entity', label: '实体建模', icon: '🏗️' },
+  { id: 'metrics', label: '指标', icon: '📊' },
+  { id: 'governance', label: '治理', icon: '🛡️' },
+  { id: 'dataSources', label: '数据源', icon: '🔌' },
+];
 
 const MODEL_TABS = [
   { id: 'data' as ModelType, label: '数据模型', icon: '🗄️' },
@@ -139,6 +151,7 @@ export function ModelingWorkspace({ project }: ModelingWorkspaceProps) {
   const { resetProject, exportProject, addEntityProject, addEntity, clearAllModels } = useOntologyStore();
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
+  const [workspaceScope, setWorkspaceScope] = useState<WorkspaceScope>('entity');
   const [activeTab, setActiveTab] = useState<ModelType>('data');
   const [showManual, setShowManual] = useState(false);
   const [showMetadata, setShowMetadata] = useState(false);
@@ -558,6 +571,20 @@ export function ModelingWorkspace({ project }: ModelingWorkspaceProps) {
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground">{project.domain.name}</p>
+              <div className="flex items-center gap-1 ml-4 border-l pl-4">
+                {PROJECT_LAYER_TABS.map((tab) => (
+                  <Button
+                    key={tab.id}
+                    type="button"
+                    size="sm"
+                    variant={workspaceScope === tab.id ? 'default' : 'outline'}
+                    onClick={() => setWorkspaceScope(tab.id)}
+                  >
+                    <span className="mr-1">{tab.icon}</span>
+                    {tab.label}
+                  </Button>
+                ))}
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" onClick={() => setShowMetadata(true)}>
@@ -566,9 +593,10 @@ export function ModelingWorkspace({ project }: ModelingWorkspaceProps) {
               <Button variant="outline" onClick={() => setShowMasterData(true)}>
                 📊 主数据管理
               </Button>
+              <ManifestExportDialog project={project} />
               <PublishDialog />
               <Button variant="outline" onClick={handleExport}>
-                导出项目
+                导出 JSON 备份
               </Button>
               {selectedEntityId && relatedModels?.entity ? (
                 <Button onClick={() => setShowManual(true)} className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
@@ -1121,9 +1149,24 @@ export function ModelingWorkspace({ project }: ModelingWorkspaceProps) {
           </div>
         </div>
 
-        {/* Right Content - Entity Models */}
+        {/* Right Content */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {selectedEntityId && relatedModels?.entity ? (
+          {workspaceScope === 'metrics' ? (
+            <div className="flex-1 overflow-auto p-6">
+              <h2 className="text-lg font-semibold mb-4">指标 (metrics)</h2>
+              <MetricsEditor />
+            </div>
+          ) : workspaceScope === 'governance' ? (
+            <div className="flex-1 overflow-auto p-6">
+              <h2 className="text-lg font-semibold mb-4">治理层 (governance)</h2>
+              <GovernanceEditor />
+            </div>
+          ) : workspaceScope === 'dataSources' ? (
+            <div className="flex-1 overflow-auto p-6">
+              <h2 className="text-lg font-semibold mb-4">数据源 (dataSources)</h2>
+              <DataSourceEditor />
+            </div>
+          ) : selectedEntityId && relatedModels?.entity ? (
             (() => {
               const entity = relatedModels.entity;
               return (

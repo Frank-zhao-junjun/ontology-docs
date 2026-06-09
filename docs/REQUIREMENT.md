@@ -1,10 +1,10 @@
-涵盖从建模工具到运行时框架的完整演进路径。实施完成后，系统将具备"本体抽象→模型共识→AI生成底座+AI动态运行"的完整闭环能力
+涵盖从建模工具到交付加载体系的完整演进路径。实施完成后，系统将具备"本体抽象→模型共识→AI生成底座+AI动态运行"的完整闭环能力
 本体模型+AI驱动系统 演进路线图
 Ontology-Driven Metamodeling & Hybrid AI Execution Framework
 Implementation Roadmap v1.1
 版本：基于6议题确认决策 + AI代理框架集成
 日期：2026-04-19
-状态：从建模工具演进为运行时框架 + AI代理能力增强
+状态：从建模工具演进为交付加载体系 + AI代理能力增强
 一、架构演进总览
 1.1 双系统架构
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -12,28 +12,28 @@ Implementation Roadmap v1.1
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
 │  ┌─────────────────────────────┐      ┌─────────────────────────────┐  │
-│  │      系统A：建模工具         │      │      系统B：运行时框架        │  │
-│  │   (Ontology Modeling Tool)  │ ────→│   (Ontology Runtime Engine)   │  │
+│  │      系统A：建模工具         │      │      系统B：交付加载        │  │
+│  │   (Ontology Modeling Tool)  │ ────→│   (Ontology Delivery Engine)   │  │
 │  │                             │ 发布   │                             │  │
-│  │  • 部署：Coze Studio        │──────→│  • 部署：Docker Compose       │  │
-│  │  • 技术：Next.js 16         │ 版本   │  • 技术：React+Vite+Flask    │  │
+│  │  • 部署：Coze Studio        │──────→│  • 部署：版本化代码包       │  │
+│  │  • 技术：Next.js 16         │ 版本   │  • 技术：Config Loader + Validation Service    │  │
 │  │  • 功能：五大元模型可视化编辑 │      │  • 功能：自然语言操作业务数据   │  │
-│  │  • AI：设计时辅助生成        │      │  • AI：运行时动态编排执行       │  │
+│  │  • AI：设计时辅助生成        │      │  • AI：交付加载动态编排执行       │  │
 │  │                             │      │                             │  │
-│  │  用户：业务架构师/系统设计师  │      │  用户：业务操作员/最终用户      │  │
+│  │  用户：业务架构师/系统设计师  │      │  用户：交付工程师/验证人员      │  │
 │  └─────────────────────────────┘      └─────────────────────────────┘  │
 │                                                                         │
 │  ┌─────────────────────────────────────────────────────────────────────┐ │
 │  │                         桥接机制：版本发布                           │ │
 │  │  建模工具"发布"按钮 → 生成代码包（React+Flask+SQLite）→ Docker启动   │ │
-│  │  版本管理：建模工具保存多版本 → 运行时选择版本切换                      │ │
+│  │  版本管理：建模工具保存多版本 → 交付加载选择版本切换                      │ │
 │  └─────────────────────────────────────────────────────────────────────┘ │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 1.2 数据流转架构
-建模期（设计时）                    发布                    运行期（运行时）
+建模期（设计时）                    发布                    交付期（加载）
 ┌─────────────────┐            ┌─────────────┐            ┌─────────────────┐
-│   可视化编辑器    │───────────→│  版本化代码包  │───────────→│   运行时引擎      │
+│   可视化编辑器    │───────────→│  版本化代码包  │───────────→│   交付加载引擎      │
 │                 │   生成     │             │   加载      │                 │
 │ • 数据模型定义   │            │ • SQLite DDL │            │ • SQLite数据库   │
 │ • 行为模型定义   │            │ • Flask API  │            │ • Flask REST API │
@@ -103,7 +103,7 @@ interface ProjectVersion {
 interface PublishConfig {
   target: 'local' | 'remote';  // 本地Docker或远程服务器
   includeData: boolean;        // 是否包含示例数据
-  aiAgentEnabled: boolean;   // 是否启用AI运行时
+  aiAgentEnabled: boolean;   // 是否启用AI交付加载
 }
 2.2.2 发布流程UI
 建模工作台新增"发布"按钮：
@@ -127,8 +127,8 @@ interface PublishConfig {
 │  │                                                    │  │
 │  │  发布选项：                                         │  │
 │  │  ☑ 包含示例数据                                     │  │
-│  │  ☑ 启用AI运行时助手                                  │  │
-│  │  ☑ 生成Docker Compose配置                           │  │
+│  │  ☑ 启用AI交付加载助手                                  │  │
+│  │  ☑ 生成版本化代码包配置                           │  │
 │  │                                                    │  │
 │  │  目标： ○ 本地Docker  ○ 下载代码包                   │  │
 │  │                                                    │  │
@@ -157,7 +157,7 @@ contract-management-v1.0.0/
 │   │   ├── state_machine.py    # 状态机接口
 │   │   ├── rules.py            # 规则校验接口
 │   │   └── agent.py            # AI编排器接口
-│   ├── ai/                     # AI运行时
+│   ├── ai/                     # AI交付加载
 │   │   ├── orchestrator.py     # 编排器
 │   │   ├── intent_analyzer.py  # 意图识别
 │   │   ├── tool_executor.py    # 工具执行
@@ -204,7 +204,7 @@ contract-management-v1.0.0/
 │   │   │   ├── agentApi.ts     # AI编排器API
 │   │   │   └── versionApi.ts   # 版本管理
 │   │   └── store/              # 状态管理
-│   │       └── runtimeStore.ts # 运行时状态
+│   │       └── deliveryStore.ts # 交付加载状态
 │   └── public/
 └── database/                   # 数据库
     ├── init.sql                # 初始化脚本
@@ -259,7 +259,7 @@ class ${entity.nameEn}(Base):
   // 生成AI编排器Prompt模板
   generateAIAgent(metamodels: Metamodels): string {
     return `
-# 系统Prompt模板（运行时）
+# 系统Prompt模板（交付加载）
 你是一个${metamodels.data.domain}领域的业务助手。
 
 【数据模型】（按需注入）
@@ -279,7 +279,7 @@ class ${entity.nameEn}(Base):
 `.trim();
   }
 }
-三、系统B：运行时框架（新增）
+三、系统B：交付加载（新增）
 3.1 技术栈确认
 表格
 层级	技术	版本	说明
@@ -291,7 +291,7 @@ class ${entity.nameEn}(Base):
 ORM	SQLAlchemy	2.0+	动态模型映射
 数据库	SQLite	3.x	单文件，零配置
 AI SDK	OpenAI/DeepSeek	-	Function Calling
-部署	Docker Compose	-	一键启动
+部署	版本化代码包	-	一键启动
 3.2 三栏式布局实现
 TypeScript
 复制
@@ -299,10 +299,10 @@ TypeScript
 const ThreeColumnLayout: React.FC = () => {
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
-  const { currentView, focusEntity } = useRuntimeStore();
+  const { currentView, focusEntity } = useDeliveryStore();
 
   return (
-    <Layout className="runtime-layout">
+    <Layout className="delivery-layout">
       {/* 左栏：对话 */}
       <Sider 
         width={280} 
@@ -508,9 +508,9 @@ const CenterPanel: React.FC<{ view: ViewType }> = ({ view }) => {
 4.1 版本管理流程
 plain
 复制
-建模工具（Coze Studio）                    运行时（本地Docker）
+建模工具（Coze Studio）                    交付加载（本地Docker）
 ┌─────────────────┐                        ┌─────────────────┐
-│   设计时编辑     │                        │   运行时操作     │
+│   设计时编辑     │                        │   交付加载操作     │
 │                 │                        │                 │
 │  v1.0.0（草稿）  │─────[发布]────────────→│  选择版本运行   │
 │    ↓ 修改       │   生成代码包            │    v1.0.0      │
@@ -521,10 +521,10 @@ plain
 │  v1.1.0（草稿）  │─────[发布]────────────→│  并存多版本     │
 │                 │                        │  v1.0.1 & v1.1.0│
 └─────────────────┘                        └─────────────────┘
-4.2 运行时版本切换UI
+4.2 交付加载版本切换UI
 plain
 复制
-运行时系统Header新增版本选择：
+交付加载系统Header新增版本选择：
 ┌─────────────────────────────────────────────────────────┐
 │  [系统名称]  [当前实体: 合同]    版本: [v1.0.1 ▼]  [用户] │
 │                                         ↑              │
@@ -542,28 +542,28 @@ plain
 M1	Week 1-4	建模工具增强	版本管理功能、发布对话框
 M2	Week 5-8	代码生成器	后端生成器（Flask模型/API）、前端生成器（React组件）
 M3	Week 9-12	AI编排器	意图识别、按需注入、混合格式Prompt、工具执行
-M4	Week 13-16	运行时框架	三栏式布局、6种数据视图、对话界面
+M4	Week 13-16	交付加载体系	三栏式布局、6种数据视图、对话界面
 M5	Week 17-20	自愈机制	错误捕获、修正循环、详细展示、日志记录
 M6	Week 21-24	集成测试	端到端测试、文档、部署优化
 5.2 验收标准
 表格
 场景	验收标准
-版本发布	建模工具点击"发布"→生成代码包→Docker Compose启动→浏览器访问运行时
-自然语言查询	运行时输入"列出张三的合同"→AI生成SQL→返回表格数据→右栏自动显示"张三"上下文
-自然语言分析	运行时输入"按部门统计合同金额"→AI生成饼图配置→中栏显示ECharts饼图（静态展示）
-自然语言操作	运行时输入"将合同2025-001状态改为生效"→AI调用Skill→状态变更成功
-自愈机制	运行时输入错误字段名→AI首次SQL失败→自动修正→成功执行→详细展示修正过程
-版本切换	运行时界面切换至v1.0.0→数据模型回退→操作旧版本数据
+版本发布	建模工具点击"发布"→生成代码包→版本化代码包启动→浏览器访问交付加载
+自然语言查询	在交付加载中输入"列出张三的合同"→AI生成SQL→返回表格数据→右栏自动显示"张三"上下文
+自然语言分析	在交付加载中输入"按部门统计合同金额"→AI生成饼图配置→中栏显示ECharts饼图（静态展示）
+自然语言操作	在交付加载中输入"将合同2025-001状态改为生效"→AI调用Skill→状态变更成功
+自愈机制	在交付加载中输入错误字段名→AI首次SQL失败→自动修正→成功执行→详细展示修正过程
+版本切换	交付加载界面切换至v1.0.0→数据模型回退→操作旧版本数据
 六、技术风险与缓解
 表格
 风险	可能性	影响	缓解策略
 Coze Studio生成代码包大小限制	中	高	分模块生成，按需下载
-运行时AI响应延迟（>5秒）	中	中	本地缓存元模型，优化Prompt长度
+交付加载AI响应延迟（>5秒）	中	中	本地缓存元模型，优化Prompt长度
 SQLite并发性能瓶颈（>5用户）	低	中	文档明确1-5用户限制，后续迁移PostgreSQL
 自愈机制循环修正失败	中	低	最多2次限制，详细展示后人工介入
 版本兼容性（模型变更）	中	高	版本号语义化，重大变更升主版本
 七、附录：核心接口定义
-7.1 建模工具→运行时API
+7.1 建模工具→交付加载API
 TypeScript
 复制
 // 发布接口
@@ -584,7 +584,7 @@ Response: {
 // 版本列表
 GET /api/versions?projectId=xxx
 Response: ProjectVersion[]
-7.2 运行时AI编排API
+7.2 交付加载AI编排API
 TypeScript
 复制
 // AI执行接口
@@ -603,3 +603,5 @@ Response: {
   contextUpdates: ContextUpdate;
   healingLog?: HealingLog[];  // 如有自愈过程
 }
+
+

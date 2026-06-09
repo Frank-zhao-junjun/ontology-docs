@@ -15,7 +15,7 @@ AI引擎层规格
 实施路线图
 1. 文档概述
 1.1 文档目的
-本规格说明书定义"本体模型+AI驱动的原生应用系统"的完整需求，该系统是一个通用企业级应用框架，通过四大元模型（数据、行为、规则、流程）构建业务本体抽象，让AI贯穿"生成期（Auto-Dev）"与"运行期（Runtime）"全生命周期。
+本规格说明书定义"本体模型+AI驱动的原生应用系统"的完整需求，该系统是一个通用企业级应用框架，通过四大元模型（数据、行为、规则、流程）构建业务本体抽象，让AI贯穿"生成期（Auto-Dev）"与"交付期（Delivery）"全生命周期。
 1.2 目标读者
 系统架构师
 后端/前端工程师
@@ -28,7 +28,7 @@ AI/算法工程师
 Metamodel（元模型）	描述业务本体结构的模型，包含数据、行为、规则、流程四类
 Ontology（本体）	领域概念的显式规范，包括实体、属性、关系、约束
 Skill（领域技能）	后端封装的业务能力单元，对应特定领域操作
-Agent（智能编排器）	运行时决策中枢，集成意图分析、LLM策略、工具调用
+Agent（智能编排器）	交付加载决策中枢，集成意图分析、LLM策略、工具调用
 Hybrid UI（混合交互）	自然语言界面（NLI）与结构化UI（GUI）的双模融合
 Auto-Dev（生成期）	基于元模型自动生成代码的开发阶段
 Semantic Injection（语义注入）	将元模型定义注入AI系统Prompt的机制
@@ -87,7 +87,7 @@ plain
 表格
 阶段	名称	核心机制	输出产物
 生成期	Auto-Dev	AI读取元模型 → 生成代码	DB Schema、Python实体类、Service层、React组件
-运行期	Semantic Enrichment	元模型注入Prompt → AI动态决策	SQL查询、Skill调用、UI指令、可视化配置
+交付期	Semantic Enrichment	元模型注入Prompt → AI动态决策	SQL查询、Skill调用、UI指令、可视化配置
 3. 元模型层详细规格
 3.1 元模型通用结构
 所有元模型采用统一的元元模型（Meta-metamodel）定义：
@@ -104,7 +104,7 @@ Metamodel:
   updated_at: datetime
 3.2 数据模型（Data Model）
 3.2.1 核心能力
-全动态实体定义：运行时创建新实体类型，无需代码变更
+全动态实体定义：交付加载创建新实体类型，无需代码变更
 属性类型系统：支持基础类型、引用类型、集合类型
 关系定义：一对一、一对多、多对多关系，支持级联操作
 3.2.2 Schema定义
@@ -174,10 +174,10 @@ DataModel:
     - entity: "contract"
       fields: ["customer_id", "sign_date"]
       type: "btree"
-3.2.3 动态实体运行时机制
+3.2.3 动态实体交付加载机制
 Python
 复制
-# 运行时实体注册伪代码
+# 交付加载实体注册伪代码
 class DynamicEntityRegistry:
     def register_entity(self, entity_def: DataEntity):
         # 1. 创建SQLite表（若不存在）
@@ -295,7 +295,7 @@ BehaviorModel:
           action_type: "notify"
           template: "contract_activated"
           recipients: ["customer.contact_email", "created_by.email"]
-3.3.3 运行时状态机引擎
+3.3.3 交付加载状态机引擎
 Python
 复制
 class SimpleStateMachine:
@@ -486,7 +486,7 @@ ProcessModel:
           - insight_generation: "分析结果并生成见解"
           - visualization: "根据数据类型选择图表（ECharts/Mermaid）"
           - presentation: "格式化输出到对话流"
-3.5.3 AI编排器运行时
+3.5.3 AI编排器交付加载
 详见第4章。
 4. AI引擎层规格
 4.1 AI编排器（Agent Orchestrator）架构
@@ -1422,3 +1422,4 @@ process_model:
           - skill: "contract_service.create"
           - ui: "OPEN_TAB:contract_detail"
 文档结束
+

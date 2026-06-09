@@ -11,6 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { Rule, RuleType, RuleCondition } from '@/types/ontology';
 
 interface RuleModelEditorProps {
@@ -81,6 +83,11 @@ export function RuleModelEditor({ mode = 'full', entityId }: RuleModelEditorProp
       severity: editingRule.severity || 'error',
       enabled: editingRule.enabled !== false,
       description: editingRule.description,
+      version: editingRule.version || '1.0.0',
+      status: editingRule.status || 'draft',
+      effectiveFrom: editingRule.effectiveFrom,
+      effectiveUntil: editingRule.effectiveUntil,
+      grayscale: editingRule.grayscale,
     };
     addRule(newRule);
     setEditingRule({});
@@ -338,6 +345,108 @@ export function RuleModelEditor({ mode = 'full', entityId }: RuleModelEditorProp
                         placeholder="规则用途说明"
                       />
                     </div>
+
+                    <Separator />
+
+                    <Accordion type="single" collapsible>
+                      <AccordionItem value="version-lifecycle">
+                        <AccordionTrigger className="text-sm font-medium">
+                          版本与生命周期
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-4 pt-2">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label>版本号</Label>
+                                <Input
+                                  value={editingRule.version || '1.0.0'}
+                                  onChange={(e) => setEditingRule({ ...editingRule, version: e.target.value })}
+                                  placeholder="1.0.0"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label>状态</Label>
+                                <Select
+                                  value={editingRule.status || 'draft'}
+                                  onValueChange={(v) => setEditingRule({ ...editingRule, status: v as Rule['status'] })}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="draft">草稿</SelectItem>
+                                    <SelectItem value="active">生效中</SelectItem>
+                                    <SelectItem value="deprecated">已废弃</SelectItem>
+                                    <SelectItem value="archived">已归档</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label>生效日期</Label>
+                                <Input
+                                  type="date"
+                                  value={editingRule.effectiveFrom || ''}
+                                  onChange={(e) => setEditingRule({ ...editingRule, effectiveFrom: e.target.value })}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label>失效日期</Label>
+                                <Input
+                                  type="date"
+                                  value={editingRule.effectiveUntil || ''}
+                                  onChange={(e) => setEditingRule({ ...editingRule, effectiveUntil: e.target.value })}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2">
+                                <Checkbox
+                                  id="grayscale-enabled"
+                                  checked={editingRule.grayscale?.enabled || false}
+                                  onCheckedChange={(checked) =>
+                                    setEditingRule({
+                                      ...editingRule,
+                                      grayscale: {
+                                        ...(editingRule.grayscale || { enabled: false, percentage: 0 }),
+                                        enabled: !!checked,
+                                      },
+                                    })
+                                  }
+                                />
+                                <Label htmlFor="grayscale-enabled" className="cursor-pointer">
+                                  启用灰度发布
+                                </Label>
+                              </div>
+                              {editingRule.grayscale?.enabled && (
+                                <div className="space-y-2 pl-6">
+                                  <Label>灰度比例 (%)</Label>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    value={editingRule.grayscale.percentage || 0}
+                                    onChange={(e) =>
+                                      setEditingRule({
+                                        ...editingRule,
+                                        grayscale: {
+                                          ...editingRule.grayscale!,
+                                          percentage: Math.max(0, Math.min(100, Number(e.target.value) || 0)),
+                                        },
+                                      })
+                                    }
+                                    placeholder="0-100"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
 
                     <Button onClick={handleAddRule} className="w-full">
                       添加规则

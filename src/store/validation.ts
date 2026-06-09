@@ -1,10 +1,8 @@
 import type {
   OntologyProject, Entity, StateMachine, Rule, EventDefinition, Subscription,
-  TriggerExecutionLog
 } from '@/types/ontology';
 import { resolveEntityRole } from '@/lib/entity-role';
 import { normalizeEntity } from '@/lib/ontology-normalizer';
-import { MAX_BUSINESS_SCENARIOS_PER_PROJECT } from '@/lib/business-scenario';
 
 export const generateId = () => Math.random().toString(36).substring(2, 15);
 

@@ -20,6 +20,7 @@ export interface ProjectVersion {
     };
   };
   createdAt: string;
+  updatedAt?: string;
   publishedAt?: string;
   status: 'draft' | 'published' | 'archived';
 }

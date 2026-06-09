@@ -114,10 +114,10 @@ const Roadmap = () => {
     {
       phase: 'M4',
       weeks: 'Week 13-16',
-      title: '运行时框架',
-      description: '三栏式布局、6种数据视图、对话界面、版本切换',
+      title: '交付加载能力',
+      description: '发布物校验、配置检查、演示视图与回归验证',
       icon: Layout,
-      deliverables: ['三栏式布局', '6种数据视图', '版本切换'],
+      deliverables: ['发布物校验', '配置检查', '回归验证'],
       status: 'pending',
     },
     {

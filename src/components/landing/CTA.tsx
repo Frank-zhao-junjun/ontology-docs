@@ -115,8 +115,8 @@ const CTA = () => {
             ref={descRef}
             className="body-text text-[#171717]/70 mb-10"
           >
-            从建模工具到运行时框架，体验
-            <span className="text-[#ff6e00] font-medium">&quot;本体抽象→模型共识→AI生成底座+AI动态运行&quot;</span>
+            从建模设计到版本发布，体验
+            <span className="text-[#ff6e00] font-medium">&quot;本体抽象→模型共识→AI辅助生成+工程化交付&quot;</span>
             的完整闭环。
           </p>
 

@@ -69,7 +69,7 @@ const AcceptanceCriteria = () => {
     {
       icon: Package,
       title: '版本发布',
-      description: '建模工具点击"发布"→生成代码包→Docker Compose启动→浏览器访问运行时',
+      description: '建模工具点击"发布"→生成版本化代码包→通过导出校验→产物可追溯',
     },
     {
       icon: ShieldAlert,
@@ -88,28 +88,28 @@ const AcceptanceCriteria = () => {
     },
     {
       icon: MessageSquare,
-      title: '自然语言查询',
-      description: '运行时输入"列出张三的合同"→AI生成SQL→返回表格→右栏自动显示上下文',
+      title: 'AI建模建议',
+      description: '在建模界面输入需求→AI生成实体与属性建议→用户确认后写入模型',
     },
     {
       icon: BarChart3,
-      title: '自然语言分析',
-      description: '运行时输入"按部门统计合同金额"→AI生成饼图→中栏显示ECharts',
+      title: '关系推断建议',
+      description: '输入领域约束→AI生成关系与基数建议→可视化区同步展示差异',
     },
     {
       icon: Settings,
-      title: '自然语言操作',
-      description: '运行时输入"将合同2025-001状态改为生效"→AI调用Skill→状态变更成功',
+      title: '规则生成建议',
+      description: '输入业务规则描述→AI生成校验规则草案→编辑后可一键保存',
     },
     {
       icon: Wrench,
       title: '自愈机制',
-      description: '运行时输入错误字段名→AI首次SQL失败→自动修正→成功执行→详细展示修正过程',
+      description: '配置校验失败→系统给出修复建议→自动修正后通过校验→记录修复过程',
     },
     {
       icon: GitBranch,
-      title: '版本切换',
-      description: '运行时界面切换至v1.0.0→数据模型回退→操作旧版本数据',
+      title: '版本回溯',
+      description: '切换至历史版本v1.0.0→模型结构回退→对比差异并可重新发布',
     },
     {
       icon: ShieldCheck,

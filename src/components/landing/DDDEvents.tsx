@@ -121,7 +121,7 @@ const DDDEvents = () => {
       icon: Shield,
       title: '幂等性',
       decision: '事件ID去重',
-      description: '运行时生成唯一事件ID，订阅者记录已处理ID',
+      description: '系统生成唯一事件ID，订阅者记录已处理ID',
       details: '每个领域事件生成唯一的UUID作为事件ID。订阅者处理事件时，使用"{event_id}:{handler_id}"作为幂等键，确保同一事件不会被重复处理。',
       code: `class EventSubscriber {
   handle(event: DomainEvent) {

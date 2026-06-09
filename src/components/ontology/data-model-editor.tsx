@@ -17,7 +17,7 @@ import { Separator } from '@/components/ui/separator';
 import { Pencil, Trash2, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getAggregateRootEntities, normalizeEntityRoleFields, resolveEntityRole } from '@/lib/entity-role';
-import type { Entity, Attribute, Relation } from '@/types/ontology';
+import type { Entity, Attribute, Relation, ComputedProperty, SourceMapping } from '@/types/ontology';
 
 interface DataModelEditorProps {
   mode?: 'full' | 'entity-detail' | 'button-only';
@@ -68,6 +68,10 @@ export function DataModelEditor({ mode = 'full', entityId }: DataModelEditorProp
   const [editingRelation, setEditingRelation] = useState<Partial<Relation>>({});
   const [editingRelationId, setEditingRelationId] = useState<string | null>(null);
   const [metadataPopoverOpen, setMetadataPopoverOpen] = useState(false);
+  const [showComputedDialog, setShowComputedDialog] = useState(false);
+  const [editingComputedProp, setEditingComputedProp] = useState<ComputedProperty | null>(null);
+  const [showSourceMappingDialog, setShowSourceMappingDialog] = useState(false);
+  const [editingSourceMapping, setEditingSourceMapping] = useState<SourceMapping | null>(null);
 
   const entities = project?.dataModel?.entities || [];
   const projects = project?.dataModel?.projects || [];
@@ -1356,6 +1360,261 @@ export function DataModelEditor({ mode = 'full', entityId }: DataModelEditorProp
                 </div>
               </CardHeader>
             </Card>
+            
+            {/* 派生属性 (Computed Properties) */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base">派生属性</CardTitle>
+                    <CardDescription>通过公式、聚合或 AI 推导的属性</CardDescription>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => {
+                    setEditingComputedProp({ id: '', name: '', nameEn: '', computationType: 'formula', expression: '' });
+                    setShowComputedDialog(true);
+                  }}>
+                    + 添加派生属性
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {(!selectedEntity.computedProperties || selectedEntity.computedProperties.length === 0) ? (
+                  <p className="text-sm text-muted-foreground">暂无派生属性</p>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedEntity.computedProperties.map((cp) => (
+                      <div key={cp.id} className="flex items-start justify-between rounded-lg border p-3">
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">{cp.name}</span>
+                            <span className="text-xs text-muted-foreground">({cp.nameEn})</span>
+                            <Badge variant="secondary" className="text-xs">
+                              {cp.computationType === 'formula' ? '公式' : cp.computationType === 'aggregation' ? '聚合' : cp.computationType === 'lookup' ? '查找' : 'AI 推理'}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground font-mono">{cp.expression}</p>
+                          {cp.businessMeaning && <p className="text-xs text-muted-foreground">{cp.businessMeaning}</p>}
+                        </div>
+                        <div className="flex gap-1 ml-2">
+                          <Button variant="ghost" size="icon" className="h-7 w-7"
+                            onClick={() => { setEditingComputedProp(cp); setShowComputedDialog(true); }}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
+                            onClick={() => {
+                              updateEntity(selectedEntity.id, {
+                                ...selectedEntity,
+                                computedProperties: (selectedEntity.computedProperties || []).filter(c => c.id !== cp.id),
+                              });
+                            }}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 源系统映射 (Source Mappings) */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base">源系统映射</CardTitle>
+                    <CardDescription>属性到外部系统字段的映射关系</CardDescription>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => {
+                    setEditingSourceMapping({ id: '', entityId: selectedEntity.id, attributeId: '', sourceSystem: '', sourceFieldPath: '' });
+                    setShowSourceMappingDialog(true);
+                  }}>
+                    + 添加映射
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {(!selectedEntity.sourceMappings || selectedEntity.sourceMappings.length === 0) ? (
+                  <p className="text-sm text-muted-foreground">暂无源系统映射</p>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedEntity.sourceMappings.map((sm) => {
+                      const attrName = selectedEntity.attributes.find(a => a.id === sm.attributeId)?.name || sm.attributeId;
+                      return (
+                        <div key={sm.id} className="flex items-start justify-between rounded-lg border p-3">
+                          <div className="flex-1 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs font-mono">{sm.sourceSystem}</Badge>
+                              <span className="text-sm font-mono text-foreground">{sm.sourceFieldPath}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              映射到属性: <span className="font-medium">{attrName}</span>
+                              {sm.transformRule && <span> · 转换规则: {sm.transformRule}</span>}
+                            </p>
+                          </div>
+                          <div className="flex gap-1 ml-2">
+                            <Button variant="ghost" size="icon" className="h-7 w-7"
+                              onClick={() => { setEditingSourceMapping(sm); setShowSourceMappingDialog(true); }}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"
+                              onClick={() => {
+                                updateEntity(selectedEntity.id, {
+                                  ...selectedEntity,
+                                  sourceMappings: (selectedEntity.sourceMappings || []).filter(s => s.id !== sm.id),
+                                });
+                              }}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* ComputedProperty 编辑弹窗 */}
+            <Dialog open={showComputedDialog} onOpenChange={(open) => {
+              setShowComputedDialog(open);
+              if (!open) setEditingComputedProp(null);
+            }}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>{editingComputedProp?.id ? '编辑派生属性' : '添加派生属性'}</DialogTitle>
+                  <DialogDescription>定义通过计算或推导得到的属性</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>名称</Label>
+                      <Input value={editingComputedProp?.name || ''} onChange={(e) => setEditingComputedProp({ ...editingComputedProp!, name: e.target.value })} placeholder="如：订单总金额" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>英文名</Label>
+                      <Input value={editingComputedProp?.nameEn || ''} onChange={(e) => setEditingComputedProp({ ...editingComputedProp!, nameEn: e.target.value })} placeholder="如：orderTotal" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>计算方式</Label>
+                    <Select value={editingComputedProp?.computationType || 'formula'} onValueChange={(v) => setEditingComputedProp({ ...editingComputedProp!, computationType: v as ComputedProperty['computationType'] })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="formula">公式计算 (Formula)</SelectItem>
+                        <SelectItem value="aggregation">聚合计算 (Aggregation)</SelectItem>
+                        <SelectItem value="lookup">跨对象查找 (Lookup)</SelectItem>
+                        <SelectItem value="ai-inference">AI 推理 (AI Inference)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>表达式</Label>
+                    <Textarea value={editingComputedProp?.expression || ''} onChange={(e) => setEditingComputedProp({ ...editingComputedProp!, expression: e.target.value })} placeholder="如：quantity * unitPrice" className="min-h-[60px] font-mono text-sm" />
+                  </div>
+                  {editingComputedProp?.computationType === 'aggregation' && (
+                    <div className="space-y-2">
+                      <Label>聚合函数</Label>
+                      <Select value={editingComputedProp?.aggregationFunction || 'sum'} onValueChange={(v) => setEditingComputedProp({ ...editingComputedProp!, aggregationFunction: v as ComputedProperty['aggregationFunction'] })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sum">求和 (Sum)</SelectItem>
+                          <SelectItem value="count">计数 (Count)</SelectItem>
+                          <SelectItem value="avg">平均值 (Avg)</SelectItem>
+                          <SelectItem value="min">最小值 (Min)</SelectItem>
+                          <SelectItem value="max">最大值 (Max)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {editingComputedProp?.computationType === 'lookup' && (
+                    <div className="space-y-2">
+                      <Label>目标实体</Label>
+                      <Select value={editingComputedProp?.targetEntity || ''} onValueChange={(v) => setEditingComputedProp({ ...editingComputedProp!, targetEntity: v })}>
+                        <SelectTrigger><SelectValue placeholder="选择目标实体" /></SelectTrigger>
+                        <SelectContent>
+                          {entities.filter(e => e.id !== selectedEntity?.id).map(e => (
+                            <SelectItem key={e.id} value={e.id}>{e.name} ({e.nameEn})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label>业务含义</Label>
+                    <Textarea value={editingComputedProp?.businessMeaning || ''} onChange={(e) => setEditingComputedProp({ ...editingComputedProp!, businessMeaning: e.target.value })} className="min-h-[50px]" placeholder="AI 理解该派生属性的含义" />
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button variant="outline" onClick={() => { setShowComputedDialog(false); setEditingComputedProp(null); }}>取消</Button>
+                    <Button onClick={() => {
+                      if (!entityId || !editingComputedProp) return;
+                      const next = editingComputedProp.id
+                        ? (selectedEntity.computedProperties || []).map(c => c.id === editingComputedProp!.id ? editingComputedProp! : c)
+                        : [...(selectedEntity.computedProperties || []), { ...editingComputedProp, id: editingComputedProp.id || generateId() }];
+                      updateEntity(entityId, { ...selectedEntity, computedProperties: next });
+                      setEditingComputedProp(null);
+                      setShowComputedDialog(false);
+                    }}>保存</Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* SourceMapping 编辑弹窗 */}
+            <Dialog open={showSourceMappingDialog} onOpenChange={(open) => {
+              setShowSourceMappingDialog(open);
+              if (!open) setEditingSourceMapping(null);
+            }}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>{editingSourceMapping?.id ? '编辑源系统映射' : '添加源系统映射'}</DialogTitle>
+                  <DialogDescription>将实体属性映射到外部系统字段</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label>源系统</Label>
+                    <Input value={editingSourceMapping?.sourceSystem || ''} onChange={(e) => setEditingSourceMapping({ ...editingSourceMapping!, sourceSystem: e.target.value })} placeholder="如：ERP、CRM、WMS" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>源系统字段路径</Label>
+                    <Input value={editingSourceMapping?.sourceFieldPath || ''} onChange={(e) => setEditingSourceMapping({ ...editingSourceMapping!, sourceFieldPath: e.target.value })} placeholder="如：cus_info.vip_level" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>映射到属性</Label>
+                    <Select value={editingSourceMapping?.attributeId || ''} onValueChange={(v) => setEditingSourceMapping({ ...editingSourceMapping!, attributeId: v })}>
+                      <SelectTrigger><SelectValue placeholder="选择属性" /></SelectTrigger>
+                      <SelectContent>
+                        {selectedEntity?.attributes.map(a => (
+                          <SelectItem key={a.id} value={a.id}>{a.name} ({a.nameEn})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>转换规则 (可选)</Label>
+                    <Input value={editingSourceMapping?.transformRule || ''} onChange={(e) => setEditingSourceMapping({ ...editingSourceMapping!, transformRule: e.target.value })} placeholder="如：trim()、substr(0,10)" />
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button variant="outline" onClick={() => { setShowSourceMappingDialog(false); setEditingSourceMapping(null); }}>取消</Button>
+                    <Button onClick={() => {
+                      if (!entityId || !editingSourceMapping || !editingSourceMapping.attributeId) return;
+                      const smData: SourceMapping = {
+                        ...editingSourceMapping,
+                        id: editingSourceMapping.id || generateId(),
+                        entityId,
+                      };
+                      const next = editingSourceMapping.id
+                        ? (selectedEntity.sourceMappings || []).map(s => s.id === editingSourceMapping!.id ? smData : s)
+                        : [...(selectedEntity.sourceMappings || []), smData];
+                      updateEntity(entityId, { ...selectedEntity, sourceMappings: next });
+                      setEditingSourceMapping(null);
+                      setShowSourceMappingDialog(false);
+                    }}>保存</Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             {/* Rest of full mode... */}
           </div>
         ) : (

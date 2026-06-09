@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { StateMachine, State, Transition, Action, FunctionDefinition, TransactionBoundary } from '@/types/ontology';
+import type { StateMachine, State, Transition, Action, FunctionDefinition, TransactionBoundary, BehaviorIndicator, BehaviorConstraint, IndicatorType } from '@/types/ontology';
 import { SideEffectSection } from './side-effect-section';
 
 interface BehaviorModelEditorProps {
@@ -46,7 +46,7 @@ function getExecutionStatusLabel(status: 'success' | 'failed'): string {
 }
 
 export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEditorProps) {
-  const { project, addStateMachine, updateStateMachine, deleteStateMachine, addAction, updateAction, deleteAction, addFunction, updateFunction, deleteFunction, addTransactionBoundary, updateTransactionBoundary, deleteTransactionBoundary } = useOntologyStore();
+  const { project, addStateMachine, updateStateMachine, deleteStateMachine, addAction, updateAction, deleteAction, addFunction, updateFunction, deleteFunction, addTransactionBoundary, updateTransactionBoundary, deleteTransactionBoundary, addBehaviorIndicator, updateBehaviorIndicator, deleteBehaviorIndicator, addBehaviorConstraint, updateBehaviorConstraint, deleteBehaviorConstraint } = useOntologyStore();
   const [selectedSmId, setSelectedSmId] = useState<string | null>(null);
   const [showStateDialog, setShowStateDialog] = useState(false);
   const [showTransitionDialog, setShowTransitionDialog] = useState(false);
@@ -57,6 +57,10 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
   const [editingAction, setEditingAction] = useState<Partial<Action>>({ parameters: [], preConditions: [], postEffects: [] });
   const [editingFunction, setEditingFunction] = useState<Partial<FunctionDefinition>>({ parameters: [] });
   const [showTbDialog, setShowTbDialog] = useState(false);
+  const [showIndicatorDialog, setShowIndicatorDialog] = useState(false);
+  const [showConstraintDialog, setShowConstraintDialog] = useState(false);
+  const [editingIndicator, setEditingIndicator] = useState<Partial<BehaviorIndicator> | null>(null);
+  const [editingConstraint, setEditingConstraint] = useState<Partial<BehaviorConstraint> | null>(null);
   const [editingTb, setEditingTb] = useState<Partial<TransactionBoundary>>({ actionIds: [], aggregateRootIds: [] });
 
   const [editingState, setEditingState] = useState<Partial<State>>({});
@@ -1142,7 +1146,240 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
           </CardContent>
         </Card>
       </TabsContent>
-      </Tabs>
+                <TabsContent value="indicators">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>指标定义</CardTitle>
+                  <CardDescription>定义行为相关的业务指标/KPI，用于度量和评估</CardDescription>
+                </div>
+                <Button size="sm" onClick={() => { setEditingIndicator(null); setShowIndicatorDialog(true); }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                  新增指标
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {(!project?.behaviorModel?.indicators || project.behaviorModel.indicators.length === 0) ? (
+                  <div className="text-sm text-muted-foreground py-8 text-center">暂未定义业务指标，点击上方按钮新增</div>
+                ) : (
+                  <div className="space-y-3">
+                    {project.behaviorModel.indicators.map((ind) => (
+                      <div key={ind.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex-1">
+                          <div className="font-medium">{ind.name}</div>
+                          <div className="text-sm text-muted-foreground">{ind.description}</div>
+                          <div className="flex gap-2 mt-1">
+                            <Badge variant="secondary">{ind.type}</Badge>
+                            {ind.targetEntity && <Badge variant="outline">{ind.targetEntity}.{ind.targetAttribute}</Badge>}
+                            {ind.targetValue !== undefined && <Badge variant="outline">目标: {ind.targetValue}</Badge>}
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                            setEditingIndicator(ind);
+                            setShowIndicatorDialog(true);
+                          }}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteBehaviorIndicator(ind.id)}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Indicator Dialog */}
+            <Dialog open={showIndicatorDialog} onOpenChange={setShowIndicatorDialog}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>{editingIndicator?.id ? '编辑指标' : '新增指标'}</DialogTitle>
+                  <DialogDescription>定义业务度量指标，用于评估行为结果</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div>
+                    <Label>指标名称</Label>
+                    <Input value={editingIndicator?.name || ''} onChange={(e) => setEditingIndicator({...(editingIndicator || {}), name: e.target.value})} placeholder="例如：客户满意度评分" />
+                  </div>
+                  <div>
+                    <Label>指标类型</Label>
+                    <Select value={editingIndicator?.type || 'rate'} onValueChange={(v) => setEditingIndicator({...(editingIndicator || {}), type: v as IndicatorType})}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="count">计数 (Count)</SelectItem>
+                        <SelectItem value="rate">比率 (Rate)</SelectItem>
+                        <SelectItem value="avg">平均值 (Avg)</SelectItem>
+                        <SelectItem value="sum">总和 (Sum)</SelectItem>
+                        <SelectItem value="duration">时长 (Duration)</SelectItem>
+                        <SelectItem value="score">评分 (Score)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>目标实体</Label>
+                      <Input value={editingIndicator?.targetEntity || ''} onChange={(e) => setEditingIndicator({...(editingIndicator || {}), targetEntity: e.target.value})} placeholder="实体名" />
+                    </div>
+                    <div>
+                      <Label>目标属性</Label>
+                      <Input value={editingIndicator?.targetAttribute || ''} onChange={(e) => setEditingIndicator({...(editingIndicator || {}), targetAttribute: e.target.value})} placeholder="属性名" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>计算公式</Label>
+                    <Input value={editingIndicator?.formula || ''} onChange={(e) => setEditingIndicator({...(editingIndicator || {}), formula: e.target.value})} placeholder="例如：sum(order.amount) / count(order)" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>目标值</Label>
+                      <Input type="number" value={editingIndicator?.targetValue ?? ''} onChange={(e) => setEditingIndicator({...(editingIndicator || {}), targetValue: Number(e.target.value)})} />
+                    </div>
+                    <div>
+                      <Label>可接受范围</Label>
+                      <Input value={editingIndicator?.acceptableRange ? `${editingIndicator.acceptableRange.min || ''}-${editingIndicator.acceptableRange.max || ''}` : ''} onChange={(e) => {
+                        const [min, max] = e.target.value.split('-');
+                        setEditingIndicator({...(editingIndicator || {}), acceptableRange: { min: min ? Number(min) : undefined, max: max ? Number(max) : undefined }});
+                      }} placeholder="例如：80-100" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>权重</Label>
+                    <Input type="number" value={editingIndicator?.weight ?? 1} onChange={(e) => setEditingIndicator({...(editingIndicator || {}), weight: Number(e.target.value)})} placeholder="1" />
+                  </div>
+                  <div>
+                    <Label>指标描述</Label>
+                    <Textarea value={editingIndicator?.description || ''} onChange={(e) => setEditingIndicator({...(editingIndicator || {}), description: e.target.value})} placeholder="描述指标的业务含义" />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setShowIndicatorDialog(false)}>取消</Button>
+                  <Button onClick={() => {
+                    const data = editingIndicator || {};
+                    if (!data.id) {
+                      addBehaviorIndicator({ ...data, id: Math.random().toString(36).substring(2, 15) } as BehaviorIndicator);
+                    } else {
+                      updateBehaviorIndicator(data.id, data as BehaviorIndicator);
+                    }
+                    setShowIndicatorDialog(false);
+                  }}>保存</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </TabsContent>
+
+          <TabsContent value="constraints">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>行为约束</CardTitle>
+                  <CardDescription>定义行为执行的约束条件，包括权限、资源、合规等</CardDescription>
+                </div>
+                <Button size="sm" onClick={() => { setEditingConstraint(null); setShowConstraintDialog(true); }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                  新增约束
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {(!project?.behaviorModel?.constraints || project.behaviorModel.constraints.length === 0) ? (
+                  <div className="text-sm text-muted-foreground py-8 text-center">暂未定义行为约束，点击上方按钮新增</div>
+                ) : (
+                  <div className="space-y-3">
+                    {project.behaviorModel.constraints.map((c) => (
+                      <div key={c.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex-1">
+                          <div className="font-medium">{c.name}</div>
+                          <div className="text-sm text-muted-foreground">{c.description}</div>
+                          <div className="flex gap-2 mt-1">
+                            <Badge variant={c.severity === 'blocking' ? 'destructive' : 'secondary'}>{c.severity === 'blocking' ? '阻塞' : '警告'}</Badge>
+                            <Badge variant="outline">{c.constraintType || 'pre-condition'}</Badge>
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                            setEditingConstraint(c);
+                            setShowConstraintDialog(true);
+                          }}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteBehaviorConstraint(c.id)}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Constraint Dialog */}
+            <Dialog open={showConstraintDialog} onOpenChange={setShowConstraintDialog}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>{editingConstraint?.id ? '编辑约束' : '新增约束'}</DialogTitle>
+                  <DialogDescription>定义行为执行的约束条件</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div>
+                    <Label>约束名称</Label>
+                    <Input value={editingConstraint?.name || ''} onChange={(e) => setEditingConstraint({...(editingConstraint || {}), name: e.target.value})} placeholder="例如：仅限管理员操作" />
+                  </div>
+                  <div>
+                    <Label>约束类型</Label>
+                    <Select value={editingConstraint?.constraintType || 'pre-condition'} onValueChange={(v) => setEditingConstraint({...(editingConstraint || {}), constraintType: v as 'preCondition' | 'postCondition' | 'role' | 'resource' | 'timing'})}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pre-condition">前置条件 (Pre-condition)</SelectItem>
+                        <SelectItem value="post-condition">后置条件 (Post-condition)</SelectItem>
+                        <SelectItem value="role-based">基于角色 (Role-based)</SelectItem>
+                        <SelectItem value="resource-based">基于资源 (Resource-based)</SelectItem>
+                        <SelectItem value="compliance">合规约束 (Compliance)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>严重程度</Label>
+                    <Select value={editingConstraint?.severity || 'warning'} onValueChange={(v) => setEditingConstraint({...(editingConstraint || {}), severity: v as 'warning' | 'blocking'})}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="error">阻塞 (Error)</SelectItem>
+                        <SelectItem value="warning">警告 (Warning)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>条件表达式</Label>
+                    <Textarea value={editingConstraint?.condition || ''} onChange={(e) => setEditingConstraint({...(editingConstraint || {}), condition: e.target.value})} placeholder="例如：user.role === 'admin'" />
+                  </div>
+                  <div>
+                    <Label>角色</Label>
+                    <Input value={editingConstraint?.role || ''} onChange={(e) => setEditingConstraint({...(editingConstraint || {}), role: e.target.value})} placeholder="例如：admin, operator, viewer" />
+                  </div>
+                  <div>
+                    <Label>约束描述</Label>
+                    <Textarea value={editingConstraint?.description || ''} onChange={(e) => setEditingConstraint({...(editingConstraint || {}), description: e.target.value})} placeholder="描述约束的业务含义" />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setShowConstraintDialog(false)}>取消</Button>
+                  <Button onClick={() => {
+                    const data = editingConstraint || {};
+                    if (!data.id) {
+                      addBehaviorConstraint({ ...data, id: Math.random().toString(36).substring(2, 15) } as BehaviorConstraint);
+                    } else {
+                      updateBehaviorConstraint(data.id, data as BehaviorConstraint);
+                    }
+                    setShowConstraintDialog(false);
+                  }}>保存</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </TabsContent>
+
+</Tabs>
       </div>
     );
   }

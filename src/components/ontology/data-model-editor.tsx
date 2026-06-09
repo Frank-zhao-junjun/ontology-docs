@@ -775,7 +775,7 @@ export function DataModelEditor({ mode = 'full', entityId }: DataModelEditorProp
                         )}
                       </>
                     )}
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 flex-wrap">
                       <div className="flex items-center gap-2">
                         <input
                           type="checkbox"
@@ -796,6 +796,38 @@ export function DataModelEditor({ mode = 'full', entityId }: DataModelEditorProp
                         />
                         <Label htmlFor="unique" className="text-sm font-normal">唯一</Label>
                       </div>
+                    </div>
+
+                    {/* 自动填充 */}
+                    <div className="space-y-2">
+                      <Label>自动填充策略</Label>
+                      <Select
+                        value={editingAttribute.autoFill || ''}
+                        onValueChange={(v) => setEditingAttribute({ ...editingAttribute, autoFill: v === 'none' ? undefined : v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="不自动填充" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">不自动填充</SelectItem>
+                          <SelectItem value="uuid">UUID</SelectItem>
+                          <SelectItem value="current_user">当前用户</SelectItem>
+                          <SelectItem value="current_time">当前时间</SelectItem>
+                          <SelectItem value="current_date">当前日期</SelectItem>
+                          <SelectItem value="sequence">序列号</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">数据创建时系统自动填充该字段</p>
+                    </div>
+
+                    {/* 默认值 */}
+                    <div className="space-y-2">
+                      <Label>默认值</Label>
+                      <Input
+                        value={editingAttribute.default || ''}
+                        onChange={(e) => setEditingAttribute({ ...editingAttribute, default: e.target.value })}
+                        placeholder="如：0、true、当前日期"
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>描述</Label>
@@ -1614,6 +1646,51 @@ export function DataModelEditor({ mode = 'full', entityId }: DataModelEditorProp
                 </div>
               </DialogContent>
             </Dialog>
+
+            {/* 索引定义 (Indexes) */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">索引定义</CardTitle>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    const fieldNames = prompt('索引字段（多个用逗号分隔）：');
+                    if (!fieldNames) return;
+                    const isUnique = confirm('点击确定=唯一索引, 取消=普通索引');
+                    const idxType = prompt('索引类型（btree/hash，默认btree）：') || 'btree';
+                    updateEntity(selectedEntity.id, {
+                      ...selectedEntity,
+                      indexes: [...(selectedEntity.indexes || []), { fields: fieldNames.split(',').map(s => s.trim()), type: idxType as 'btree' | 'hash', unique: isUnique }],
+                    });
+                  }}>
+                    + 添加索引
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {(!selectedEntity.indexes || selectedEntity.indexes.length === 0) ? (
+                  <p className="text-sm text-muted-foreground">暂无索引定义</p>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedEntity.indexes.map((idx, i) => (
+                      <div key={i} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Badge variant={idx.unique ? 'default' : 'outline'}>{idx.unique ? '唯一' : '普通'}</Badge>
+                          <Badge variant="secondary">{idx.type}</Badge>
+                          <span className="text-muted-foreground">{idx.fields.join(', ')}</span>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive"
+                          onClick={() => updateEntity(selectedEntity.id, {
+                            ...selectedEntity,
+                            indexes: (selectedEntity.indexes || []).filter((_, j) => j !== i),
+                          })}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Rest of full mode... */}
           </div>

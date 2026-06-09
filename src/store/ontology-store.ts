@@ -50,6 +50,8 @@ import type {
   MetricsModel,
   BusinessMetric,
   TransactionBoundary,
+  BehaviorIndicator,
+  BehaviorConstraint,
 } from '@/types/ontology';
 
 interface OntologyState {
@@ -102,6 +104,12 @@ interface OntologyState {
   addFunction: (func: FunctionDefinition) => void;
   updateFunction: (funcId: string, func: FunctionDefinition) => void;
   deleteFunction: (funcId: string) => void;
+  addBehaviorIndicator: (indicator: BehaviorIndicator) => void;
+  updateBehaviorIndicator: (indicatorId: string, indicator: BehaviorIndicator) => void;
+  deleteBehaviorIndicator: (indicatorId: string) => void;
+  addBehaviorConstraint: (constraint: BehaviorConstraint) => void;
+  updateBehaviorConstraint: (constraintId: string, constraint: BehaviorConstraint) => void;
+  deleteBehaviorConstraint: (constraintId: string) => void;
   
   // 规则模型操作
   setRuleModel: (model: RuleModel) => void;
@@ -1098,6 +1106,116 @@ export const useOntologyStore = create<OntologyState>()(
           };
         });
       },
+
+      addBehaviorIndicator: (indicator) => {
+        set((state) => {
+          if (!state.project?.behaviorModel) return state;
+          const model = state.project.behaviorModel;
+          return {
+            project: {
+              ...state.project,
+              behaviorModel: {
+                ...model,
+                indicators: [...(model.indicators || []), indicator],
+                updatedAt: new Date().toISOString(),
+              },
+              updatedAt: new Date().toISOString(),
+            },
+          };
+        });
+      },
+
+      updateBehaviorIndicator: (indicatorId, indicator) => {
+        set((state) => {
+          if (!state.project?.behaviorModel) return state;
+          const model = state.project.behaviorModel;
+          return {
+            project: {
+              ...state.project,
+              behaviorModel: {
+                ...model,
+                indicators: (model.indicators || []).map((i) => (i.id === indicatorId ? indicator : i)),
+                updatedAt: new Date().toISOString(),
+              },
+              updatedAt: new Date().toISOString(),
+            },
+          };
+        });
+      },
+
+      deleteBehaviorIndicator: (indicatorId) => {
+        set((state) => {
+          if (!state.project?.behaviorModel) return state;
+          const model = state.project.behaviorModel;
+          return {
+            project: {
+              ...state.project,
+              behaviorModel: {
+                ...model,
+                indicators: (model.indicators || []).filter((i) => i.id !== indicatorId),
+                updatedAt: new Date().toISOString(),
+              },
+              updatedAt: new Date().toISOString(),
+            },
+          };
+        });
+      },
+
+      addBehaviorConstraint: (constraint) => {
+        set((state) => {
+          if (!state.project?.behaviorModel) return state;
+          const model = state.project.behaviorModel;
+          return {
+            project: {
+              ...state.project,
+              behaviorModel: {
+                ...model,
+                constraints: [...(model.constraints || []), constraint],
+                updatedAt: new Date().toISOString(),
+              },
+              updatedAt: new Date().toISOString(),
+            },
+          };
+        });
+      },
+
+      updateBehaviorConstraint: (constraintId, constraint) => {
+        set((state) => {
+          if (!state.project?.behaviorModel) return state;
+          const model = state.project.behaviorModel;
+          return {
+            project: {
+              ...state.project,
+              behaviorModel: {
+                ...model,
+                constraints: (model.constraints || []).map((c) => (c.id === constraintId ? constraint : c)),
+                updatedAt: new Date().toISOString(),
+              },
+              updatedAt: new Date().toISOString(),
+            },
+          };
+        });
+      },
+
+      deleteBehaviorConstraint: (constraintId) => {
+        set((state) => {
+          if (!state.project?.behaviorModel) return state;
+          const model = state.project.behaviorModel;
+          return {
+            project: {
+              ...state.project,
+              behaviorModel: {
+                ...model,
+                constraints: (model.constraints || []).filter((c) => c.id !== constraintId),
+                updatedAt: new Date().toISOString(),
+              },
+              updatedAt: new Date().toISOString(),
+            },
+          };
+        });
+      },
+
+
       
       // 规则模型操作
       setRuleModel: (model) => {

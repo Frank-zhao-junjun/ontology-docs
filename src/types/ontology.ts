@@ -312,6 +312,46 @@ export interface StateMachine {
   actions?: Action[];
 }
 
+// ========== 行为指标定义 ==========
+export type IndicatorType = 'count' | 'rate' | 'average' | 'duration' | 'ratio' | 'custom';
+
+export interface BehaviorIndicator {
+  id: string;
+  name: string;
+  nameEn?: string;
+  description?: string;
+  type: IndicatorType;
+  targetEntity: string;
+  targetAttribute?: string;
+  formula?: string;
+  targetValue?: number;
+  acceptableRange?: { min?: number; max?: number };
+  unit?: string;
+  isKPI: boolean;
+  weight?: number;
+  warningThreshold?: number;
+  criticalThreshold?: number;
+}
+
+// ========== 行为约束 ==========
+export type ConstraintScope = 'pre_action' | 'post_action' | 'transition' | 'role_based' | 'resource_based';
+
+export type ConstraintSeverity = 'warning' | 'blocking';
+
+export interface BehaviorConstraint {
+  id: string;
+  name: string;
+  description?: string;
+  scope: ConstraintScope;
+  constraintType?: 'preCondition' | 'postCondition' | 'role' | 'resource' | 'timing';
+  targetAction?: string;
+  condition: string;
+  role?: string;
+  severity: ConstraintSeverity;
+  errorMessage?: string;
+  async?: boolean;
+}
+
 export interface BehaviorModel {
   id: string;
   name: string;
@@ -321,6 +361,8 @@ export interface BehaviorModel {
   actions?: Action[];
   functions?: FunctionDefinition[];
   transactionBoundaries?: TransactionBoundary[];
+  indicators?: BehaviorIndicator[];
+  constraints?: BehaviorConstraint[];
   createdAt: string;
   updatedAt: string;
 }

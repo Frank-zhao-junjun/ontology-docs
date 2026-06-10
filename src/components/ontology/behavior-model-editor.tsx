@@ -175,7 +175,6 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
       trigger,
       uiAction: editingTransition.uiAction?.trim() || undefined,
       triggerConfig: hasTriggerConfig ? triggerConfig : undefined,
-      executionLogs: editingTransition.executionLogs,
       preConditions,
       postActions,
       description: editingTransition.description,
@@ -700,16 +699,6 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
                                     <Badge variant="secondary" className="text-[10px]">
                                       发布 {getEventById(t.triggerConfig.publishEventId)?.name || t.triggerConfig.publishEventId}
                                     </Badge>
-                                  )}
-                                  {t.executionLogs && t.executionLogs.length > 0 && (
-                                    <Badge variant="secondary" className="text-[10px]">
-                                      日志 {t.executionLogs.length}
-                                    </Badge>
-                                  )}
-                                  {t.executionLogs && t.executionLogs.length > 0 && (
-                                    <span className="text-xs text-muted-foreground">
-                                      最近执行：{getExecutionStatusLabel(t.executionLogs[t.executionLogs.length - 1].status)}
-                                    </span>
                                   )}
                                 </div>
                                 <div className="flex items-center gap-2">

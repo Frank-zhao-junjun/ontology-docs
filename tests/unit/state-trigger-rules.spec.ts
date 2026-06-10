@@ -101,47 +101,4 @@ describe('US-4.3 / state trigger rules', () => {
       ],
     })).toThrow('定时触发转换必须配置 Cron 表达式');
   });
-
-  it('记录触发器执行后应追加执行日志与发布事件结果', () => {
-    const store = useOntologyStore.getState();
-    const stateMachine = store.project?.behaviorModel?.stateMachines.find((sm) => sm.id === 'sm-1');
-
-    expect(stateMachine).toBeDefined();
-
-    store.updateStateMachine('sm-1', {
-      ...stateMachine!,
-      transitions: [
-        ...stateMachine!.transitions,
-        {
-          id: 't-trigger-log',
-          name: '自动归档',
-          from: 's3',
-          to: 's3',
-          trigger: 'scheduled',
-          preConditions: ['archiveReady == true'],
-          triggerConfig: {
-            cron: '0 0 * * *',
-            publishEventId: 'event-1',
-          },
-        },
-      ],
-    });
-
-    store.recordTransitionTriggerExecution('sm-1', 't-trigger-log', {
-      triggerType: 'scheduled',
-      status: 'success',
-      triggeredAt: '2026-04-21T09:00:00.000Z',
-      message: '定时触发成功',
-    });
-
-    const saved = useOntologyStore.getState().project?.behaviorModel?.stateMachines[0].transitions.find((transition) => transition.id === 't-trigger-log');
-    expect(saved?.executionLogs).toEqual([
-      expect.objectContaining({
-        triggerType: 'scheduled',
-        status: 'success',
-        publishedEventId: 'event-1',
-        message: '定时触发成功',
-      }),
-    ]);
-  });
 });

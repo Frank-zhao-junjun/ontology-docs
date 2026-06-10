@@ -163,19 +163,6 @@ export function ensureStateMachineRules(
       throw new Error('触发器发布事件必须引用已定义的领域事件');
     }
 
-    const normalizedExecutionLogs = (transition.executionLogs || []).map((log) => {
-      const publishedEventId = log.publishedEventId?.trim() || normalizedTriggerConfig.publishEventId;
-      if (publishedEventId && !availableEvents.some((event) => event.id === publishedEventId)) {
-        throw new Error('触发器执行日志引用了未定义的领域事件');
-      }
-
-      return {
-        ...log,
-        message: log.message?.trim() || undefined,
-        publishedEventId,
-      };
-    });
-
     const hasTriggerConfig = Boolean(
       normalizedTriggerConfig.eventId
       || normalizedTriggerConfig.cron
@@ -192,7 +179,6 @@ export function ensureStateMachineRules(
         ? (transition.uiAction?.trim() || transition.name.trim() || 'manual-action')
         : transition.uiAction?.trim() || undefined,
       triggerConfig: hasTriggerConfig ? normalizedTriggerConfig : undefined,
-      executionLogs: normalizedExecutionLogs.length > 0 ? normalizedExecutionLogs : undefined,
       preConditions: normalizedPreConditions,
       postActions: normalizedPostActions,
       description: transition.description?.trim() || undefined,

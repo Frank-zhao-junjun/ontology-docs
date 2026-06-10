@@ -20,14 +20,12 @@ import type {
   DataModel, 
   BehaviorModel, 
   RuleModel, 
-  RuleExecutionLog,
   ProcessModel, 
   EventModel,
   Entity,
   EntityProject,
   BusinessScenario,
   StateMachine,
-  TriggerExecutionLog,
   Action,
   FunctionDefinition,
   Rule,
@@ -97,7 +95,6 @@ interface OntologyState {
   addStateMachine: (stateMachine: StateMachine) => void;
   updateStateMachine: (smId: string, stateMachine: StateMachine) => void;
   deleteStateMachine: (smId: string) => void;
-  recordTransitionTriggerExecution: (smId: string, transitionId: string, log: Omit<TriggerExecutionLog, 'id'>) => void;
   addAction: (action: Action) => void;
   updateAction: (actionId: string, action: Action) => void;
   deleteAction: (actionId: string) => void;
@@ -116,7 +113,6 @@ interface OntologyState {
   addRule: (rule: Rule) => void;
   updateRule: (ruleId: string, rule: Rule) => void;
   deleteRule: (ruleId: string) => void;
-  recordRuleExecution: (ruleId: string, log: Omit<RuleExecutionLog, 'id' | 'recordedAt'>) => void;
   
   // 流程模型操作（兼容保留，不在当前 UI 暴露）
   setProcessModel: (model: ProcessModel) => void;
@@ -372,19 +368,6 @@ function ensureStateMachineRules(
       throw new Error('触发器发布事件必须引用已定义的领域事件');
     }
 
-    const normalizedExecutionLogs = (transition.executionLogs || []).map((log) => {
-      const publishedEventId = log.publishedEventId?.trim() || normalizedTriggerConfig.publishEventId;
-      if (publishedEventId && !availableEvents.some((event) => event.id === publishedEventId)) {
-        throw new Error('触发器执行日志引用了未定义的领域事件');
-      }
-
-      return {
-        ...log,
-        message: log.message?.trim() || undefined,
-        publishedEventId,
-      };
-    });
-
     const hasTriggerConfig = Boolean(
       normalizedTriggerConfig.eventId
       || normalizedTriggerConfig.cron
@@ -401,7 +384,7 @@ function ensureStateMachineRules(
         ? (transition.uiAction?.trim() || transition.name.trim() || 'manual-action')
         : transition.uiAction?.trim() || undefined,
       triggerConfig: hasTriggerConfig ? normalizedTriggerConfig : undefined,
-      executionLogs: normalizedExecutionLogs.length > 0 ? normalizedExecutionLogs : undefined,
+
       preConditions: normalizedPreConditions,
       postActions: normalizedPostActions,
       description: transition.description?.trim() || undefined,
@@ -936,52 +919,7 @@ export const useOntologyStore = create<OntologyState>()(
         });
       },
 
-      recordTransitionTriggerExecution: (smId, transitionId, log) => {
-        set((state) => {
-          if (!state.project?.behaviorModel) return state;
-
-          const stateMachine = state.project.behaviorModel.stateMachines.find((item) => item.id === smId);
-          const transition = stateMachine?.transitions.find((item) => item.id === transitionId);
-          if (!stateMachine || !transition) {
-            return state;
-          }
-
-          const executionLog: TriggerExecutionLog = {
-            id: generateId(),
-            ...log,
-            message: log.message?.trim() || undefined,
-            publishedEventId: log.publishedEventId?.trim() || transition.triggerConfig?.publishEventId,
-          };
-
-          const nextStateMachine = ensureStateMachineRules({
-            ...stateMachine,
-            transitions: stateMachine.transitions.map((item) => {
-              if (item.id !== transitionId) {
-                return item;
-              }
-
-              return {
-                ...item,
-                executionLogs: [...(item.executionLogs || []), executionLog],
-              };
-            }),
-          }, state.project, stateMachine);
-
-          return {
-            project: {
-              ...state.project,
-              behaviorModel: {
-                ...state.project.behaviorModel,
-                stateMachines: state.project.behaviorModel.stateMachines.map((item) =>
-                  item.id === smId ? nextStateMachine : item,
-                ),
-                updatedAt: new Date().toISOString(),
-              },
-              updatedAt: new Date().toISOString(),
-            },
-          };
-        });
-      },
+      // --- Behavior Model: Action & Methods ---
 
       addAction: (action) => {
         set((state) => {
@@ -1300,38 +1238,6 @@ export const useOntologyStore = create<OntologyState>()(
         });
       },
 
-      recordRuleExecution: (ruleId, log) => {
-        set((state) => {
-          if (!state.project?.ruleModel) return state;
-
-          return {
-            project: {
-              ...state.project,
-              ruleModel: {
-                ...state.project.ruleModel,
-                rules: state.project.ruleModel.rules.map((rule) => {
-                  if (rule.id !== ruleId) return rule;
-                  const entry: RuleExecutionLog = {
-                    id: generateId(),
-                    operation: log.operation.trim(),
-                    status: log.status,
-                    message: log.message.trim(),
-                    recordedAt: new Date().toISOString(),
-                  };
-                  return {
-                    ...rule,
-                    executionLogs: [...(rule.executionLogs || []), entry],
-                  };
-                }),
-                updatedAt: new Date().toISOString(),
-              },
-              updatedAt: new Date().toISOString(),
-            },
-          };
-        });
-      },
-      
-      // 流程模型操作（兼容保留，不在当前 UI 暴露）
       setProcessModel: (model) => {
         set((state) => ({
           project: state.project ? { ...state.project, processModel: model, updatedAt: new Date().toISOString() } : null,

@@ -222,14 +222,6 @@ export interface TransitionTriggerConfig {
   publishEventId?: string;
 }
 
-export interface TriggerExecutionLog {
-  id: string;
-  triggerType: 'manual' | 'automatic' | 'scheduled';
-  status: 'success' | 'failed';
-  triggeredAt: string;
-  message?: string;
-  publishedEventId?: string;
-}
 
 export interface Transition {
   id: string;
@@ -239,7 +231,6 @@ export interface Transition {
   trigger: 'manual' | 'automatic' | 'scheduled';
   uiAction?: string;
   triggerConfig?: TransitionTriggerConfig;
-  executionLogs?: TriggerExecutionLog[];
   preConditions?: string[];
   postActions?: string[];
   description?: string;
@@ -421,16 +412,8 @@ export interface Rule {
   effectiveFrom?: string;
   effectiveUntil?: string;
   grayscale?: GrayscaleConfig;
-  executionLogs?: RuleExecutionLog[];
 }
 
-export interface RuleExecutionLog {
-  id: string;
-  operation: string;
-  status: 'blocked' | 'allowed';
-  message: string;
-  recordedAt: string;
-}
 
 export interface RuleModel {
   id: string;

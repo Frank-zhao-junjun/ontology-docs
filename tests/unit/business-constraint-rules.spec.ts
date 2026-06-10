@@ -56,36 +56,4 @@ describe('US-5.3 / business constraint rules', () => {
       severity: 'error',
     })).toThrow('业务约束规则必须配置检查条件');
   });
-
-  it('应记录业务约束拦截日志', () => {
-    const store = useOntologyStore.getState();
-    store.addRule({
-      id: 'rule-biz-3',
-      name: '禁止关闭冻结合同',
-      type: 'cross_entity_validation',
-      entity: 'contract-1',
-      priority: 10,
-      condition: {
-        type: 'expression',
-        checkEntity: 'clause-1',
-        checkCondition: "contract.status != 'frozen'",
-      },
-      errorMessage: '冻结合同不允许关闭',
-      severity: 'error',
-    });
-
-    store.recordRuleExecution('rule-biz-3', {
-      operation: 'close-contract',
-      status: 'blocked',
-      message: '冻结合同不允许关闭',
-    });
-
-    const saved = useOntologyStore.getState().project?.ruleModel?.rules.find((rule) => rule.id === 'rule-biz-3');
-    expect(saved?.executionLogs).toHaveLength(1);
-    expect(saved?.executionLogs?.[0]).toEqual(expect.objectContaining({
-      operation: 'close-contract',
-      status: 'blocked',
-      message: '冻结合同不允许关闭',
-    }));
-  });
 });

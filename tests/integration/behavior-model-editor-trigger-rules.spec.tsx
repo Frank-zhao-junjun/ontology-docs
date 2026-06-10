@@ -107,16 +107,6 @@ describe('US-4.3 / IT-TRIGGER-001: behavior editor configures transition trigger
         triggerConfig: {
           publishEventId: 'event-1',
         },
-        executionLogs: [
-          {
-            id: 'log-1',
-            triggerType: 'manual',
-            status: 'success',
-            triggeredAt: '2026-04-21T09:00:00.000Z',
-            message: '审批提交成功',
-            publishedEventId: 'event-1',
-          },
-        ],
       };
     }
 

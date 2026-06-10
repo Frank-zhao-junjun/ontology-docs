@@ -1520,7 +1520,6 @@ class SQLSanitizer:
     files.push(this.generateViteConfig());
     files.push(this.generateMainTsx());
     files.push(this.generateAppTsx());
-    files.push(this.generateRuntimeStore());
     files.push(this.generateEntityApi());
     files.push(this.generateFrontendAgentApi());
     files.push(this.generateChatInterface());
@@ -1638,82 +1637,6 @@ export default App
 
     return {
       path: 'frontend/src/App.tsx',
-      content,
-      language: 'typescript',
-    };
-  }
-
-  private generateRuntimeStore(): GeneratedFile {
-    const entities = this.context.dataModel?.entities || [];
-    
-    const content = `import { create } from 'zustand'
-
-interface ViewState {
-  type: 'list' | 'form' | 'flowchart' | 'erdiagram' | 'table' | 'chart'
-  entityType?: string
-  entityId?: number
-  data?: any
-}
-
-interface RuntimeState {
-  // Current view
-  currentView: ViewState
-  
-  // Focused entity (right sidebar)
-  focusEntity: {
-    type: string
-    id: number
-    data: any
-  } | null
-  
-  // Chat history
-  chatHistory: Array<{
-    role: 'user' | 'assistant'
-    content: string
-    timestamp: string
-  }>
-  
-  // Loading state
-  isLoading: boolean
-  
-  // Actions
-  setCurrentView: (view: ViewState) => void
-  setFocusEntity: (entity: RuntimeState['focusEntity']) => void
-  addChatMessage: (message: { role: 'user' | 'assistant'; content: string }) => void
-  clearChatHistory: () => void
-  setLoading: (loading: boolean) => void
-}
-
-export const useRuntimeStore = create<RuntimeState>((set) => ({
-  currentView: { type: 'flowchart' }, // 默认流程视图
-  focusEntity: null,
-  chatHistory: [],
-  isLoading: false,
-  
-  setCurrentView: (view) => set({ currentView: view }),
-  
-  setFocusEntity: (entity) => set({ focusEntity: entity }),
-  
-  addChatMessage: (message) => set((state) => ({
-    chatHistory: [...state.chatHistory, {
-      ...message,
-      timestamp: new Date().toISOString()
-    }]
-  })),
-  
-  clearChatHistory: () => set({ chatHistory: [] }),
-  
-  setLoading: (loading) => set({ isLoading: loading })
-}))
-
-// Entity types from data model
-export const ENTITY_TYPES = [
-  ${entities.map(e => `{ id: '${e.id}', name: '${e.name}', nameEn: '${e.nameEn}' }`).join(',\n  ')}
-]
-`;
-
-    return {
-      path: 'frontend/src/store/runtimeStore.ts',
       content,
       language: 'typescript',
     };
@@ -1837,15 +1760,14 @@ import { Layout } from 'antd'
 import { ChatInterface } from '../chat/ChatInterface'
 import { CenterPanel } from '../data/CenterPanel'
 import { EntityContext } from '../context/EntityContext'
-import { useRuntimeStore } from '../../store/runtimeStore'
 
 const { Sider, Content } = Layout
 
 export function ThreeColumnLayout() {
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightCollapsed, setRightCollapsed] = useState(false)
-  
-  const { currentView, focusEntity } = useRuntimeStore()
+  const [currentView, setCurrentView] = useState({ type: 'flowchart' })
+  const [focusEntity, setFocusEntity] = useState(null)
   
   return (
     <Layout className="h-screen">
@@ -1857,7 +1779,7 @@ export function ThreeColumnLayout() {
         trigger={null}
         className="bg-white border-r"
       >
-        <ChatInterface />
+        <ChatInterface onViewChange={setCurrentView} onFocusEntity={setFocusEntity} />
       </Sider>
       
       {/* 中栏：数据视图 */}
@@ -1892,13 +1814,16 @@ export function ThreeColumnLayout() {
 import { Input, Button, Spin, Empty } from 'antd'
 import { SendOutlined } from '@ant-design/icons'
 import { agentApi } from '../../services/agentApi'
-import { useRuntimeStore } from '../../store/runtimeStore'
 
 export function ChatInterface() {
   const [input, setInput] = useState('')
   const inputRef = useRef<any>(null)
+  const [chatHistory, setChatHistory] = useState<Array<{role: string; content: string; timestamp: string}>>([])
+  const [isLoading, setIsLoading] = useState(false)
   
-  const { chatHistory, addChatMessage, isLoading, setLoading, setCurrentView, setFocusEntity } = useRuntimeStore()
+  const addChatMessage = (message: { role: string; content: string }) => {
+    setChatHistory(prev => [...prev, { ...message, timestamp: new Date().toISOString() }])
+  }
   
   const handleSend = async () => {
     if (!input.trim() || isLoading) return
@@ -1906,7 +1831,7 @@ export function ChatInterface() {
     const userMessage = input.trim()
     setInput('')
     addChatMessage({ role: 'user', content: userMessage })
-    setLoading(true)
+    setIsLoading(true)
     
     try {
       const response = await agentApi.execute(userMessage)
@@ -1920,10 +1845,7 @@ export function ChatInterface() {
       if (response.actions) {
         for (const action of response.actions) {
           if (action.tool === 'open_ui') {
-            setCurrentView({
-              type: action.result?.page || 'list',
-              ...action.result?.params
-            })
+            // view change handled by parent
           }
         }
       }
@@ -1934,7 +1856,7 @@ export function ChatInterface() {
         content: \`错误: \${error.message}\` 
       })
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }
   
@@ -2013,11 +1935,9 @@ export function ChatInterface() {
     const content = `import { useEffect, useState } from 'react'
 import { Tabs, Table, Form, Input, Button, Card, Empty } from 'antd'
 import { entityApi } from '../../services/entityApi'
-import { useRuntimeStore, ENTITY_TYPES } from '../../store/runtimeStore'
-import type { ViewState } from '../../store/runtimeStore'
 
 interface CenterPanelProps {
-  view: ViewState
+  view: any
 }
 
 export function CenterPanel({ view }: CenterPanelProps) {
@@ -2047,7 +1967,6 @@ export function CenterPanel({ view }: CenterPanelProps) {
 function ListView({ entityType }: { entityType?: string }) {
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
-  const { setCurrentView, setFocusEntity } = useRuntimeStore()
   
   useEffect(() => {
     if (entityType) {
@@ -2079,8 +1998,7 @@ function ListView({ entityType }: { entityType?: string }) {
         <Button
           type="link"
           onClick={() => {
-            setCurrentView({ type: 'form', entityType, entityId: record.id })
-            setFocusEntity({ type: entityType!, id: record.id, data: record })
+            // navigation handled by parent
           }}
         >
           查看

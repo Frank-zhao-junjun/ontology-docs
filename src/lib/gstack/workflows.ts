@@ -29,19 +29,6 @@ export interface WorkflowStep {
   retryCount?: number;
 }
 
-export interface WorkflowExecution {
-  workflowId: string;
-  currentStep: number;
-  status: 'pending' | 'running' | 'completed' | 'failed';
-  results: Array<{
-    stepId: string;
-    output: string;
-    timestamp: string;
-  }>;
-  startedAt: string;
-  completedAt?: string;
-}
-
 /**
  * Gstack预定义工作流
  */
@@ -240,7 +227,6 @@ export const GSTACK_WORKFLOWS: GstackWorkflow[] = [
  */
 export class GstackManager {
   private workflows: Map<string, GstackWorkflow> = new Map();
-  private activeExecutions: Map<string, WorkflowExecution> = new Map();
 
   constructor() {
     this.loadWorkflows();
@@ -271,69 +257,6 @@ export class GstackManager {
    */
   getWorkflow(workflowId: string): GstackWorkflow | undefined {
     return this.workflows.get(workflowId);
-  }
-
-  /**
-   * 启动工作流执行
-   */
-  startExecution(workflowId: string): WorkflowExecution | null {
-    const workflow = this.workflows.get(workflowId);
-    if (!workflow || !workflow.enabled) {
-      return null;
-    }
-
-    const execution: WorkflowExecution = {
-      workflowId,
-      currentStep: 0,
-      status: 'pending',
-      results: [],
-      startedAt: new Date().toISOString(),
-    };
-
-    this.activeExecutions.set(execution.startedAt, execution);
-    return execution;
-  }
-
-  /**
-   * 获取活跃的执行
-   */
-  getActiveExecutions(): WorkflowExecution[] {
-    return Array.from(this.activeExecutions.values())
-      .filter(e => e.status === 'running' || e.status === 'pending');
-  }
-
-  /**
-   * 更新执行状态
-   */
-  updateExecution(
-    executionId: string, 
-    stepId: string, 
-    output: string
-  ): boolean {
-    const execution = this.activeExecutions.get(executionId);
-    if (!execution) {
-      return false;
-    }
-
-    execution.results.push({
-      stepId,
-      output,
-      timestamp: new Date().toISOString(),
-    });
-
-    const workflow = this.workflows.get(execution.workflowId);
-    if (workflow) {
-      const stepIndex = workflow.steps.findIndex(s => s.id === stepId);
-      if (stepIndex >= 0) {
-        execution.currentStep = stepIndex + 1;
-        if (execution.currentStep >= workflow.steps.length) {
-          execution.status = 'completed';
-          execution.completedAt = new Date().toISOString();
-        }
-      }
-    }
-
-    return true;
   }
 
   /**

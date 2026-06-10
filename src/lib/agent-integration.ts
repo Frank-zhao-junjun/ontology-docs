@@ -206,7 +206,6 @@ export class AgentIntegrationManager {
       enabled: boolean;
       totalWorkflows: number;
       enabledWorkflows: number;
-      activeExecutions: number;
     };
     ralphLoop: {
       enabled: boolean;
@@ -215,7 +214,6 @@ export class AgentIntegrationManager {
   } {
     const superpowersSkills = superpowersManager.getAvailableSkills();
     const gstackWorkflows = gstackManager.getAvailableWorkflows();
-    const gstackExecutions = gstackManager.getActiveExecutions();
     const ralphState = ralphLoopManager.getState();
 
     return {
@@ -228,7 +226,6 @@ export class AgentIntegrationManager {
         enabled: this.config.gstack.enabled,
         totalWorkflows: gstackWorkflows.length,
         enabledWorkflows: gstackWorkflows.filter(w => w.enabled).length,
-        activeExecutions: gstackExecutions.length,
       },
       ralphLoop: {
         enabled: this.config.ralphLoop.enabled,

@@ -96,8 +96,8 @@ export function EpcTab({ entityId }: EpcTabProps) {
       return;
     }
 
-    // MVP: 导出可归档的 PDF 命名工件，正文与当前预览保持一致，后续可接入真 PDF 渲染器。
-    downloadContent(profile.generatedDocument, 'application/pdf', `${fileBaseName}.pdf`);
+    // TODO: 接入真 PDF 渲染器（如 html2pdf.js 或服务端 Puppeteer）。当前导出 Markdown 格式文件（.md），而非伪 PDF。
+    downloadContent(profile.generatedDocument, 'text/markdown', `${fileBaseName}.md`);
   };
 
   const handleDownloadJson = () => {
@@ -209,7 +209,7 @@ export function EpcTab({ entityId }: EpcTabProps) {
               </Button>
               <Button variant="outline" onClick={handleDownloadJson} disabled={!profile}>导出 JSON</Button>
               <Button onClick={handleDownloadMarkdown} disabled={!profile?.generatedDocument}>导出 Markdown</Button>
-              <Button variant="outline" onClick={handleDownloadPdf} disabled={!profile?.generatedDocument}>导出 PDF</Button>
+              <Button variant="outline" onClick={handleDownloadPdf} disabled={!profile?.generatedDocument}>导出 MD</Button>
             </div>
           </CardContent>
         </Card>

@@ -239,5 +239,132 @@ export function runManifestValidationRules(manifest: OntologyManifest): Manifest
     }
   }
 
+  // ── V12: Governance referential integrity ──
+  const gov = manifest.spec?.governance;
+  if (gov) {
+    const roleIds = new Set((gov.roles ?? []).map((r) => r.id));
+    const actionIds = new Set((manifest.spec?.behavior?.actions ?? []).map((a) => a.id));
+
+    // V12a: fieldPermission allowedRoleIds must reference existing roles
+    for (const fp of gov.fieldPermissions ?? []) {
+      for (const roleId of fp.allowedRoleIds ?? []) {
+        if (!roleIds.has(roleId)) {
+          issues.push(
+            issue({
+              code: 'V12',
+              severity: 'warning',
+              elementType: 'fieldPermission',
+              field: 'allowedRoleIds',
+              message: `fieldPermission 引用了不存在的 roleId：${roleId}`,
+            })
+          );
+        }
+      }
+    }
+
+    // V12b: agentPolicy roleId must reference existing role
+    for (const ap of gov.agentPolicies ?? []) {
+      if (ap.roleId && !roleIds.has(ap.roleId)) {
+        issues.push(
+          issue({
+            code: 'V12',
+            elementType: 'agentPolicy',
+            id: ap.id,
+            field: 'roleId',
+            message: `agentPolicy 引用了不存在的 roleId：${ap.roleId}`,
+          })
+        );
+      }
+      // V12c: agentPolicy allowedActionIds must reference existing actions
+      for (const actId of ap.allowedActionIds ?? []) {
+        if (!actionIds.has(actId)) {
+          issues.push(
+            issue({
+              code: 'V12',
+              severity: 'warning',
+              elementType: 'agentPolicy',
+              id: ap.id,
+              field: 'allowedActionIds',
+              message: `agentPolicy 引用了不存在的 actionId：${actId}`,
+            })
+          );
+        }
+      }
+    }
+  }
+
+  // ── V13: Event referential integrity ──
+  const allActionIds = new Set((manifest.spec?.behavior?.actions ?? []).map((a) => a.id));
+  for (const handler of manifest.spec?.events?.handlers ?? []) {
+    // V13a: handler eventId must reference existing domainEvent
+    if (handler.eventId && !events.has(handler.eventId)) {
+      issues.push(
+        issue({
+          code: 'V13',
+          elementType: 'handler',
+          id: handler.id,
+          field: 'eventId',
+          message: `handler 引用了不存在的 domainEvent：${handler.eventId}`,
+        })
+      );
+    }
+    // V13b: handler actionRef must reference existing action
+    if (handler.actionRef && !allActionIds.has(handler.actionRef)) {
+      issues.push(
+        issue({
+          code: 'V13',
+          severity: 'warning',
+          elementType: 'handler',
+          id: handler.id,
+          field: 'actionRef',
+          message: `handler 引用了不存在的 action：${handler.actionRef}`,
+        })
+      );
+    }
+  }
+  // V13c: domainEvent aggregateRootId must reference existing aggregate root
+  for (const evt of manifest.spec?.events?.domainEvents ?? []) {
+    if (evt.aggregateRootId && !roots.has(evt.aggregateRootId)) {
+      issues.push(
+        issue({
+          code: 'V13',
+          elementType: 'domainEvent',
+          id: evt.id,
+          field: 'aggregateRootId',
+          message: `domainEvent 引用了不存在的 aggregateRootId：${evt.aggregateRootId}`,
+        })
+      );
+    }
+  }
+
+  // ── V14: Data source constraints ──
+  const objectTypeIds = new Set(objectTypes.map((ot) => ot.id));
+  for (const ds of manifest.spec?.dataSources ?? []) {
+    if (!isRecord(ds)) continue;
+    // V14a: boundObjectTypeId must reference existing objectType
+    if (ds.boundObjectTypeId && !objectTypeIds.has(ds.boundObjectTypeId as string)) {
+      issues.push(
+        issue({
+          code: 'V14',
+          severity: 'warning',
+          elementType: 'dataSource',
+          field: 'boundObjectTypeId',
+          message: `dataSource 引用了不存在的 boundObjectTypeId：${String(ds.boundObjectTypeId)}`,
+        })
+      );
+    }
+    // V14b: API-type sources must have authSecretRef
+    if (ds.type === 'api' && isRecord(ds.api) && !ds.api.authSecretRef) {
+      issues.push(
+        issue({
+          code: 'V14',
+          elementType: 'dataSource',
+          field: 'api.authSecretRef',
+          message: `API 类型 dataSource 必须配置 authSecretRef`,
+        })
+      );
+    }
+  }
+
   return issues;
 }

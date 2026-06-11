@@ -20,7 +20,7 @@ function looksLikePlainCredential(value: string): boolean {
 }
 
 export function DataSourceEditor() {
-  const { project, ensureDataSourcesModel, addDataSource, deleteDataSource } = useOntologyStore();
+  const { project, ensureDataSourcesModel, addDataSource, updateDataSource, deleteDataSource } = useOntologyStore();
 
   useEffect(() => {
     ensureDataSourcesModel();
@@ -38,6 +38,19 @@ export function DataSourceEditor() {
   const [authSecretRef, setAuthSecretRef] = useState('');
   const [credentialError, setCredentialError] = useState<string | null>(null);
 
+  // database type fields
+  const [dbHost, setDbHost] = useState('');
+  const [dbPort, setDbPort] = useState('');
+  const [dbName, setDbName] = useState('');
+  const [dbAuthSecretRef, setDbAuthSecretRef] = useState('');
+
+  // file type fields
+  const [filePath, setFilePath] = useState('');
+  const [fileFormat, setFileFormat] = useState('');
+  const [fileAuthSecretRef, setFileAuthSecretRef] = useState('');
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+
   const validateNoPlainCredential = (value: string) => {
     if (looksLikePlainCredential(value)) {
       setCredentialError('请使用 authSecretRef（如 secret/sap-oauth-prod），不要填写明文 password/token/apiKey');
@@ -47,13 +60,36 @@ export function DataSourceEditor() {
     return true;
   };
 
+  const resetForm = () => {
+    setId('');
+    setName('');
+    setType('api');
+    setBoundObjectTypeId('');
+    setBaseUrl('');
+    setEntitySet('');
+    setAuthSecretRef('');
+    setDbHost('');
+    setDbPort('');
+    setDbName('');
+    setDbAuthSecretRef('');
+    setFilePath('');
+    setFileFormat('');
+    setFileAuthSecretRef('');
+    setCredentialError(null);
+    setEditingId(null);
+  };
+
   const handleAdd = () => {
     if (!id.trim() || !name.trim()) return;
-    if (!validateNoPlainCredential(authSecretRef) || !validateNoPlainCredential(baseUrl)) return;
-    if (!authSecretRef.trim()) {
-      setCredentialError('API 数据源必须填写 authSecretRef 引用');
-      return;
+    if (type === 'api') {
+      if (!validateNoPlainCredential(authSecretRef) || !validateNoPlainCredential(baseUrl)) return;
+      if (!authSecretRef.trim()) {
+        setCredentialError('API 数据源必须填写 authSecretRef 引用');
+        return;
+      }
     }
+    if (type === 'database' && !validateNoPlainCredential(dbAuthSecretRef)) return;
+    if (type === 'file' && fileAuthSecretRef && !validateNoPlainCredential(fileAuthSecretRef)) return;
 
     const now = new Date().toISOString();
     const source: DataSourceDefinition = {
@@ -74,12 +110,52 @@ export function DataSourceEditor() {
     };
 
     addDataSource(source);
-    setId('');
-    setName('');
-    setBoundObjectTypeId('');
-    setBaseUrl('');
-    setEntitySet('');
-    setAuthSecretRef('');
+    resetForm();
+  };
+
+  const handleEdit = (source: DataSourceDefinition) => {
+    setEditingId(source.id);
+    setId(source.id);
+    setName(source.name);
+    setType(source.type);
+    setBoundObjectTypeId(source.boundObjectTypeId || '');
+    if (source.api) {
+      setBaseUrl(source.api.baseUrl || '');
+      setEntitySet(source.api.entitySet || '');
+      setAuthSecretRef(source.api.authSecretRef || '');
+    } else {
+      setBaseUrl('');
+      setEntitySet('');
+      setAuthSecretRef('');
+    }
+  };
+
+  const handleUpdate = () => {
+    if (!editingId || !id.trim() || !name.trim()) return;
+    if (type === 'api' && authSecretRef && !validateNoPlainCredential(authSecretRef)) return;
+    if (type === 'database' && dbAuthSecretRef && !validateNoPlainCredential(dbAuthSecretRef)) return;
+
+    const existing = model?.sources.find((s) => s.id === editingId);
+    const now = new Date().toISOString();
+    const source: DataSourceDefinition = {
+      id: id.trim(),
+      name: name.trim(),
+      type,
+      boundObjectTypeId: boundObjectTypeId || undefined,
+      api:
+        type === 'api'
+          ? {
+              baseUrl: baseUrl.trim() || undefined,
+              entitySet: entitySet.trim() || undefined,
+              authSecretRef: authSecretRef.trim(),
+            }
+          : undefined,
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+    };
+
+    updateDataSource(editingId, source);
+    resetForm();
   };
 
   if (!model) {
@@ -103,14 +179,14 @@ export function DataSourceEditor() {
 
       <Card>
         <CardHeader>
-          <CardTitle>数据源列表</CardTitle>
+          <CardTitle>{editingId ? '编辑数据源' : '数据源列表'}</CardTitle>
           <CardDescription>绑定对象类型与外部 API（OAuth 等通过 Secret 引用）</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>ID</Label>
-              <Input value={id} onChange={(e) => setId(e.target.value)} placeholder="ds-sap-po" />
+              <Input value={id} onChange={(e) => setId(e.target.value)} placeholder="ds-sap-po" disabled={!!editingId} />
             </div>
             <div className="space-y-2">
               <Label>名称</Label>
@@ -172,11 +248,80 @@ export function DataSourceEditor() {
                 />
               </div>
             </div>
+          ) : type === 'database' ? (
+            <div className="grid grid-cols-2 gap-3 border-t pt-4">
+              <div className="space-y-2">
+                <Label>主机地址</Label>
+                <Input value={dbHost} onChange={(e) => setDbHost(e.target.value)} placeholder="db.example.com" />
+              </div>
+              <div className="space-y-2">
+                <Label>端口</Label>
+                <Input value={dbPort} onChange={(e) => setDbPort(e.target.value)} placeholder="5432" />
+              </div>
+              <div className="space-y-2">
+                <Label>数据库名</Label>
+                <Input value={dbName} onChange={(e) => setDbName(e.target.value)} placeholder="erp_prod" />
+              </div>
+              <div className="space-y-2">
+                <Label>认证密钥引用</Label>
+                <Input
+                  value={dbAuthSecretRef}
+                  onChange={(e) => {
+                    setDbAuthSecretRef(e.target.value);
+                    if (e.target.value) validateNoPlainCredential(e.target.value);
+                  }}
+                  placeholder="secret/db-erp-readonly"
+                />
+              </div>
+            </div>
+          ) : type === 'file' ? (
+            <div className="grid grid-cols-3 gap-3 border-t pt-4">
+              <div className="space-y-2">
+                <Label>文件路径/URL</Label>
+                <Input value={filePath} onChange={(e) => setFilePath(e.target.value)} placeholder="s3://bucket/data/" />
+              </div>
+              <div className="space-y-2">
+                <Label>文件格式</Label>
+                <Select value={fileFormat} onValueChange={setFileFormat}>
+                  <SelectTrigger><SelectValue placeholder="选择格式" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="csv">CSV</SelectItem>
+                    <SelectItem value="xlsx">XLSX</SelectItem>
+                    <SelectItem value="json">JSON</SelectItem>
+                    <SelectItem value="xml">XML</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>认证密钥引用（可选）</Label>
+                <Input
+                  value={fileAuthSecretRef}
+                  onChange={(e) => {
+                    setFileAuthSecretRef(e.target.value);
+                    if (e.target.value) validateNoPlainCredential(e.target.value);
+                  }}
+                  placeholder="secret/s3-readonly"
+                />
+              </div>
+            </div>
           ) : null}
 
-          <Button type="button" size="sm" onClick={handleAdd}>
-            添加数据源
-          </Button>
+          <div className="flex gap-2">
+            {editingId ? (
+              <>
+                <Button type="button" size="sm" onClick={handleUpdate}>
+                  保存修改
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={resetForm}>
+                  取消编辑
+                </Button>
+              </>
+            ) : (
+              <Button type="button" size="sm" onClick={handleAdd}>
+                添加数据源
+              </Button>
+            )}
+          </div>
 
           <ul className="space-y-2">
             {model.sources.map((source) => (
@@ -187,9 +332,14 @@ export function DataSourceEditor() {
                     <span className="text-muted-foreground"> · ref {source.api.authSecretRef}</span>
                   ) : null}
                 </span>
-                <Button type="button" variant="ghost" size="sm" onClick={() => deleteDataSource(source.id)}>
-                  删除
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => handleEdit(source)}>
+                    编辑
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => deleteDataSource(source.id)}>
+                    删除
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>

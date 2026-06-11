@@ -22,6 +22,9 @@ export type ManifestValidationCode =
   | 'V09'
   | 'V10'
   | 'V11'
+  | 'V12'
+  | 'V13'
+  | 'V14'
   | 'STRUCTURE';
 
 export type ManifestValidationSeverity = 'error' | 'warning';
@@ -173,15 +176,36 @@ export interface OntologyManifestBehavior {
 export interface OntologyManifestEvents {
   domainEvents?: ManifestDomainEvent[];
   integrationEvents?: Array<{ id: string }>;
-  routes?: Array<{ id: string }>;
-  handlers?: Array<{ id: string }>;
+  routes?: Array<{ id: string; sourceEventId?: string; targetHandlerId?: string }>;
+  handlers?: Array<{ id: string; eventId?: string; actionRef?: string; handler?: string; retryPolicy?: Record<string, unknown> }>;
   eventStore?: Record<string, unknown>;
 }
 
 export interface OntologyManifestGovernance {
-  roles?: Array<{ id: string }>;
-  fieldPermissions?: Array<{ objectTypeId: string; propertyNameEn: string }>;
-  agentPolicies?: Array<{ id: string }>;
+  roles?: Array<{ id: string; name?: string; permissions?: Array<{ objectTypeId: string; ops?: string[]; denyActionIds?: string[] }> }>;
+  fieldPermissions?: Array<{ objectTypeId: string; propertyNameEn: string; allowedRoleIds?: string[] }>;
+  agentPolicies?: Array<{ id: string; roleId?: string; defaultDeny?: boolean; allowedActionIds?: string[]; allowedMcpTools?: string[]; allowedAggregateRootIds?: string[]; manifestVersion?: string }>;
+}
+
+export interface ManifestProcessStep {
+  id: string;
+  name?: string;
+  type: string;
+  actionId?: string;
+  targetEntityId?: string;
+  description?: string;
+}
+
+export interface ManifestOrchestration {
+  id: string;
+  name: string;
+  entryPoint: string;
+  steps: ManifestProcessStep[];
+  description?: string;
+}
+
+export interface OntologyManifestProcess {
+  orchestrations: ManifestOrchestration[];
 }
 
 export interface OntologyManifestSpec {
@@ -189,6 +213,7 @@ export interface OntologyManifestSpec {
   behavior?: OntologyManifestBehavior;
   events?: OntologyManifestEvents;
   governance?: OntologyManifestGovernance;
+  process?: OntologyManifestProcess;
   dataSources?: Array<Record<string, unknown>>;
 }
 

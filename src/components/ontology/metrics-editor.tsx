@@ -22,6 +22,8 @@ const MEASUREMENT_TYPES: { value: BusinessMetric['measurementType']; label: stri
 
 export function MetricsEditor() {
   const { project, addMetric, updateMetric, deleteMetric } = useOntologyStore();
+  const behaviorActions = project?.behaviorModel?.actions ?? [];
+  const dataSources = project?.dataSourcesModel?.sources ?? [];
   const [showDialog, setShowDialog] = useState(false);
   const [editingMetric, setEditingMetric] = useState<Partial<BusinessMetric>>({});
 
@@ -181,22 +183,36 @@ export function MetricsEditor() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>绑定动作ID</Label>
-                      <Input
-                        value={editingMetric.boundActionId || ''}
-                        onChange={(e) => setEditingMetric({ ...editingMetric, boundActionId: e.target.value })}
-                        placeholder="如：action-001"
-                      />
+                      <Label>绑定动作</Label>
+                      <Select
+                        value={editingMetric.boundActionId || '_none'}
+                        onValueChange={(v) => setEditingMetric({ ...editingMetric, boundActionId: v === '_none' ? undefined : v })}
+                      >
+                        <SelectTrigger><SelectValue placeholder="选择绑定动作" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="_none">不绑定</SelectItem>
+                          {behaviorActions.map((a) => (
+                            <SelectItem key={a.id} value={a.id || ''}>{a.name || a.id}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label>数据源引用</Label>
-                    <Input
-                      value={editingMetric.dataSourceRef || ''}
-                      onChange={(e) => setEditingMetric({ ...editingMetric, dataSourceRef: e.target.value })}
-                      placeholder="如：data-source-001"
-                    />
+                    <Select
+                      value={editingMetric.dataSourceRef || '_none'}
+                      onValueChange={(v) => setEditingMetric({ ...editingMetric, dataSourceRef: v === '_none' ? undefined : v })}
+                    >
+                      <SelectTrigger><SelectValue placeholder="选择数据源" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none">不绑定</SelectItem>
+                        {dataSources.map((ds) => (
+                          <SelectItem key={ds.id} value={ds.id}>{ds.name} ({ds.id})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">

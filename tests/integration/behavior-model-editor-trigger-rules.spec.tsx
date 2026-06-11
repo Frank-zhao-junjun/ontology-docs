@@ -98,7 +98,7 @@ describe('US-4.3 / IT-TRIGGER-001: behavior editor configures transition trigger
     expect(useOntologyStore.getState().project?.behaviorModel?.stateMachines[0].transitions.map((transition) => transition.name)).not.toContain('事件驱动审批');
   });
 
-  it('应显示转换触发器的执行日志摘要', async () => {
+it('应显示转换触发器的执行日志摘要', async () => {
     const project = createFrozenProject('1.0.0');
     if (project.behaviorModel?.stateMachines[0]?.transitions[0]) {
       project.behaviorModel.stateMachines[0].transitions[0] = {

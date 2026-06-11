@@ -142,9 +142,9 @@ describe('IT-EPC-001: 聚合根 EPC 页签骨架', () => {
     expect(createdAnchors[1]?.download).toBe('contract.md');
   });
 
-  it('导出内容应与当前预览一致，并支持 PDF 命名格式', async () => {
-    const createdAnchors: HTMLAnchorElement[] = [];
+  it('导出内容应与当前预览一致，并支持 MD 格式导出', async () => {
     const objectUrlPayloads: Blob[] = [];
+    const createdAnchors: HTMLAnchorElement[] = [];
     const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation(((tagName: string, options?: ElementCreationOptions) => {
       const element = originalCreateElement(tagName, options);
       if (tagName.toLowerCase() === 'a') {
@@ -152,6 +152,7 @@ describe('IT-EPC-001: 聚合根 EPC 页签骨架', () => {
       }
       return element;
     }) as typeof document.createElement);
+
     vi.spyOn(URL, 'createObjectURL').mockImplementation((blob: Blob | MediaSource) => {
       objectUrlPayloads.push(blob as Blob);
       return `blob:epc-${objectUrlPayloads.length}`;
@@ -165,20 +166,17 @@ describe('IT-EPC-001: 聚合根 EPC 页签骨架', () => {
     expect(preview).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '导出 Markdown' }));
-    fireEvent.click(screen.getByRole('button', { name: '导出 PDF' }));
 
     expect(createElementSpy).toHaveBeenCalled();
-    expect(createdAnchors.at(-2)?.download).toBe('contract.md');
-    expect(createdAnchors.at(-1)?.download).toBe('contract.pdf');
+    expect(createdAnchors.at(-1)?.download).toBe('contract.md');
 
     const markdownBlob = objectUrlPayloads[0];
     const markdownContent = await markdownBlob.text();
     expect(markdownContent).toContain('# EPC业务活动规格说明书');
 
-    const pdfBlob = objectUrlPayloads[1];
-    expect(pdfBlob.type).toBe('application/pdf');
-    const pdfContent = await pdfBlob.text();
-    expect(pdfContent).toContain('# EPC业务活动规格说明书');
+    // MD格式导出按钮应存在（替代原PDF导出）
+    const mdExportButton = screen.getByRole('button', { name: '导出 MD' });
+    expect(mdExportButton).toBeInTheDocument();
   });
 
   it('应允许从 EPC 页签导出整包配置包', async () => {

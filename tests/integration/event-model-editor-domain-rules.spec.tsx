@@ -72,7 +72,8 @@ describe('US-6.1 / IT-EVENT-001: event editor enforces domain event rules', () =
     fireEvent.click(screen.getByRole('button', { name: '+ 添加事件' }));
     fireEvent.change(screen.getByPlaceholderText('如：创建完成'), { target: { value: '合同已审批' } });
 
-    fireEvent.click(screen.getByRole('combobox'));
+    const comboboxes = screen.getAllByRole('combobox');
+    fireEvent.click(comboboxes[0]);
     fireEvent.click(screen.getByText('状态变更时'));
     fireEvent.click(screen.getByRole('button', { name: '添加事件' }));
 

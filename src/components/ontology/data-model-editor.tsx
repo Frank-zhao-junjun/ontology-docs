@@ -17,7 +17,7 @@ import { Separator } from '@/components/ui/separator';
 import { Pencil, Trash2, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getAggregateRootEntities, normalizeEntityRoleFields, resolveEntityRole } from '@/lib/entity-role';
-import type { Entity, Attribute, Relation, ComputedProperty, SourceMapping } from '@/types/ontology';
+import type { Entity, Attribute, Relation, ComputedProperty, SourceMapping, EventDefinition } from '@/types/ontology';
 
 interface DataModelEditorProps {
   mode?: 'full' | 'entity-detail' | 'button-only';
@@ -59,6 +59,7 @@ function parseMasterDataFields(fieldNames?: string): string[] {
 
 export function DataModelEditor({ mode = 'full', entityId }: DataModelEditorProps) {
   const { project, addEntity, updateEntity, deleteEntity, metadataList, masterDataList } = useOntologyStore();
+  const eventDefinitions = (project?.eventModel?.events || []) as EventDefinition[];
   const [showEntityDialog, setShowEntityDialog] = useState(false);
   const [showAttributeDialog, setShowAttributeDialog] = useState(false);
   const [showRelationDialog, setShowRelationDialog] = useState(false);
@@ -1687,6 +1688,61 @@ export function DataModelEditor({ mode = 'full', entityId }: DataModelEditorProp
                         </Button>
                       </div>
                     ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 领域事件 (Domain Events) */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">领域事件</CardTitle>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    const availableEvents = eventDefinitions.filter(
+                      (e: EventDefinition) => e.isDomainEvent && !(selectedEntity.domainEvents || []).includes(e.id)
+                    );
+                    if (availableEvents.length === 0) {
+                      alert('没有可用的领域事件。请先在事件模型中创建领域事件。');
+                      return;
+                    }
+                    const eventId = prompt('输入领域事件ID（可用：' + availableEvents.map((e: EventDefinition) => e.name).join(', ') + '）：');
+                    if (!eventId) return;
+                    const found = availableEvents.find((e: EventDefinition) => e.id === eventId || e.name === eventId);
+                    if (!found) { alert('未找到该领域事件'); return; }
+                    updateEntity(selectedEntity.id, {
+                      ...selectedEntity,
+                      domainEvents: [...(selectedEntity.domainEvents || []), found.id],
+                    });
+                  }}>
+                    + 关联领域事件
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {(!selectedEntity.domainEvents || selectedEntity.domainEvents.length === 0) ? (
+                  <p className="text-sm text-muted-foreground">暂无领域事件（聚合根可发布领域事件）</p>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedEntity.domainEvents.map((eventId: string) => {
+                      const evt = eventDefinitions.find((e: EventDefinition) => e.id === eventId);
+                      return (
+                        <div key={eventId} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Badge variant="default">领域事件</Badge>
+                            <span>{evt ? evt.name : eventId}</span>
+                            {evt && <span className="text-muted-foreground text-xs">({evt.trigger})</span>}
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive"
+                            onClick={() => updateEntity(selectedEntity.id, {
+                              ...selectedEntity,
+                              domainEvents: (selectedEntity.domainEvents || []).filter((id: string) => id !== eventId),
+                            })}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>

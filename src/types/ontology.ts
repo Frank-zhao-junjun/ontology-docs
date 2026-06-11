@@ -174,6 +174,7 @@ export interface Entity {
   relations: Relation[];
   computedProperties?: ComputedProperty[]; // 派生属性
   sourceMappings?: SourceMapping[];        // 源系统映射机制
+  domainEvents?: string[];                 // 聚合根发布的领域事件ID列表
   indexes?: {
     fields: string[];
     type: 'btree' | 'hash';

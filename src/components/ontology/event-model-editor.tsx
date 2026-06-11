@@ -115,6 +115,9 @@ export function EventModelEditor({ mode = 'full', entityId }: EventModelEditorPr
       trigger,
       condition: editingEvent.condition?.trim(),
       payload: editingEvent.payload?.length ? editingEvent.payload : [{ field: 'id' }],
+      payloadFields: editingEvent.payloadFields,
+      isDomainEvent: editingEvent.isDomainEvent ?? true,
+      transactionPhase: editingEvent.transactionPhase || 'AFTER_COMMIT',
       description: editingEvent.description,
       entityRole: 'aggregate_root',
       entityIsAggregateRoot: true,  // 兼容旧结构
@@ -275,6 +278,31 @@ export function EventModelEditor({ mode = 'full', entityId }: EventModelEditorPr
                             />
                           </div>
                         )}
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              id="isDomainEvent"
+                              checked={editingEvent.isDomainEvent ?? true}
+                              onChange={(e) => setEditingEvent({ ...editingEvent, isDomainEvent: e.target.checked })}
+                              className="rounded border-border"
+                            />
+                            <Label htmlFor="isDomainEvent">领域事件</Label>
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            <Label>事务阶段</Label>
+                            <Select
+                              value={editingEvent.transactionPhase || 'AFTER_COMMIT'}
+                              onValueChange={(v) => setEditingEvent({ ...editingEvent, transactionPhase: v as EventDefinition['transactionPhase'] })}
+                            >
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="BEFORE_COMMIT">提交前 (before_commit)</SelectItem>
+                                <SelectItem value="AFTER_COMMIT">提交后 (after_commit)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
                         <div className="space-y-2">
                           <Label>事件载荷 (字段，逗号分隔)</Label>
                           <Input
@@ -285,6 +313,22 @@ export function EventModelEditor({ mode = 'full', entityId }: EventModelEditorPr
                             })}
                             placeholder="如：id, name"
                           />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>载荷字段定义 (JSON)</Label>
+                          <Textarea
+                            value={editingEvent.payloadFields ? JSON.stringify(editingEvent.payloadFields, null, 2) : ''}
+                            onChange={(e) => {
+                              try {
+                                const parsed = e.target.value.trim() ? JSON.parse(e.target.value) : undefined;
+                                setEditingEvent({ ...editingEvent, payloadFields: parsed });
+                              } catch { /* ignore parse errors while typing */ }
+                            }}
+                            placeholder='[{"name":"id","type":"string","required":true}]'
+                            className="font-mono text-xs"
+                            rows={3}
+                          />
+                          <p className="text-xs text-muted-foreground">结构化载荷定义，每项包含 name/type/required</p>
                         </div>
                         <div className="space-y-2">
                           <Label>描述</Label>
@@ -320,6 +364,12 @@ export function EventModelEditor({ mode = 'full', entityId }: EventModelEditorPr
                                 <span className="text-sm text-muted-foreground">({event.nameEn})</span>
                               )}
                               <Badge variant="outline">{getTriggerLabel(event.trigger)}</Badge>
+                              {event.isDomainEvent && (
+                                <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">领域事件</Badge>
+                              )}
+                              {event.transactionPhase && (
+                                <Badge variant="outline" className="text-xs">{event.transactionPhase === 'BEFORE_COMMIT' ? '提交前' : event.transactionPhase === 'AFTER_COMMIT' ? '提交后' : '独立'}</Badge>
+                              )}
                               {relatedSubs.length > 0 && (
                                 <Badge variant="secondary">{relatedSubs.length} 订阅</Badge>
                               )}

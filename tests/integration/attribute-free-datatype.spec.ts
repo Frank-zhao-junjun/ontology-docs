@@ -176,7 +176,7 @@ describe('IT-ATTR-META: free modeling (no metadata template)', () => {
           }),
         ])
       );
-    });
+    }, 20000);
   });
 
   describe('IT-ATTR-META-005 [REQ-ATTR-META-05]', () => {

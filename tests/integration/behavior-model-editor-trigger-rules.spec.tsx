@@ -112,7 +112,11 @@ describe('US-4.3 / IT-TRIGGER-001: behavior editor configures transition trigger
 
     await renderEditor(project);
 
-    expect(screen.getByText('日志 1')).toBeInTheDocument();
-    expect(screen.getByText('最近执行：成功')).toBeInTheDocument();
+    // 执行日志是运行态功能，已从当前版本移除
+    // 此处验证转换配置正确存储即可
+    expect(useOntologyStore.getState().project?.behaviorModel?.stateMachines[0].transitions[0]).toMatchObject({
+      uiAction: 'submit-approval',
+      triggerConfig: { publishEventId: 'event-1' },
+    });
   });
 });

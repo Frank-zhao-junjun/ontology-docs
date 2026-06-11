@@ -41,10 +41,6 @@ function formatLineList(values?: string[]): string {
   return (values || []).join('\n');
 }
 
-function getExecutionStatusLabel(status: 'success' | 'failed'): string {
-  return status === 'success' ? '成功' : '失败';
-}
-
 export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEditorProps) {
   const { project, addStateMachine, updateStateMachine, deleteStateMachine, addAction, updateAction, deleteAction, addFunction, updateFunction, deleteFunction, addTransactionBoundary, updateTransactionBoundary, deleteTransactionBoundary, addBehaviorIndicator, updateBehaviorIndicator, deleteBehaviorIndicator, addBehaviorConstraint, updateBehaviorConstraint, deleteBehaviorConstraint } = useOntologyStore();
   const [selectedSmId, setSelectedSmId] = useState<string | null>(null);

@@ -62,6 +62,7 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
   const [editingState, setEditingState] = useState<Partial<State>>({});
   const [editingTransition, setEditingTransition] = useState<Partial<Transition>>({});
   const [newSmName, setNewSmName] = useState('');
+  const [newSmStatusField, setNewSmStatusField] = useState('status');
 
   const stateMachines = project?.behaviorModel?.stateMachines || [];
   const entities = project?.dataModel?.entities || [];
@@ -91,7 +92,7 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
       id: generateId(),
       name: newSmName,
       entity: entityId,
-      statusField: 'status',
+      statusField: newSmStatusField || 'status',
       states: [],
       transitions: [],
     };
@@ -335,6 +336,23 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
                         placeholder="如：生命周期"
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label>状态字段名</Label>
+                      <Select
+                        value={newSmStatusField}
+                        onValueChange={setNewSmStatusField}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="status">status (默认)</SelectItem>
+                          {selectedEntity?.attributes
+                            .filter(a => a.dataType === 'enum' || a.dataType === 'string')
+                            .map(a => (
+                              <SelectItem key={a.id} value={a.nameEn || a.name}>{a.name} ({a.nameEn || a.name})</SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <Button onClick={handleCreateSm} className="w-full" disabled={!newSmName.trim()}>
                       创建状态机
                     </Button>
@@ -409,6 +427,14 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
                                       value={editingState.name || ''}
                                       onChange={(e) => setEditingState({ ...editingState, name: e.target.value })}
                                       placeholder="如：草稿"
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>描述</Label>
+                                    <Input
+                                      value={editingState.description || ''}
+                                      onChange={(e) => setEditingState({ ...editingState, description: e.target.value })}
+                                      placeholder="状态的含义说明"
                                     />
                                   </div>
                                   <div className="space-y-2">
@@ -641,6 +667,15 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
                                         ))}
                                       </SelectContent>
                                     </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>描述</Label>
+                                    <Textarea
+                                      value={editingTransition.description || ''}
+                                      onChange={(e) => setEditingTransition({ ...editingTransition, description: e.target.value })}
+                                      placeholder="转换的业务含义说明"
+                                      rows={2}
+                                    />
                                   </div>
                                   <div className="space-y-2">
                                     <Label>条件表达式</Label>
@@ -934,6 +969,10 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
                             <SelectItem value="delete">删除 (Delete)</SelectItem>
                             <SelectItem value="link">链接 (Link)</SelectItem>
                             <SelectItem value="unlink">断开 (Unlink)</SelectItem>
+                            <SelectItem value="validate">校验 (Validate)</SelectItem>
+                            <SelectItem value="notify">通知 (Notify)</SelectItem>
+                            <SelectItem value="execute">执行 (Execute)</SelectItem>
+                            <SelectItem value="webhook">Webhook</SelectItem>
                             <SelectItem value="custom">触发自定义 (Custom)</SelectItem>
                           </SelectContent>
                         </Select>
@@ -1071,6 +1110,7 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
                             <SelectItem value="GET">GET</SelectItem>
                             <SelectItem value="POST">POST</SelectItem>
                             <SelectItem value="PUT">PUT</SelectItem>
+                            <SelectItem value="PATCH">PATCH</SelectItem>
                             <SelectItem value="DELETE">DELETE</SelectItem>
                           </SelectContent>
                         </Select>
@@ -1081,6 +1121,22 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
                           placeholder="https://api.example.com/v1/risk"
                         />
                       </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>描述</Label>
+                      <Input
+                        value={editingFunction.description || ''}
+                        onChange={(e) => setEditingFunction({ ...editingFunction, description: e.target.value })}
+                        placeholder="函数用途说明"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>返回类型</Label>
+                      <Input
+                        value={editingFunction.returnType || ''}
+                        onChange={(e) => setEditingFunction({ ...editingFunction, returnType: e.target.value })}
+                        placeholder="如：RiskAssessmentResult"
+                      />
                     </div>
 
                     <Button onClick={handleSaveFunction} className="w-full">
@@ -1190,23 +1246,35 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
                     <Input value={editingIndicator?.name || ''} onChange={(e) => setEditingIndicator({...(editingIndicator || {}), name: e.target.value})} placeholder="例如：客户满意度评分" />
                   </div>
                   <div>
+                    <Label>英文名称</Label>
+                    <Input value={editingIndicator?.nameEn || ''} onChange={(e) => setEditingIndicator({...(editingIndicator || {}), nameEn: e.target.value})} placeholder="例如：customerSatisfactionScore" />
+                  </div>
+                  <div>
                     <Label>指标类型</Label>
                     <Select value={editingIndicator?.type || 'rate'} onValueChange={(v) => setEditingIndicator({...(editingIndicator || {}), type: v as IndicatorType})}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="count">计数 (Count)</SelectItem>
                         <SelectItem value="rate">比率 (Rate)</SelectItem>
-                        <SelectItem value="avg">平均值 (Avg)</SelectItem>
-                        <SelectItem value="sum">总和 (Sum)</SelectItem>
+                        <SelectItem value="average">平均值 (Average)</SelectItem>
+                        <SelectItem value="ratio">占比 (Ratio)</SelectItem>
                         <SelectItem value="duration">时长 (Duration)</SelectItem>
-                        <SelectItem value="score">评分 (Score)</SelectItem>
+                        <SelectItem value="custom">自定义 (Custom)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>目标实体</Label>
-                      <Input value={editingIndicator?.targetEntity || ''} onChange={(e) => setEditingIndicator({...(editingIndicator || {}), targetEntity: e.target.value})} placeholder="实体名" />
+                      <Select value={editingIndicator?.targetEntity || '_none'} onValueChange={(v) => setEditingIndicator({...(editingIndicator || {}), targetEntity: v === '_none' ? '' : v})}>
+                        <SelectTrigger><SelectValue placeholder="选择实体" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="_none">无</SelectItem>
+                          {entities.map(e => (
+                            <SelectItem key={e.id} value={e.id}>{e.name} ({e.nameEn})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label>目标属性</Label>
@@ -1233,6 +1301,24 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
                   <div>
                     <Label>权重</Label>
                     <Input type="number" value={editingIndicator?.weight ?? 1} onChange={(e) => setEditingIndicator({...(editingIndicator || {}), weight: Number(e.target.value)})} placeholder="1" />
+                  </div>
+                  <div>
+                    <Label>单位</Label>
+                    <Input value={editingIndicator?.unit || ''} onChange={(e) => setEditingIndicator({...(editingIndicator || {}), unit: e.target.value})} placeholder="例如：%、次、天" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>预警阈值</Label>
+                      <Input type="number" value={editingIndicator?.warningThreshold ?? ''} onChange={(e) => setEditingIndicator({...(editingIndicator || {}), warningThreshold: e.target.value ? Number(e.target.value) : undefined})} placeholder="低于此值预警" />
+                    </div>
+                    <div>
+                      <Label>严重阈值</Label>
+                      <Input type="number" value={editingIndicator?.criticalThreshold ?? ''} onChange={(e) => setEditingIndicator({...(editingIndicator || {}), criticalThreshold: e.target.value ? Number(e.target.value) : undefined})} placeholder="低于此值严重" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" checked={editingIndicator?.isKPI ?? true} onChange={(e) => setEditingIndicator({...(editingIndicator || {}), isKPI: e.target.checked})} className="rounded border-gray-300" />
+                    <Label>KPI 指标</Label>
                   </div>
                   <div>
                     <Label>指标描述</Label>
@@ -1279,7 +1365,7 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
                           <div className="text-sm text-muted-foreground">{c.description}</div>
                           <div className="flex gap-2 mt-1">
                             <Badge variant={c.severity === 'blocking' ? 'destructive' : 'secondary'}>{c.severity === 'blocking' ? '阻塞' : '警告'}</Badge>
-                            <Badge variant="outline">{c.constraintType || 'pre-condition'}</Badge>
+                            <Badge variant="outline">{c.constraintType || 'preCondition'}</Badge>
                           </div>
                         </div>
                         <div className="flex gap-1">
@@ -1314,14 +1400,14 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
                   </div>
                   <div>
                     <Label>约束类型</Label>
-                    <Select value={editingConstraint?.constraintType || 'pre-condition'} onValueChange={(v) => setEditingConstraint({...(editingConstraint || {}), constraintType: v as 'preCondition' | 'postCondition' | 'role' | 'resource' | 'timing'})}>
+                    <Select value={editingConstraint?.constraintType || 'preCondition'} onValueChange={(v) => setEditingConstraint({...(editingConstraint || {}), constraintType: v as 'preCondition' | 'postCondition' | 'role' | 'resource' | 'timing'})}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pre-condition">前置条件 (Pre-condition)</SelectItem>
-                        <SelectItem value="post-condition">后置条件 (Post-condition)</SelectItem>
-                        <SelectItem value="role-based">基于角色 (Role-based)</SelectItem>
-                        <SelectItem value="resource-based">基于资源 (Resource-based)</SelectItem>
-                        <SelectItem value="compliance">合规约束 (Compliance)</SelectItem>
+                        <SelectItem value="preCondition">前置条件 (Pre-condition)</SelectItem>
+                        <SelectItem value="postCondition">后置条件 (Post-condition)</SelectItem>
+                        <SelectItem value="role">基于角色 (Role-based)</SelectItem>
+                        <SelectItem value="resource">基于资源 (Resource-based)</SelectItem>
+                        <SelectItem value="timing">时效约束 (Timing)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1330,7 +1416,7 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
                     <Select value={editingConstraint?.severity || 'warning'} onValueChange={(v) => setEditingConstraint({...(editingConstraint || {}), severity: v as 'warning' | 'blocking'})}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="error">阻塞 (Error)</SelectItem>
+                        <SelectItem value="blocking">阻塞 (Blocking)</SelectItem>
                         <SelectItem value="warning">警告 (Warning)</SelectItem>
                       </SelectContent>
                     </Select>
@@ -1346,6 +1432,31 @@ export function BehaviorModelEditor({ mode = 'full', entityId }: BehaviorModelEd
                   <div>
                     <Label>约束描述</Label>
                     <Textarea value={editingConstraint?.description || ''} onChange={(e) => setEditingConstraint({...(editingConstraint || {}), description: e.target.value})} placeholder="描述约束的业务含义" />
+                  </div>
+                  <div>
+                    <Label>约束范围 (scope)</Label>
+                    <Select value={editingConstraint?.scope || 'pre_action'} onValueChange={(v) => setEditingConstraint({...(editingConstraint || {}), scope: v as 'pre_action' | 'post_action' | 'transition' | 'role_based' | 'resource_based'})}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pre_action">前置动作</SelectItem>
+                        <SelectItem value="post_action">后置动作</SelectItem>
+                        <SelectItem value="transition">转换约束</SelectItem>
+                        <SelectItem value="role_based">角色约束</SelectItem>
+                        <SelectItem value="resource_based">资源约束</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>目标动作</Label>
+                    <Input value={editingConstraint?.targetAction || ''} onChange={(e) => setEditingConstraint({...(editingConstraint || {}), targetAction: e.target.value})} placeholder="绑定的 Action ID" />
+                  </div>
+                  <div>
+                    <Label>错误消息</Label>
+                    <Input value={editingConstraint?.errorMessage || ''} onChange={(e) => setEditingConstraint({...(editingConstraint || {}), errorMessage: e.target.value})} placeholder="约束违反时的提示消息" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" checked={editingConstraint?.async || false} onChange={(e) => setEditingConstraint({...(editingConstraint || {}), async: e.target.checked})} className="rounded border-gray-300" />
+                    <Label>异步执行</Label>
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">

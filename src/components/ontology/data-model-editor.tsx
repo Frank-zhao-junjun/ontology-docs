@@ -174,11 +174,15 @@ export function DataModelEditor({ mode = 'full', entityId }: DataModelEditorProp
       length: editingAttribute.length,
       precision: editingAttribute.precision,
       scale: editingAttribute.scale,
+      enumRef: dataType === 'enum' ? editingAttribute.enumRef : undefined,
       referenceKind,
       referencedEntityId: dataType === 'reference' && referenceKind === 'entity' ? editingAttribute.referencedEntityId : undefined,
+      referenceDisplayField: dataType === 'reference' && referenceKind === 'entity' ? editingAttribute.referenceDisplayField : undefined,
       isMasterDataRef,
       masterDataType: isMasterDataRef ? editingAttribute.masterDataType : undefined,
       masterDataField: isMasterDataRef ? editingAttribute.masterDataField : undefined,
+      autoFill: editingAttribute.autoFill,
+      default: editingAttribute.default,
       metadataTemplateId: editingAttribute.metadataTemplateId,
       metadataTemplateName: editingAttribute.metadataTemplateName,
     };
@@ -692,9 +696,34 @@ export function DataModelEditor({ mode = 'full', entityId }: DataModelEditorProp
                         </div>
                       </div>
                     )}
+                    {editingDataType === 'enum' && (
+                      <div className="space-y-2">
+                        <Label>枚举引用 (行为模型状态定义)</Label>
+                        <Select
+                          value={editingAttribute.enumRef || '_none'}
+                          onValueChange={(v) => setEditingAttribute({ ...editingAttribute, enumRef: v === '_none' ? undefined : v })}
+                        >
+                          <SelectTrigger><SelectValue placeholder="选择状态定义（可选）" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="_none">不关联状态定义</SelectItem>
+                            {project?.behaviorModel?.stateMachines?.flatMap(sm =>
+                              sm.states.map(s => (
+                                <SelectItem key={`${sm.id}:${s.id}`} value={`${sm.id}:${s.id}`}>
+                                  {sm.name} / {s.name}
+                                </SelectItem>
+                              ))
+                            ) || []}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          关联行为模型的状态定义，枚举值将自动从状态列表生成。
+                        </p>
+                      </div>
+                    )}
                     {editingDataType === 'reference' && (
                       <>
                         {!editingAttribute.isMasterDataRef ? (
+                        <>
                           <div className="space-y-2">
                             <Label htmlFor="attribute-ref-entity">引用实体</Label>
                             <Select
@@ -721,6 +750,24 @@ export function DataModelEditor({ mode = 'full', entityId }: DataModelEditorProp
                               </SelectContent>
                             </Select>
                           </div>
+                          {editingAttribute.referencedEntityId && (
+                            <div className="space-y-2">
+                              <Label>引用显示字段</Label>
+                              <Select
+                                value={editingAttribute.referenceDisplayField || '_none'}
+                                onValueChange={(v) => setEditingAttribute({ ...editingAttribute, referenceDisplayField: v === '_none' ? undefined : v })}
+                              >
+                                <SelectTrigger><SelectValue placeholder="选择显示字段" /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="_none">默认显示字段</SelectItem>
+                                  {entities.find(e => e.id === editingAttribute.referencedEntityId)?.attributes.map(a => (
+                                    <SelectItem key={a.id} value={a.nameEn || a.name}>{a.name} ({a.nameEn || a.name})</SelectItem>
+                                  )) || []}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+                        </> 
                         ) : (
                           <>
                             <div className="space-y-2">
@@ -1024,6 +1071,14 @@ export function DataModelEditor({ mode = 'full', entityId }: DataModelEditorProp
                       </Select>
                     </div>
                     <div className="space-y-2">
+                      <Label>外键字段 (可选)</Label>
+                      <Input
+                        value={editingRelation.foreignKey || ''}
+                        onChange={(e) => setEditingRelation({ ...editingRelation, foreignKey: e.target.value || undefined })}
+                        placeholder="如：contract_id"
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label>级联操作</Label>
                       <Select
                         value={editingRelation.cascade || 'none'}
@@ -1063,6 +1118,7 @@ export function DataModelEditor({ mode = 'full', entityId }: DataModelEditorProp
                         name: editingRelation.name || '新关系',
                         type: editingRelation.type || 'one_to_many',
                         targetEntity,
+                        foreignKey: editingRelation.foreignKey || undefined,
                         cascade: editingRelation.cascade || 'none',
                         description: editingRelation.description,
                         directionality: editingRelation.directionality || 'directed',
@@ -1292,6 +1348,27 @@ export function DataModelEditor({ mode = 'full', entityId }: DataModelEditorProp
                         placeholder="实体用途说明"
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label className="text-blue-700">业务含义 (Business Meaning) ⭐</Label>
+                      <Textarea
+                        value={editingEntity.businessMeaning || ''}
+                        onChange={(e) => setEditingEntity({ ...editingEntity, businessMeaning: e.target.value })}
+                        placeholder="供AI理解该实体的精确业务定义"
+                        className="bg-blue-50 border-blue-200"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-blue-700">同义词表 (Aliases) ⭐</Label>
+                      <Input
+                        value={editingEntity.aliases?.join(', ') || ''}
+                        onChange={(e) => {
+                          const strs = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                          setEditingEntity({ ...editingEntity, aliases: strs.length ? strs : undefined });
+                        }}
+                        placeholder="多个同义词用逗号隔开"
+                        className="bg-blue-50 border-blue-200"
+                      />
+                    </div>
                     <Button onClick={() => {
                       if (!editingEntity.projectId && projects.length > 0) {
                         setEditingEntity({ ...editingEntity, projectId: projects[0].id, entityRole: editingEntityRole });
@@ -1311,6 +1388,8 @@ export function DataModelEditor({ mode = 'full', entityId }: DataModelEditorProp
                         name: editingEntity.name || '新实体',
                         nameEn: editingEntity.nameEn || 'NewEntity',
                         description: editingEntity.description,
+                        businessMeaning: editingEntity.businessMeaning,
+                        aliases: editingEntity.aliases,
                         projectId: editingEntity.projectId,
                         businessScenarioId: editingEntity.businessScenarioId,
                         entityRole: editingEntityRole,
@@ -1573,6 +1652,10 @@ export function DataModelEditor({ mode = 'full', entityId }: DataModelEditorProp
                       </Select>
                     </div>
                   )}
+                  <div className="space-y-2">
+                    <Label>描述</Label>
+                    <Textarea value={editingComputedProp?.description || ''} onChange={(e) => setEditingComputedProp({ ...editingComputedProp!, description: e.target.value })} className="min-h-[50px]" placeholder="派生属性的用途说明" />
+                  </div>
                   <div className="space-y-2">
                     <Label>业务含义</Label>
                     <Textarea value={editingComputedProp?.businessMeaning || ''} onChange={(e) => setEditingComputedProp({ ...editingComputedProp!, businessMeaning: e.target.value })} className="min-h-[50px]" placeholder="AI 理解该派生属性的含义" />

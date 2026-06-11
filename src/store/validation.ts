@@ -207,6 +207,11 @@ export function ensureEventDefinitionRules(event: EventDefinition, stateProject:
     throw new Error('状态变更事件必须定义触发条件');
   }
 
+  // E3: domain event payloadFields max 5 constraint
+  if (event.isDomainEvent && event.payloadFields && event.payloadFields.length > 5) {
+    throw new Error('领域事件的 payloadFields 最多 5 个字段');
+  }
+
   const payload = (event.payload || [])
     .map((item) => ({
       ...item,

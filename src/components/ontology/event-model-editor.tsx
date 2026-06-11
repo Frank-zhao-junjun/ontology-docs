@@ -69,7 +69,7 @@ function getDefaultEventNameEn(entityNameEn: string, trigger: EventDefinition['t
 }
 
 export function EventModelEditor({ mode = 'full', entityId }: EventModelEditorProps) {
-  const { project, addEventDefinition, deleteEventDefinition, addSubscription, deleteSubscription } = useOntologyStore();
+  const { project, addEventDefinition, deleteEventDefinition, addSubscription, deleteSubscription, updateEntity } = useOntologyStore();
   const [showEventDialog, setShowEventDialog] = useState(false);
   const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Partial<EventDefinition>>({});
@@ -179,6 +179,16 @@ export function EventModelEditor({ mode = 'full', entityId }: EventModelEditorPr
     deleteEventDefinition(eventId);
     subscriptions.filter(s => s.eventId === eventId).forEach(s => {
       deleteSubscription(s.id);
+    });
+    // Cascade: remove eventId from all Entity.domainEvents
+    const entities = project?.dataModel?.entities || [];
+    entities.forEach(entity => {
+      if (entity.domainEvents?.includes(eventId)) {
+        updateEntity(entity.id, {
+          ...entity,
+          domainEvents: entity.domainEvents.filter(id => id !== eventId),
+        });
+      }
     });
   };
 
@@ -476,6 +486,15 @@ export function EventModelEditor({ mode = 'full', entityId }: EventModelEditorPr
                             value={editingSubscription.actionRef || ''}
                             onChange={(e) => setEditingSubscription({ ...editingSubscription, actionRef: e.target.value })}
                             placeholder="技能名/Webhook URL/模板名"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>描述</Label>
+                          <Input
+                            aria-label="描述"
+                            value={editingSubscription.description || ''}
+                            onChange={(e) => setEditingSubscription({ ...editingSubscription, description: e.target.value })}
+                            placeholder="订阅用途说明"
                           />
                         </div>
                         <div className="grid grid-cols-2 gap-4">

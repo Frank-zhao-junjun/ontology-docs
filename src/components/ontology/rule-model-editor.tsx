@@ -71,6 +71,8 @@ export function RuleModelEditor({ mode = 'full', entityId }: RuleModelEditorProp
         pattern: editingCondition.pattern,
         min: editingCondition.min,
         max: editingCondition.max,
+        exclusiveMin: editingCondition.exclusiveMin,
+        exclusiveMax: editingCondition.exclusiveMax,
         expression: editingCondition.expression,
         fields: editingCondition.fields,
         refEntity: editingCondition.refEntity,
@@ -78,6 +80,13 @@ export function RuleModelEditor({ mode = 'full', entityId }: RuleModelEditorProp
         refValue: editingCondition.refValue,
         checkEntity: editingCondition.checkEntity,
         checkCondition: editingCondition.checkCondition,
+        masterField: editingCondition.masterField,
+        detailEntity: editingCondition.detailEntity,
+        detailField: editingCondition.detailField,
+        detailForeignKey: editingCondition.detailForeignKey,
+        deadlineField: editingCondition.deadlineField,
+        daysAfter: editingCondition.daysAfter,
+        customScript: editingCondition.customScript,
       },
       errorMessage: editingRule.errorMessage || '校验失败',
       severity: editingRule.severity || 'error',
@@ -311,6 +320,157 @@ export function RuleModelEditor({ mode = 'full', entityId }: RuleModelEditorProp
                       </div>
                     )}
 
+                    {editingCondition.type === 'reference_check' && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label>引用实体</Label>
+                            <Select
+                              value={editingCondition.refEntity || ''}
+                              onValueChange={(v) => setEditingCondition({ ...editingCondition, refEntity: v })}
+                            >
+                              <SelectTrigger><SelectValue placeholder="选择实体" /></SelectTrigger>
+                              <SelectContent>
+                                {entities.map((entity) => (
+                                  <SelectItem key={entity.id} value={entity.id}>{entity.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>引用字段</Label>
+                            <Input
+                              value={editingCondition.refField || ''}
+                              onChange={(e) => setEditingCondition({ ...editingCondition, refField: e.target.value })}
+                              placeholder="如：status"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>引用值</Label>
+                            <Input
+                              value={editingCondition.refValue || ''}
+                              onChange={(e) => setEditingCondition({ ...editingCondition, refValue: e.target.value })}
+                              placeholder="如：active"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {editingCondition.type === 'sum_match' && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>主表汇总字段</Label>
+                            <Input
+                              value={editingCondition.masterField || ''}
+                              onChange={(e) => setEditingCondition({ ...editingCondition, masterField: e.target.value })}
+                              placeholder="如：totalAmount"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>明细实体</Label>
+                            <Select
+                              value={editingCondition.detailEntity || ''}
+                              onValueChange={(v) => setEditingCondition({ ...editingCondition, detailEntity: v })}
+                            >
+                              <SelectTrigger><SelectValue placeholder="选择明细实体" /></SelectTrigger>
+                              <SelectContent>
+                                {entities.map((entity) => (
+                                  <SelectItem key={entity.id} value={entity.id}>{entity.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>明细字段</Label>
+                            <Input
+                              value={editingCondition.detailField || ''}
+                              onChange={(e) => setEditingCondition({ ...editingCondition, detailField: e.target.value })}
+                              placeholder="如：amount"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>明细外键</Label>
+                            <Input
+                              value={editingCondition.detailForeignKey || ''}
+                              onChange={(e) => setEditingCondition({ ...editingCondition, detailForeignKey: e.target.value })}
+                              placeholder="如：orderId"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {editingCondition.type === 'deadline' && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>截止时间字段</Label>
+                            <Select
+                              value={editingCondition.deadlineField || ''}
+                              onValueChange={(v) => setEditingCondition({ ...editingCondition, deadlineField: v })}
+                            >
+                              <SelectTrigger><SelectValue placeholder="选择日期字段" /></SelectTrigger>
+                              <SelectContent>
+                                {selectedEntity.attributes
+                                  .filter(a => a.dataType === 'date' || a.dataType === 'datetime')
+                                  .map((a) => (
+                                    <SelectItem key={a.id} value={a.nameEn || a.name}>{a.name}</SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>宽限天数</Label>
+                            <Input
+                              type="number"
+                              value={editingCondition.daysAfter ?? ''}
+                              onChange={(e) => setEditingCondition({ ...editingCondition, daysAfter: e.target.value ? Number(e.target.value) : undefined })}
+                              placeholder="如：3"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {editingCondition.type === 'custom' && (
+                      <div className="space-y-2">
+                        <Label>自定义脚本</Label>
+                        <Textarea
+                          value={editingCondition.customScript || ''}
+                          onChange={(e) => setEditingCondition({ ...editingCondition, customScript: e.target.value })}
+                          placeholder="输入自定义校验脚本"
+                          className="font-mono text-sm"
+                        />
+                      </div>
+                    )}
+
+                    {editingCondition.type === 'range' && (
+                      <div className="flex gap-4">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={editingCondition.exclusiveMin || false}
+                            onChange={(e) => setEditingCondition({ ...editingCondition, exclusiveMin: e.target.checked })}
+                            className="rounded border-gray-300"
+                          />
+                          <Label className="text-sm">不含最小值</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={editingCondition.exclusiveMax || false}
+                            onChange={(e) => setEditingCondition({ ...editingCondition, exclusiveMax: e.target.checked })}
+                            className="rounded border-gray-300"
+                          />
+                          <Label className="text-sm">不含最大值</Label>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <Label>错误消息</Label>
                       <Textarea
@@ -422,24 +582,43 @@ export function RuleModelEditor({ mode = 'full', entityId }: RuleModelEditorProp
                                 </Label>
                               </div>
                               {editingRule.grayscale?.enabled && (
-                                <div className="space-y-2 pl-6">
-                                  <Label>灰度比例 (%)</Label>
-                                  <Input
-                                    type="number"
-                                    min={0}
-                                    max={100}
-                                    value={editingRule.grayscale.percentage || 0}
-                                    onChange={(e) =>
-                                      setEditingRule({
-                                        ...editingRule,
-                                        grayscale: {
-                                          ...editingRule.grayscale!,
-                                          percentage: Math.max(0, Math.min(100, Number(e.target.value) || 0)),
-                                        },
-                                      })
-                                    }
-                                    placeholder="0-100"
-                                  />
+                                <div className="space-y-4 pl-6">
+                                  <div className="space-y-2">
+                                    <Label>灰度比例 (%)</Label>
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      max={100}
+                                      value={editingRule.grayscale.percentage || 0}
+                                      onChange={(e) =>
+                                        setEditingRule({
+                                          ...editingRule,
+                                          grayscale: {
+                                            ...editingRule.grayscale!,
+                                            percentage: Math.max(0, Math.min(100, Number(e.target.value) || 0)),
+                                          },
+                                        })
+                                      }
+                                      placeholder="0-100"
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>目标业务场景ID（逗号分隔）</Label>
+                                    <Input
+                                      value={(editingRule.grayscale.targetScenarioIds || []).join(', ')}
+                                      onChange={(e) => {
+                                        const ids = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                                        setEditingRule({
+                                          ...editingRule,
+                                          grayscale: {
+                                            ...editingRule.grayscale!,
+                                            targetScenarioIds: ids.length > 0 ? ids : undefined,
+                                          },
+                                        });
+                                      }}
+                                      placeholder="如：scenario-1, scenario-2"
+                                    />
+                                  </div>
                                 </div>
                               )}
                             </div>

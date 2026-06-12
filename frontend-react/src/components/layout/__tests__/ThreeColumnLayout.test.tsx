@@ -9,4 +9,9 @@ describe('ThreeColumnLayout', () => {
     expect(screen.getByTestId('center-panel')).toBeInTheDocument();
     expect(screen.getByTestId('right-sidebar')).toBeInTheDocument();
   });
+
+  it('has toggle buttons', () => {
+    render(<ThreeColumnLayout />);
+    expect(screen.getByTestId('toggle-left')).toBeInTheDocument();
+  });
 });

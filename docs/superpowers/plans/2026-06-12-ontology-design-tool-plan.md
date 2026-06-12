@@ -1163,6 +1163,11 @@ git add -A && git commit -m "chore: all tests green, types clean, integration co
 
 ---
 
+## Execution Notes
+
+1. `content_json` 字段名已核实：`backend/models.py:17` — `MetaModelDefinition.content_json`。Plam 中所有 references 正确。
+2. 领域选项（Task 3.3 StructuralForm）Phase 1 硬编码 OK。后续 Phase 增加 `/api/meta-models/domains` 动态获取。
+
 ## Summary
 
 | Phase | Steps | Content |

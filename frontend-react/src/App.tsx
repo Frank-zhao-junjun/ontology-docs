@@ -1,6 +1,7 @@
 import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
+import ThreeColumnLayout from './components/layout/ThreeColumnLayout';
 function App() {
-  return <ConfigProvider locale={zhCN}><div style={{padding:40}}>Ontology Design Tool</div></ConfigProvider>;
+  return <ConfigProvider locale={zhCN}><ThreeColumnLayout /></ConfigProvider>;
 }
 export default App;

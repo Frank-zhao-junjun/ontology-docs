@@ -1,5 +1,12 @@
+import VersionBar from '../export/VersionBar';
+
 function RightSidebar() {
-  return <div>Tree</div>;
+  return (
+    <div>
+      <div>Tree</div>
+      <VersionBar />
+    </div>
+  );
 }
 
 export default RightSidebar;

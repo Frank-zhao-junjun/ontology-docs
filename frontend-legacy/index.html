@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ontology Validation UI</title>
+  <style>
+    body { margin: 0; font-family: "Segoe UI", sans-serif; background: linear-gradient(135deg, #eef3f7, #f7f5ef); color: #1e2933; }
+    .layout { display: grid; grid-template-columns: 280px 1fr 320px; min-height: 100vh; }
+    .pane { padding: 12px; border-right: 1px solid #d9dee3; background: #fff; }
+    .pane:last-child { border-right: 0; }
+    .title { font-weight: 700; margin-bottom: 10px; }
+    .input-row { display: flex; gap: 8px; margin-top: 10px; }
+    input, textarea { flex: 1; padding: 8px; border: 1px solid #ccd3da; border-radius: 6px; }
+    button { padding: 8px 12px; border: 0; border-radius: 6px; background: #0d6efd; color: #fff; cursor: pointer; }
+    .msg { margin: 6px 0; padding: 8px; border-radius: 6px; background: #eef3f8; }
+    .warning { color: #9a6700; background: #fff8c5; }
+    .danger { color: #a61b1b; background: #fdecec; }
+    .small { color: #57606a; font-size: 12px; }
+    .section { margin-bottom: 16px; }
+    .stack { display: grid; gap: 8px; }
+    .contract-list { display: grid; gap: 8px; margin-top: 8px; }
+    .contract-item { padding: 8px; border: 1px solid #d9dee3; border-radius: 6px; cursor: pointer; }
+    .contract-item.active { border-color: #0d6efd; background: #f0f6ff; }
+    .label { font-size: 12px; color: #57606a; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #f6f8fa; padding: 8px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <section class="pane">
+      <div class="title">会话</div>
+      <div class="section stack">
+        <div class="label">登录</div>
+        <input id="username" placeholder="用户名" value="admin" />
+        <input id="password" placeholder="密码" type="password" value="admin123" />
+        <div class="input-row">
+          <button id="loginBtn">登录</button>
+          <div id="loginState" class="small">未登录</div>
+        </div>
+      </div>
+      <div id="messages"></div>
+      <div class="input-row">
+        <input id="message" placeholder="输入消息，如：查询合同列表" />
+        <button id="sendBtn">发送</button>
+      </div>
+      <div class="input-row">
+        <input id="retryMsgId" placeholder="重放 message_id" value="manual-1" />
+        <button id="retryBtn">重放</button>
+      </div>
+    </section>
+
+    <section class="pane">
+      <div class="title">实体联调区</div>
+      <div class="section stack">
+        <div class="label">实体类型</div>
+        <select id="entityType">
+          <option value="contract">合同</option>
+          <option value="customer">客户</option>
+          <option value="employee">员工</option>
+          <option value="product">产品</option>
+          <option value="invoice">发票</option>
+        </select>
+        <div class="label">实体表单</div>
+        <input id="recordId" placeholder="记录 ID" />
+        <input id="primaryCode" placeholder="主编号" />
+        <input id="nameField" placeholder="名称或标题" />
+        <input id="auxField1" placeholder="附加字段 1" />
+        <input id="auxField2" placeholder="附加字段 2" />
+        <input id="amountField" placeholder="金额或价格" />
+        <div class="input-row">
+          <button id="createRecordBtn">新建</button>
+          <button id="updateRecordBtn">保存</button>
+          <button id="submitContractBtn">提交合同</button>
+        </div>
+      </div>
+      <div class="section">
+        <div class="label">实体列表</div>
+        <div id="recordList" class="contract-list"></div>
+      </div>
+      <div class="section">
+        <div class="label">内容输出</div>
+        <div id="content">等待动作...</div>
+      </div>
+    </section>
+
+    <section class="pane">
+      <div class="title">上下文</div>
+      <div id="context" class="small">无</div>
+      <div id="degraded" class="msg warning" style="display:none;">AI 不可用，已降级到结构化 UI</div>
+      <div id="errorBox" class="msg danger" style="display:none;"></div>
+      <div class="section">
+        <div class="label">最近事件</div>
+        <pre id="eventBox">无</pre>
+      </div>
+    </section>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

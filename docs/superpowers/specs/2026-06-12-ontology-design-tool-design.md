@@ -345,38 +345,40 @@ ontology:
   domain: manufacturing
   version: "1.0.0"
   exported_at: "2026-06-12T..."
-  semantic:        # 第1层
-    domains: [...]
-    scenarios: [...]
-    aggregate_roots: [...]
+  structural:      # 维1: 静态结构
     entities: [...]
-    value_objects: [...]
     relations: [...]
+    value_objects: [...]
     indexes: [...]
-  behavior:        # 第2层
-    epc_processes: [...]
+  behavioral:      # 维2: 动态行为
     actions: [...]
-    action_rules: [...]
-    validation_rules: [...]
     state_machines: [...]
     indicators: [...]
-  event:           # 第3层
+  rules:           # 维3: 规则与约束
+    validations: [...]
+    guardrails: [...]
+    policies: [...]
+    permissions: [...]
+    exemptions: [...]
+    probes: [...]
+  events:          # 维4: 事件与消息
     event_types: [...]
     sources: [...]
     causalities: [...]
-  governance:      # 第4层
-    constraints: [...]
-    guardrails: [...]
-    permissions: [...]
-    probes: [...]
-    policies: [...]
-    exemptions: [...]
-  tools:           # 第5层
+  interfaces:      # 维5: 外部接口
     apis: [...]
     queries: [...]
     compute: [...]
     notifications: [...]
     reports: [...]
+  epc_processes:   # 编排层: 跨5维引用
+    - id: lead_allocation
+      name: 线索分配流程
+      steps:
+        - event_trigger: events.lead_created
+          action: behavioral.score_lead
+          guards: [rules.duplicate_lead_check]
+          tools: [interfaces.scoring_engine]
 ```
 
 ---

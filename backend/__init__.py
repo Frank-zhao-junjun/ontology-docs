@@ -10,6 +10,7 @@ from .routes_entities import bp_entities
 from .routes_epc import bp_epc
 from .routes_export import bp_export
 from .routes_meta_models import bp_meta
+from .routes_versions import bp_versions
 
 
 def create_app(testing: bool = False) -> Flask:
@@ -38,4 +39,5 @@ def create_app(testing: bool = False) -> Flask:
     app.register_blueprint(bp_contracts)
     app.register_blueprint(bp_export)
     app.register_blueprint(bp_meta)
+    app.register_blueprint(bp_versions)
     return app

@@ -15,7 +15,7 @@ function BehavioralForm({ data, onChange }: { data: BehavioralData; onChange: (d
     { title: '输入', dataIndex: 'input', key: 'input', render: (v: string) => <Input size="small" value={v} style={{width:120}} /> },
     { title: '输出', dataIndex: 'output', key: 'output', render: (v: string) => <Input size="small" value={v} style={{width:120}} /> },
     { title: '所属域', dataIndex: 'domain', key: 'domain', render: (v: string) => <Input size="small" value={v} style={{width:100}} /> },
-    { title: '', key: 'del', width: 40, render: (_: any, __: Action, i: number) =>
+    { title: '', key: 'del', width: 40, render: (_: unknown, __: Action, i: number) =>
       <Button size="small" danger icon={<DeleteOutlined />} onClick={() => {
         const acts = data.actions.filter((_, idx) => idx !== i).map((a, j) => ({...a, key: String(j)}));
         onChange({ ...data, actions: acts });
@@ -33,9 +33,10 @@ function BehavioralForm({ data, onChange }: { data: BehavioralData; onChange: (d
     onChange({ ...data, stateMachines: sms });
   };
 
-  const updateSM = (i: number, field: string, value: string) => {
+  /* type-safe state-machine field updater — no `any` */
+  const updateSM = <K extends keyof StateMachine>(i: number, field: K, value: StateMachine[K]) => {
     const sms = [...data.stateMachines];
-    (sms[i] as any)[field] = value;
+    sms[i] = { ...sms[i], [field]: value };
     onChange({ ...data, stateMachines: sms });
   };
 
@@ -59,7 +60,7 @@ function BehavioralForm({ data, onChange }: { data: BehavioralData; onChange: (d
               <span style={{ fontWeight: 500 }}>状态列表：</span>
               <Select mode="tags" size="small" style={{ width: '100%', marginTop: 4 }}
                 placeholder="输入状态后回车" value={sm.states}
-                onChange={vals => updateSM(i, 'states', vals as any)} />
+                onChange={vals => updateSM(i, 'states', vals)} />
             </div>
             <div style={{ marginTop: 8 }}>
               <span style={{ fontWeight: 500 }}>转移规则：</span>
@@ -97,7 +98,7 @@ function BehavioralForm({ data, onChange }: { data: BehavioralData; onChange: (d
           { title: '目标值', dataIndex:'target', render: (v:string)=><Input size="small" value={v} style={{width:80}} placeholder="≥85%"/> },
           { title: '预警阈值', dataIndex:'warningThreshold', render: (v:string)=><Input size="small" value={v} style={{width:80}} placeholder="<70%"/> },
           { title: '所属域', dataIndex:'domain', render: (v:string)=><Input size="small" value={v} style={{width:100}}/> },
-          { title: '', width:40, render: (_:any, __:Indicator, i:number)=>
+          { title: '', width:40, render: (_:unknown, __:Indicator, i:number)=>
             <Button size="small" danger icon={<DeleteOutlined />} onClick={()=>onChange({...data, indicators: data.indicators.filter((_,idx)=>idx!==i)})}/> },
         ]} dataSource={data.indicators} pagination={false} size="small" rowKey="key"
           locale={{ emptyText: '暂无指标 — 如产线效率≥85%、SLA达标率≥95%' }} />

@@ -2,7 +2,7 @@ from flask import Blueprint, current_app, g, jsonify, request
 
 from .api_response import error_response, resolve_trace_id
 from .auth import ensure_ai_permission, require_auth
-from .ai_orchestrator import ContextManager, IntentAnalyzer, ProcessStrategyEngine
+from .ai_orchestrator import ContextManager, IntentAnalyzer, ProcessStrategyEngine, llm_client
 from .routes_meta_models import snapshots
 
 
@@ -40,6 +40,30 @@ def chat_execute():
     if denied:
         return denied
     plan = strategy_engine.build_plan(intent, snapshot)
+
+    # Call LLM for structured ontology generation (only if API key configured)
+    if llm_client.api_key:
+        llm_result = llm_client.chat_structured(message)
+        assistant_message = llm_result.get("message", f"Intent={intent.intent_type}")
+        return jsonify(
+            {
+                "assistant_message": assistant_message,
+                "actions": [],
+                "context_updates": {
+                    "focus_entity": context.focus_entity,
+                    "model_snapshot_ref": context.model_snapshot_ref,
+                },
+                "conversation_state": "idle",
+                "plan": plan,
+                "trace_id": trace_id,
+                "structural": llm_result.get("structural", {}),
+                "behavioral": llm_result.get("behavioral", {}),
+                "rules": llm_result.get("rules", {}),
+                "events": llm_result.get("events", {}),
+                "interfaces": llm_result.get("interfaces", {}),
+                "epc": llm_result.get("epc", {}),
+            }
+        )
 
     return jsonify(
         {

@@ -16,5 +16,8 @@ export const createMetaModel = (mt: string, name: string, content: object) =>
   api.post('/meta-models/definitions', { model_type: mt, name, version: '1.0.0', content });
 export const publishRelease = (rno: string, ids: number[], op: string) =>
   api.post('/meta-models/publish', { release_no: rno, model_ids: ids, operator: op });
+export const getDomains = () => api.get('/domains');
+export const createDomain = (name: string, description: string) =>
+  api.post('/domains', { name, description });
 export const exportJson = (rno: string) => api.get('/export/json/' + rno);
 export default api;

@@ -7,6 +7,15 @@ def utcnow():
     return datetime.now(timezone.utc)
 
 
+class Domain(db.Model):
+    __tablename__ = "domain"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(128), nullable=False, unique=True)
+    description = db.Column(db.String(512), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+
 class MetaModelDefinition(db.Model):
     __tablename__ = "meta_model_definition"
 

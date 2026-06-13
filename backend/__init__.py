@@ -5,10 +5,11 @@ from .extensions import db
 from .routes_auth import bp_auth
 from .routes_chat import bp_chat
 from .routes_contracts import bp_contracts
+from .routes_domains import bp_domains
 from .routes_entities import bp_entities
-from .routes_meta_models import bp_meta
 from .routes_epc import bp_epc
 from .routes_export import bp_export
+from .routes_meta_models import bp_meta
 
 
 def create_app(testing: bool = False) -> Flask:
@@ -30,10 +31,11 @@ def create_app(testing: bool = False) -> Flask:
         seed_default_users()
 
     app.register_blueprint(bp_auth)
-    app.register_blueprint(bp_meta)
+    app.register_blueprint(bp_domains)
+    app.register_blueprint(bp_entities)
     app.register_blueprint(bp_epc)
     app.register_blueprint(bp_chat)
     app.register_blueprint(bp_contracts)
-    app.register_blueprint(bp_entities)
     app.register_blueprint(bp_export)
+    app.register_blueprint(bp_meta)
     return app

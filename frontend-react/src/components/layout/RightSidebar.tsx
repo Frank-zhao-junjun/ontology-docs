@@ -13,6 +13,7 @@ function RightSidebar() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const controller = new AbortController();
     getEntitiesGrouped()
       .then(r => {
         const grouped: GroupedDomain[] = r.data || [];
@@ -41,6 +42,7 @@ function RightSidebar() {
       })
       .catch(() => setTree([{ key: 'err', title: '加载失败' }]))
       .finally(() => setLoading(false));
+    return () => controller.abort();
   }, []);
 
   return (

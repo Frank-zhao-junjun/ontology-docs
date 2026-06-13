@@ -23,8 +23,10 @@ function StructuralForm({ data, onChange }: { data: StructuralData; onChange: (d
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    getDomains().then(r => setDomains(r.data.items || [])).catch(() => {}).finally(() => setLoading(false));
+    getDomains().then(r => { if (!cancelled) setDomains(r.data.items || []); }).catch(() => {}).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
   const handleDomainChange = (value: string) => {

@@ -8,13 +8,12 @@ function VersionBar() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     getVersions()
-      .then(r => {
-        const items = r.data.items || [];
-        setLatest(items.length > 0 ? items[0].release_no : 'v0.0.0');
-      })
-      .catch(() => setLatest('离线'))
-      .finally(() => setLoading(false));
+      .then(r => { if (!cancelled) { const items = r.data.items || []; setLatest(items.length > 0 ? items[0].release_no : 'v0.0.0'); } })
+      .catch(() => { if (!cancelled) setLatest('离线'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
   return (

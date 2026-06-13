@@ -20,9 +20,23 @@ function ChatPanel() {
       const data = r.data;
       const aiMsg = data.assistant_message || `Intent=${data.plan?.[0]?.intent || 'unknown'}`;
       setMsgs(p => [...p, { role: 'ai', content: aiMsg }]);
-      // If the response has a focus_entity, select it
-      if (data.context_updates?.focus_entity?.type) {
-        setEntity(data.context_updates.focus_entity.type);
+
+      // Push structured ontology data to store for ReviewPanel
+      if (data.structural || data.behavioral || data.rules || data.events || data.interfaces) {
+        useAppStore.getState().setLLMResponse({
+          structural: data.structural || {},
+          behavioral: data.behavioral || {},
+          rules: data.rules || {},
+          events: data.events || {},
+          interfaces: data.interfaces || {},
+          epc: data.epc || {},
+        });
+      }
+
+      // Select entity from structural response
+      const entities = data.structural?.entities;
+      if (entities && entities.length > 0) {
+        setEntity(entities[0].name || entities[0].id || 'entity');
       }
     } catch {
       setMsgs(p => [...p, { role: 'ai', content: 'AI 服务暂不可用，请稍后重试' }]);

@@ -22,7 +22,9 @@ export interface ProjectVersion {
   createdAt: string;
   updatedAt?: string;
   publishedAt?: string;
-  status: 'draft' | 'published' | 'archived';
+  status: 'draft' | 'published' | 'archived' | 'pending_review' | 'rejected';
+  rejectionReason?: string;       // 驳回原因
+  source?: 'manual' | 'excel_import' | 'ai_generate';  // 版本来源
 }
 
 export interface PublishConfig {
@@ -45,6 +47,44 @@ export interface Metadata {
   source?: string;        // 信息源头
   createdAt: string;
   updatedAt: string;
+}
+
+// ==========================================
+// Excel 导入相关类型
+// ==========================================
+
+/** Excel 导入模板 Sheet 定义 */
+export interface ExcelTemplateSheet {
+  name: string;
+  nameEn: string;
+  headers: { label: string; key: string; required: boolean; type: 'string' | 'number' | 'boolean' | 'enum'; enumValues?: string[]; description: string }[];
+}
+
+/** Excel 导入校验错误 */
+export interface ExcelImportError {
+  sheet: string;
+  row: number;
+  column: string;
+  value: string;
+  errorType: 'missing_required' | 'invalid_enum' | 'invalid_type' | 'invalid_reference' | 'duplicate';
+  message: string;
+}
+
+/** Excel 导入校验结果 */
+export interface ExcelImportValidation {
+  totalRows: number;
+  validRows: number;
+  errorCount: number;
+  errors: ExcelImportError[];
+}
+
+/** Excel 导入结果 */
+export interface ExcelImportResult {
+  success: boolean;
+  validation: ExcelImportValidation;
+  versionId?: string;
+  versionName?: string;
+  errorMessage?: string;
 }
 
 // ========== 主数据管理 ==========

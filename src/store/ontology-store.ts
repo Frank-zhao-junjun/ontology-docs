@@ -193,7 +193,11 @@ interface OntologyState {
   rollbackVersion: (versionId: string) => void;
   getVersionsByProject: (projectId: string) => ProjectVersion[];
   getLatestVersion: () => ProjectVersion | null;
-  
+
+  // Excel 导入版本审核
+  approveVersion: (versionId: string) => void;
+  rejectVersion: (versionId: string, reason: string) => void;
+
   // UI状态
   setActiveModelType: (type: 'data' | 'behavior' | 'rule' | 'process' | 'event' | null) => void;
   
@@ -2253,7 +2257,45 @@ export const useOntologyStore = create<OntologyState>()(
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         )[0];
       },
-      
+
+      approveVersion: (versionId) => {
+        const state = get();
+        const version = state.versions.find((v) => v.id === versionId);
+        if (!version || version.status !== 'pending_review') return;
+
+        // 将版本数据应用到工作区
+        set((s) => ({
+          versions: s.versions.map((v) =>
+            v.id === versionId
+              ? { ...v, status: 'published' as const, publishedAt: new Date().toISOString() }
+              : v
+          ),
+          project: s.project
+            ? {
+                ...s.project,
+                dataModel: version.metamodels.data ? JSON.parse(JSON.stringify(version.metamodels.data)) : s.project.dataModel,
+                behaviorModel: version.metamodels.behavior ? JSON.parse(JSON.stringify(version.metamodels.behavior)) : s.project.behaviorModel,
+                ruleModel: version.metamodels.rules ? JSON.parse(JSON.stringify(version.metamodels.rules)) : s.project.ruleModel,
+                processModel: version.metamodels.process ? JSON.parse(JSON.stringify(version.metamodels.process)) : s.project.processModel,
+                eventModel: version.metamodels.events ? JSON.parse(JSON.stringify(version.metamodels.events)) : s.project.eventModel,
+                epcModel: version.metamodels.epc ? JSON.parse(JSON.stringify(version.metamodels.epc)) : s.project.epcModel,
+              }
+            : s.project,
+          masterDataList: version.metamodels.masterData ? JSON.parse(JSON.stringify(version.metamodels.masterData.definitions)) : s.masterDataList,
+          masterDataRecords: version.metamodels.masterData ? JSON.parse(JSON.stringify(version.metamodels.masterData.records)) : s.masterDataRecords,
+        }));
+      },
+
+      rejectVersion: (versionId, reason) => {
+        set((s) => ({
+          versions: s.versions.map((v) =>
+            v.id === versionId
+              ? { ...v, status: 'rejected' as const, rejectionReason: reason, updatedAt: new Date().toISOString() }
+              : v
+          ),
+        }));
+      },
+
       // 代码生成 (M2准备 - 占位)
       generateCodePackage: async (versionId, config) => {
         const state = get();

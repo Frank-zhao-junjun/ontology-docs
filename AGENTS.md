@@ -25,7 +25,9 @@ src/
 │   ├── globals.css              # 全局样式
 │   └── api/                     # API 路由
 │       ├── metadata/init/       # 元数据初始化接口
-│       └── generate-model/      # AI模型生成接口
+│       ├── generate-model/      # AI模型生成接口
+│       ├── excel-template/      # Excel模板下载接口
+│       └── excel-import/        # Excel文件导入接口
 ├── components/
 │   └── ontology/                # 本体建模组件
 │       ├── domain-selector.tsx  # 领域选择器
@@ -37,7 +39,8 @@ src/
 │       ├── process-model-editor.tsx # 流程模型编辑器
 │       ├── event-model-editor.tsx # 事件模型编辑器
 │       ├── metadata-manager.tsx # 元数据管理器
-│       └── manual-generator.tsx # 建模手册生成器
+│       ├── manual-generator.tsx # 建模手册生成器
+│       └── excel-import-dialog.tsx # Excel导入对话框
 ├── store/
 │   └── ontology-store.ts        # Zustand 状态管理
 ├── types/
@@ -92,6 +95,13 @@ src/
 - Markdown 格式输出
 - JSON 格式导出
 - 实体维度/项目维度手册
+
+### 10. Excel 导入 (Excel Import)
+- **模板下载**：GET /api/excel-template 生成含7个Sheet（填写说明+6数据Sheet）的 .xlsx 模板
+- **文件上传**：POST /api/excel-import 仅接受 .xlsx，5MB上限，Sheet结构校验
+- **数据校验**：必填字段、枚举值、布尔类型、跨Sheet引用完整性校验
+- **版本生成**：校验通过自动生成 pending_review 状态版本
+- **版本审核**：审核通过应用到工作区，驳回需填写原因
 
 ## 开发命令
 
@@ -207,6 +217,40 @@ POST /api/generate-model
   }
 }
 ```
+
+### Excel模板下载
+```
+GET /api/excel-template
+```
+生成含填写说明+6个数据Sheet的 .xlsx 导入模板。
+
+**返回**: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet 二进制文件
+
+### Excel文件导入
+```
+POST /api/excel-import
+```
+上传 .xlsx 文件，校验并解析为项目数据。
+
+**请求**: multipart/form-data, field: `file`
+
+**返回格式**:
+```json
+{
+  "success": true,
+  "validation": { "totalRows": 8, "validRows": 8, "errorCount": 0, "errors": [] },
+  "versionId": "v-xxx",
+  "versionName": "v2026-06-13"
+}
+```
+
+**校验规则**:
+- 文件格式: 仅 .xlsx，最大5MB
+- Sheet结构: 必须包含实体/属性/关系/状态机/规则/事件 6个Sheet
+- 必填字段: 各Sheet的(必填)标记字段
+- 枚举值: 实体角色、数据类型、关系类型、规则类型、触发时机等
+- 跨Sheet引用: 属性/关系/状态机/规则/事件中的实体英文名必须在实体Sheet中存在
+- 描述行/示例行: 以 `#DESC#`/`#EXAMPLE#` 开头的行自动跳过
 
 ## 类型定义
 

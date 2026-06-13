@@ -5,7 +5,7 @@ import { getDomains, createDomain } from '../../services/api';
 import type { ColumnsType } from 'antd/es/table';
 
 interface Attribute { key: string; id: string; name: string; type: string; required: boolean; unique: boolean; autoFill: string; }
-interface Relation { key: string; source: string; target: string; type: string; }
+interface Relation { key: string; source: string; target: string; type: string; inverseOf: string; domain: string; range: string; }
 interface ValueObject { key: string; name: string; fields: string; }
 interface StructuralData {
   entityName: string; domain: string; domainId: number | null;
@@ -58,10 +58,13 @@ function StructuralForm({ data, onChange }: { data: StructuralData; onChange: (d
   ];
 
   const relCols: ColumnsType<Relation> = [
-    { title: '源实体', dataIndex:'source', render: (v:string)=><Input size="small" value={v} style={{width:100}}/> },
-    { title: '关系类型', dataIndex:'type', render: (v:string)=>
-      <Select size="small" value={v||undefined} style={{width:120}} options={['subClassOf','equivalentClass','disjointWith','聚合','组合','关联','依赖'].map(o=>({value:o,label:o}))} /> },
-    { title: '目标实体', dataIndex:'target', render: (v:string)=><Input size="small" value={v} style={{width:100}}/> },
+    { title: '源', dataIndex:'source', render: (v:string)=><Input size="small" value={v} style={{width:90}}/> },
+    { title: '关系', dataIndex:'type', render: (v:string)=>
+      <Select size="small" value={v||undefined} style={{width:110}} options={['subClassOf','equivalentClass','disjointWith','聚合','组合','关联','依赖'].map(o=>({value:o,label:o}))} /> },
+    { title: '目标', dataIndex:'target', render: (v:string)=><Input size="small" value={v} style={{width:90}}/> },
+    { title: 'inverseOf', dataIndex:'inverseOf', render: (v:string)=><Input size="small" value={v} style={{width:90}} placeholder="hasPart"/> },
+    { title: 'domain', dataIndex:'domain', render: (v:string)=><Input size="small" value={v} style={{width:80}}/> },
+    { title: 'range', dataIndex:'range', render: (v:string)=><Input size="small" value={v} style={{width:80}}/> },
     { title: '', width:40, render: (_:any, __:Relation, i:number)=>
       <Button size="small" danger icon={<DeleteOutlined/>} onClick={()=>onChange({...data, relations:data.relations.filter((_,idx)=>idx!==i)})}/> },
   ];
@@ -107,7 +110,7 @@ function StructuralForm({ data, onChange }: { data: StructuralData; onChange: (d
             <Table<Relation> columns={relCols} dataSource={data.relations} pagination={false} size="small" rowKey="key"
               locale={{ emptyText: '暂无关系 — subClassOf / equivalentClass / 聚合 / ...' }} />
             <Button icon={<PlusOutlined />} type="dashed" block style={{marginTop:8}}
-              onClick={()=>onChange({...data, relations: [...data.relations, {key:String(data.relations.length),source:'',type:'',target:''}]})}>
+              onClick={()=>onChange({...data, relations: [...data.relations, {key:String(data.relations.length),source:'',type:'',target:'',inverseOf:'',domain:'',range:''}]})}>
               添加关系</Button>
           </div>
         )},

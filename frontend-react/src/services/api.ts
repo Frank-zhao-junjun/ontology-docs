@@ -20,5 +20,8 @@ export const getDomains = () => api.get('/domains');
 export const createDomain = (name: string, description: string) =>
   api.post('/domains', { name, description });
 export const getEntitiesGrouped = () => api.get('/entities/grouped');
+export const getVersions = () => api.get('/versions');
+export const getVersionDiff = (from: string, to: string) =>
+  api.get('/versions/diff', { params: { from, to } });
 export const exportJson = (rno: string) => api.get('/export/json/' + rno);
 export default api;

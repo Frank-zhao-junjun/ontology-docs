@@ -1,9 +1,25 @@
-import { Button, Dropdown, Tag } from 'antd';
+import { useState, useEffect } from 'react';
+import { Button, Dropdown, Tag, Spin } from 'antd';
 import { ExportOutlined, CloudUploadOutlined, HistoryOutlined } from '@ant-design/icons';
+import { getVersions } from '../../services/api';
+
 function VersionBar() {
+  const [latest, setLatest] = useState<string>('—');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getVersions()
+      .then(r => {
+        const items = r.data.items || [];
+        setLatest(items.length > 0 ? items[0].release_no : 'v0.0.0');
+      })
+      .catch(() => setLatest('离线'))
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <div style={{ padding: '12px 16px', borderTop: '1px solid #f0f0f0' }}>
-      <Tag color="blue">v1.0.0</Tag>
+      {loading ? <Spin size="small" /> : <Tag color="blue">{latest}</Tag>}
       <Dropdown menu={{ items: [
         { key: 'json', label: '导出 JSON', icon: <ExportOutlined /> },
         { key: 'yaml', label: '导出 YAML', icon: <ExportOutlined /> },

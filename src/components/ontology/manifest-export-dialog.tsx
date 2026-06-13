@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Download } from 'lucide-react';
+import { useMemo, useState, useCallback } from 'react';
+import { Download, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -43,16 +44,50 @@ function IssueRow({ issue }: { issue: ManifestValidationIssue }) {
 export function ManifestExportDialog({ project }: ManifestExportDialogProps) {
   const [open, setOpen] = useState(false);
   const [format, setFormat] = useState<ManifestExportFormat>('yaml');
+  const [xlsxLoading, setXlsxLoading] = useState(false);
 
   const bundle = useMemo(() => {
     if (!open) return null;
-    return buildManifestExportBundle(project, { format });
+    return buildManifestExportBundle(project, { format: format === 'xlsx' ? 'json' : format });
   }, [open, project, format]);
 
   const handleDownload = () => {
     if (!bundle) return;
     downloadManifestExport(bundle);
   };
+
+  const handleDownloadXlsx = useCallback(async () => {
+    if (!bundle) return;
+    setXlsxLoading(true);
+    try {
+      const response = await fetch('/api/export/xlsx-from-manifest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bundle.manifest),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = bundle.filename.replace(/\.(yaml|json)$/i, '.xlsx');
+      a.click();
+      // Delay revoke — some browsers handle download asynchronously
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('XLSX 导出失败:', err);
+      toast.error(`Excel 导出失败：${msg}`);
+    } finally {
+      setXlsxLoading(false);
+    }
+  }, [bundle]);
+
+  const displayFilename = bundle
+    ? format === 'xlsx'
+      ? bundle.filename.replace(/\.(yaml|json)$/i, '.xlsx')
+      : bundle.filename
+    : '';
 
   const errorCount = bundle?.validation.errors.length ?? 0;
   const warningCount = bundle?.validation.warnings.length ?? 0;
@@ -91,6 +126,14 @@ export function ManifestExportDialog({ project }: ManifestExportDialogProps) {
           >
             JSON
           </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={format === 'xlsx' ? 'default' : 'outline'}
+            onClick={() => setFormat('xlsx')}
+          >
+            XLSX
+          </Button>
         </div>
 
         {bundle ? (
@@ -99,7 +142,7 @@ export function ManifestExportDialog({ project }: ManifestExportDialogProps) {
               <Alert>
                 <AlertDescription>
                   校验通过（{warningCount > 0 ? `${warningCount} 条警告` : '无警告'}），可下载{' '}
-                  <span className="font-mono text-xs">{bundle.filename}</span>。
+                  <span className="font-mono text-xs">{displayFilename}</span>。
                 </AlertDescription>
               </Alert>
             ) : (
@@ -129,8 +172,16 @@ export function ManifestExportDialog({ project }: ManifestExportDialogProps) {
           <Button type="button" variant="outline" onClick={() => setOpen(false)}>
             关闭
           </Button>
-          <Button type="button" disabled={!bundle?.validation.valid} onClick={handleDownload}>
-            <Download className="h-4 w-4" />
+          <Button
+            type="button"
+            disabled={!bundle?.validation.valid || xlsxLoading}
+            onClick={format === 'xlsx' ? handleDownloadXlsx : handleDownload}
+          >
+            {xlsxLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
             下载 {format.toUpperCase()}
           </Button>
         </DialogFooter>

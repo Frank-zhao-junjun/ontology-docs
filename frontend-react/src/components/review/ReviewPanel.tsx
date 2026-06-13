@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button, message } from 'antd';
+import { useShallow } from 'zustand/shallow';
 import DimensionBlock from './DimensionBlock';
 import StructuralForm from './StructuralForm';
 import BehavioralForm from './BehavioralForm';
@@ -7,16 +8,16 @@ import RulesForm from './RulesForm';
 import EventsForm from './EventsForm';
 import InterfacesForm from './InterfacesForm';
 import { useAppStore } from '../../store/useAppStore';
+import { safeMap } from '../../utils/array-helpers';
 
 type Status = 'pending'|'confirmed'|'draft';
 
 function ReviewPanel({ entityName }: { entityName: string }) {
-  const storeStructural = useAppStore(s => s.structuralData);
-  const storeBehavioral = useAppStore(s => s.behavioralData);
-  const storeRules = useAppStore(s => s.rulesData);
-  const storeEvents = useAppStore(s => s.eventsData);
-  const storeInterfaces = useAppStore(s => s.interfacesData);
-  const storeEpc = useAppStore(s => s.epcData);
+  const storeStructural = useAppStore(useShallow(s => s.structuralData));
+  const storeBehavioral = useAppStore(useShallow(s => s.behavioralData));
+  const storeRules    = useAppStore(useShallow(s => s.rulesData));
+  const storeEvents   = useAppStore(useShallow(s => s.eventsData));
+  const storeInterfaces = useAppStore(useShallow(s => s.interfacesData));
 
   const [statuses, setStatuses] = useState<Record<string,Status>>({
     structural:'pending', behavioral:'pending', rules:'pending',
@@ -31,99 +32,203 @@ function ReviewPanel({ entityName }: { entityName: string }) {
   const [eData, setEData] = useState({ eventTypes: [], sources: [], causalities: [] });
   const [iData, setIData] = useState({ apis: [], queries: [], compute: [], notifications: [], reports: [] });
 
-  // When store receives LLM data, populate forms
+  // When store receives LLM data, populate forms.
+  // Guard: never overwrite a confirmed dimension — confirmed versions are immutable.
   useEffect(() => {
+    if (statuses.structural === 'confirmed') return;
     if (storeStructural.entities?.length > 0) {
       const e = storeStructural.entities[0];
       setSData(prev => ({
         ...prev,
         entityName: e.name || prev.entityName,
-        attributes: (e.attributes || []).map((a: Record<string,unknown>, i: number) => ({
-          key: String(i), id: (a.id as string) || '', name: (a.name as string) || '',
-          type: (a.type as string) || 'string', required: Boolean(a.required), unique: Boolean(a.unique),
-          autoFill: (a.autoFill as string) || '',
+        attributes: safeMap(e.attributes, (a, i) => ({
+          key: String(i),
+          id: a.id || '',
+          name: a.name || '',
+          type: a.type || 'string',
+          required: Boolean(a.required),
+          unique: Boolean(a.unique),
+          autoFill: a.autoFill || '',
         })),
-        relations: (storeStructural.relations || []).map((r: Record<string,unknown>, i: number) => ({
-          key: String(i), source: (r.source as string) || '', target: (r.target as string) || '',
-          type: (r.type as string) || '', inverseOf: (r.inverseOf as string) || '',
-          domain: (r.domain as string) || '', range: (r.range as string) || '',
+        relations: safeMap(storeStructural.relations, (r, i) => ({
+          key: String(i),
+          source: r.source || '',
+          target: r.target || '',
+          type: r.type || '',
+          inverseOf: r.inverseOf || '',
+          domain: r.domain || '',
+          range: r.range || '',
         })),
-        valueObjects: (storeStructural.valueObjects || []).map((v: Record<string,unknown>, i: number) => ({
-          key: String(i), name: (v.name as string) || '', fields: (v.fields as string) || '',
+        valueObjects: safeMap(storeStructural.valueObjects, (v, i) => ({
+          key: String(i),
+          name: v.name || '',
+          fields: v.fields || '',
         })),
       }));
       setStatuses(prev => ({ ...prev, structural: 'pending' }));
     }
-  }, [storeStructural]);
+  }, [storeStructural, statuses.structural]);
 
   useEffect(() => {
+    if (statuses.behavioral === 'confirmed') return;
     if (storeBehavioral.actions?.length > 0 || storeBehavioral.stateMachines?.length > 0) {
       setBData({
-        actions: (storeBehavioral.actions || []).map((a: Record<string,unknown>, i: number) => ({
-          key: String(i), id: (a.id as string) || '', name: (a.name as string) || '',
-          input: (a.input as string) || '', output: (a.output as string) || '', domain: (a.domain as string) || '',
+        actions: safeMap(storeBehavioral.actions, (a, i) => ({
+          key: String(i),
+          id: a.id || '',
+          name: a.name || '',
+          input: a.input || '',
+          output: a.output || '',
+          domain: a.domain || '',
         })),
-        stateMachines: (storeBehavioral.stateMachines || []).map((sm: Record<string,unknown>, i: number) => ({
-          key: String(i), id: (sm.id as string) || '', name: (sm.name as string) || '',
-          entity: (sm.entity as string) || '',
-          states: (sm.states as string[]) || [],
-          transitions: (sm.transitions || []).map((t: Record<string,unknown>, j: number) => ({
-            key: String(j), from: (t.from as string) || '', to: (t.to as string) || '', trigger: (t.trigger as string) || '',
+        stateMachines: safeMap(storeBehavioral.stateMachines, (sm, i) => ({
+          key: String(i),
+          id: sm.id || '',
+          name: sm.name || '',
+          entity: sm.entity || '',
+          states: sm.states || [],
+          transitions: safeMap(sm.transitions, (t, j) => ({
+            key: String(j),
+            from: t.from || '',
+            to: t.to || '',
+            trigger: t.trigger || '',
           })),
         })),
-        indicators: (storeBehavioral.indicators || []).map((ind: Record<string,unknown>, i: number) => ({
-          key: String(i), id: (ind.id as string) || '', name: (ind.name as string) || '',
-          formula: (ind.formula as string) || '', target: (ind.target as string) || '',
-          warningThreshold: (ind.warningThreshold as string) || '', domain: (ind.domain as string) || '',
+        indicators: safeMap(storeBehavioral.indicators, (ind, i) => ({
+          key: String(i),
+          id: ind.id || '',
+          name: ind.name || '',
+          formula: ind.formula || '',
+          target: ind.target || '',
+          warningThreshold: ind.warningThreshold || '',
+          domain: ind.domain || '',
         })),
       });
       setStatuses(prev => ({ ...prev, behavioral: 'pending' }));
     }
-  }, [storeBehavioral]);
+  }, [storeBehavioral, statuses.behavioral]);
 
   useEffect(() => {
+    if (statuses.rules === 'confirmed') return;
     if (storeRules.validations?.length > 0 || storeRules.guardrails?.length > 0) {
       setRData({
-        validations: (storeRules.validations || []).map((v: Record<string,unknown>, i: number) => ({ key: String(i), ...v } as any)),
-        guardrails: (storeRules.guardrails || []).map((g: Record<string,unknown>, i: number) => ({ key: String(i), ...g } as any)),
-        policies: (storeRules.policies || []).map((p: Record<string,unknown>, i: number) => ({ key: String(i), ...p } as any)),
-        permissions: (storeRules.permissions || []).map((p: Record<string,unknown>, i: number) => ({ key: String(i), ...p } as any)),
-        exemptions: (storeRules.exemptions || []).map((e: Record<string,unknown>, i: number) => ({ key: String(i), ...e } as any)),
-        probes: (storeRules.probes || []).map((p: Record<string,unknown>, i: number) => ({ key: String(i), ...p } as any)),
+        validations: safeMap(storeRules.validations, (v, i) => ({
+          key: String(i),
+          id: v.id || '',
+          type: v.type || '',
+          entity: v.entity || '',
+          field: v.field || '',
+          expression: v.expression || '',
+        })),
+        guardrails: safeMap(storeRules.guardrails, (g, i) => ({
+          key: String(i),
+          id: g.id || '',
+          name: g.name || '',
+          condition: g.condition || '',
+          action: g.action || '',
+        })),
+        policies: safeMap(storeRules.policies, (p, i) => ({
+          key: String(i),
+          id: p.id || '',
+          name: p.name || '',
+          rules: p.rules || '',
+        })),
+        permissions: safeMap(storeRules.permissions, (p, i) => ({
+          key: String(i),
+          role: p.role || '',
+          resource: p.resource || '',
+          operations: p.operations || '',
+        })),
+        exemptions: safeMap(storeRules.exemptions, (e, i) => ({
+          key: String(i),
+          id: e.id || '',
+          constraint: e.constraint || '',
+          reason: e.reason || '',
+        })),
+        probes: safeMap(storeRules.probes, (p, i) => ({
+          key: String(i),
+          id: p.id || '',
+          name: p.name || '',
+          target: p.target || '',
+          frequency: p.frequency || '',
+          alertCondition: p.alertCondition || '',
+          domain: p.domain || '',
+        })),
       });
       setStatuses(prev => ({ ...prev, rules: 'pending' }));
     }
-  }, [storeRules]);
+  }, [storeRules, statuses.rules]);
 
   useEffect(() => {
+    if (statuses.events === 'confirmed') return;
     if (storeEvents.eventTypes?.length > 0) {
       setEData({
-        eventTypes: (storeEvents.eventTypes || []).map((et: Record<string,unknown>, i: number) => ({
-          key: String(i), id: (et.id as string) || '', name: (et.name as string) || '',
-          severity: (et.severity as string) || '', source: (et.source as string) || '',
-          targetEntity: (et.targetEntity as string) || '', payloadSchema: (et.payloadSchema as string) || '',
+        eventTypes: safeMap(storeEvents.eventTypes, (et, i) => ({
+          key: String(i),
+          id: et.id || '',
+          name: et.name || '',
+          severity: et.severity || '',
+          source: et.source || '',
+          targetEntity: et.targetEntity || '',
+          payloadSchema: et.payloadSchema || '',
         })),
         sources: storeEvents.sources || [],
-        causalities: (storeEvents.causalities || []).map((c: Record<string,unknown>, i: number) => ({
-          key: String(i), cause: (c.cause as string) || '', effect: (c.effect as string) || '',
+        causalities: safeMap(storeEvents.causalities, (c, i) => ({
+          key: String(i),
+          cause: c.cause || '',
+          effect: c.effect || '',
         })),
       });
       setStatuses(prev => ({ ...prev, events: 'pending' }));
     }
-  }, [storeEvents]);
+  }, [storeEvents, statuses.events]);
 
   useEffect(() => {
+    if (statuses.interfaces === 'confirmed') return;
     if (storeInterfaces.apis?.length > 0 || storeInterfaces.queries?.length > 0) {
       setIData({
-        apis: (storeInterfaces.apis || []).map((a: Record<string,unknown>, i: number) => ({ key: String(i), ...a } as any)),
-        queries: (storeInterfaces.queries || []).map((q: Record<string,unknown>, i: number) => ({ key: String(i), ...q } as any)),
-        compute: (storeInterfaces.compute || []).map((c: Record<string,unknown>, i: number) => ({ key: String(i), ...c } as any)),
-        notifications: (storeInterfaces.notifications || []).map((n: Record<string,unknown>, i: number) => ({ key: String(i), ...n } as any)),
-        reports: (storeInterfaces.reports || []).map((r: Record<string,unknown>, i: number) => ({ key: String(i), ...r } as any)),
+        apis: safeMap(storeInterfaces.apis, (a, i) => ({
+          key: String(i),
+          id: a.id || '',
+          name: a.name || '',
+          url: a.url || '',
+          method: a.method || '',
+          params: a.params || '',
+          response: a.response || '',
+        })),
+        queries: safeMap(storeInterfaces.queries, (q, i) => ({
+          key: String(i),
+          id: q.id || '',
+          name: q.name || '',
+          type: q.type || '',
+          template: q.template || '',
+        })),
+        compute: safeMap(storeInterfaces.compute, (c, i) => ({
+          key: String(i),
+          id: c.id || '',
+          name: c.name || '',
+          input: c.input || '',
+          output: c.output || '',
+          formula: c.formula || '',
+        })),
+        notifications: safeMap(storeInterfaces.notifications, (n, i) => ({
+          key: String(i),
+          id: n.id || '',
+          name: n.name || '',
+          channel: n.channel || '',
+          template: n.template || '',
+        })),
+        reports: safeMap(storeInterfaces.reports, (r, i) => ({
+          key: String(i),
+          id: r.id || '',
+          name: r.name || '',
+          fields: r.fields || '',
+          format: r.format || '',
+        })),
       });
       setStatuses(prev => ({ ...prev, interfaces: 'pending' }));
     }
-  }, [storeInterfaces]);
+  }, [storeInterfaces, statuses.interfaces]);
 
   const confirm = (dim: string) => {
     setStatuses(p=>({...p,[dim]:'confirmed'}));

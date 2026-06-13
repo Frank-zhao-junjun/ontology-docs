@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, Response
+from flask import Blueprint, jsonify, Response, request
 from .auth import require_auth
 from .models import MetaModelDefinition, MetaModelRelease, MetaModelReleaseItem, Domain
 import yaml
@@ -57,13 +57,8 @@ def _write_sheet(ws, headers: list[str], rows: list[list[str]]):
             ws.cell(row=r, column=c, value=str(val) if val is not None else '')
 
 
-@bp_export.get('/xlsx/<release_no>')
-@require_auth()
-def export_xlsx(release_no):
-    result, rel = _get_release_models(release_no)
-    if result is None:
-        return jsonify({'error': 'not found'}), 404
-
+def _build_xlsx(result: dict) -> BytesIO:
+    """从 result dict 生成多 Sheet Excel 工作簿。"""
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
 
@@ -150,4 +145,33 @@ def export_xlsx(release_no):
     output = BytesIO()
     wb.save(output)
     output.seek(0)
+    return output
+
+
+@bp_export.get('/xlsx/<release_no>')
+@require_auth()
+def export_xlsx(release_no):
+    result, rel = _get_release_models(release_no)
+    if result is None:
+        return jsonify({'error': 'not found'}), 404
+    output = _build_xlsx(result)
+    return Response(output.getvalue(), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+@bp_export.route('/xlsx-from-manifest', methods=['GET', 'POST'])
+@require_auth()
+def export_xlsx_from_manifest():
+    """直接从 manifest JSON 生成 Excel（无需 release_no）。"""
+    payload = request.get_json(force=True)
+    result = {
+        'version': payload.get('version', payload.get('metadata', {}).get('version', '0.0.0')),
+        'exported_at': None,
+        'structural': payload.get('structural', payload.get('data', {})),
+        'behavioral': payload.get('behavioral', {}),
+        'rules': payload.get('rules', {}),
+        'events': payload.get('events', {}),
+        'interfaces': payload.get('interfaces', {}),
+        'epc': payload.get('epc', {}),
+    }
+    output = _build_xlsx(result)
     return Response(output.getvalue(), mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')

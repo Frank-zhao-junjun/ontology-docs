@@ -38,7 +38,8 @@ function ChatPanel() {
       if (entities && entities.length > 0) {
         setEntity(entities[0].name || entities[0].id || 'entity');
       }
-    } catch {
+    } catch (err) {
+      console.error('ChatPanel: LLM request failed', err);
       setMsgs(p => [...p, { role: 'ai', content: 'AI 服务暂不可用，请稍后重试' }]);
     } finally {
       setLoading(false);

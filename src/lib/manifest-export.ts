@@ -7,7 +7,7 @@ import {
 } from '@/lib/manifest-validator';
 import type { OntologyProject } from '@/types/ontology';
 
-export type ManifestExportFormat = 'yaml' | 'json';
+export type ManifestExportFormat = 'yaml' | 'json' | 'xlsx';
 
 export interface BuildManifestExportOptions extends CompileManifestOptions {
   format?: ManifestExportFormat;

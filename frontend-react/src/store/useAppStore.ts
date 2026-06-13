@@ -1,4 +1,12 @@
 import { create } from 'zustand';
+import type {
+  StructuralLLMData,
+  BehavioralLLMData,
+  RulesLLMData,
+  EventsLLMData,
+  InterfacesLLMData,
+  EpcLLMData,
+} from '../types/llm-response';
 
 type Status = 'pending' | 'confirmed' | 'draft';
 
@@ -10,23 +18,27 @@ interface DimStatus {
   interfaces: Status;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type DimData = Record<string, any>;
-
 interface AppState {
   currentEntity: string | null;
   dimensionStatus: DimStatus;
   isLoading: boolean;
-  structuralData: DimData;
-  behavioralData: DimData;
-  rulesData: DimData;
-  eventsData: DimData;
-  interfacesData: DimData;
-  epcData: DimData;
+  structuralData: StructuralLLMData;
+  behavioralData: BehavioralLLMData;
+  rulesData: RulesLLMData;
+  eventsData: EventsLLMData;
+  interfacesData: InterfacesLLMData;
+  epcData: EpcLLMData;
   setCurrentEntity: (e: string | null) => void;
   setDimStatus: (dim: keyof DimStatus, s: Status) => void;
   setLoading: (l: boolean) => void;
-  setLLMResponse: (data: Record<string, DimData>) => void;
+  setLLMResponse: (data: {
+    structural: StructuralLLMData;
+    behavioral: BehavioralLLMData;
+    rules: RulesLLMData;
+    events: EventsLLMData;
+    interfaces: InterfacesLLMData;
+    epc: EpcLLMData;
+  }) => void;
 }
 
 const dimDefaults: DimStatus = {

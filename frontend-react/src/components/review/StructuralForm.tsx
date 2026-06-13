@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Form, Input, Select, Button, Spin, Collapse, Table, Space } from 'antd';
+import { Form, Input, Select, Button, Spin, Collapse, Table, Space, Modal, message } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getDomains, createDomain } from '../../services/api';
 import type { ColumnsType } from 'antd/es/table';
@@ -29,14 +29,23 @@ function StructuralForm({ data, onChange }: { data: StructuralData; onChange: (d
 
   const handleDomainChange = (value: string) => {
     if (value === '__new__') {
-      const name = prompt('Enter new domain name:');
-      if (name) {
-        createDomain(name, '').then(r => {
-          const d = r.data;
-          setDomains(prev => [...prev, { id: d.id, name: d.name }]);
-          onChange({ ...data, domain: d.name, domainId: d.id });
-        }).catch(() => {});
-      }
+      let modalName = '';
+      Modal.confirm({
+        title: '新建领域',
+        content: <Input placeholder="领域名称" onChange={e => { modalName = e.target.value; }} />,
+        onOk: async () => {
+          if (!modalName.trim()) return;
+          try {
+            const r = await createDomain(modalName.trim(), '');
+            const d = r.data;
+            setDomains(prev => [...prev, { id: d.id, name: d.name }]);
+            onChange({ ...data, domain: d.name, domainId: d.id });
+            message.success(`领域 "${modalName.trim()}" 已创建`);
+          } catch (e) {
+            message.error('创建失败: ' + (e as Error).message);
+          }
+        },
+      });
     } else {
       const sel = domains.find(d => String(d.id) === value);
       onChange({ ...data, domain: sel?.name || '', domainId: sel?.id || null });

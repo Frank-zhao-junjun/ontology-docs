@@ -15,7 +15,8 @@ function ReviewPanel({ entityName }: { entityName: string }) {
     events:'pending', interfaces:'pending'
   });
   const [sData, setSData] = useState({
-    entityName, domain:'', domainId: null as number | null, subDomain:'', scenario:'', attributes:[]
+    entityName, domain:'', domainId: null as number | null, subDomain:'', scenario:'',
+    attributes:[], relations:[], inheritance:'', valueObjects:[]
   });
   const [bData, setBData] = useState({ actions: [], stateMachines: [], indicators: [] });
   const [rData, setRData] = useState({ validations: [], guardrails: [], policies: [], permissions: [], exemptions: [], probes: [] });

@@ -17,7 +17,7 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
-const defaults = { entityName: '', domain: '', domainId: null as number | null, subDomain: '', scenario: '', attributes: [] };
+const defaults = { entityName: '', domain: '', domainId: null as number | null, subDomain: '', scenario: '', attributes: [], relations: [], inheritance: '', valueObjects: [] };
 
 describe('StructuralForm', () => {
   it('renders entity name input', () => {

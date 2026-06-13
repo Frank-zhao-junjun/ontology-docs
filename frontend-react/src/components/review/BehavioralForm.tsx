@@ -5,7 +5,8 @@ import type { ColumnsType } from 'antd/es/table';
 interface Action { key: string; id: string; name: string; input: string; output: string; domain: string; }
 interface Transition { key: string; from: string; to: string; trigger: string; }
 interface StateMachine { key: string; id: string; name: string; entity: string; states: string[]; transitions: Transition[]; }
-interface BehavioralData { actions: Action[]; stateMachines: StateMachine[]; }
+interface Indicator { key: string; id: string; name: string; formula: string; target: string; warningThreshold: string; domain: string; }
+interface BehavioralData { actions: Action[]; stateMachines: StateMachine[]; indicators: Indicator[]; }
 
 function BehavioralForm({ data, onChange }: { data: BehavioralData; onChange: (d: BehavioralData) => void }) {
   const actionColumns: ColumnsType<Action> = [
@@ -86,6 +87,23 @@ function BehavioralForm({ data, onChange }: { data: BehavioralData; onChange: (d
           </div>
         ))}
         <Button icon={<PlusOutlined />} type="dashed" block onClick={addSM}>添加状态机</Button>
+      </Form.Item>
+
+      <Form.Item label={<strong>指标定义</strong>}>
+        <Table<Indicator> columns={[
+          { title: 'ID', dataIndex:'id', render: (v:string)=><Input size="small" value={v} style={{width:80}}/> },
+          { title: '名称', dataIndex:'name', render: (v:string)=><Input size="small" value={v} style={{width:100}}/> },
+          { title: '公式', dataIndex:'formula', render: (v:string)=><Input size="small" value={v} style={{width:150}} placeholder="实际产出/设计产能"/> },
+          { title: '目标值', dataIndex:'target', render: (v:string)=><Input size="small" value={v} style={{width:80}} placeholder="≥85%"/> },
+          { title: '预警阈值', dataIndex:'warningThreshold', render: (v:string)=><Input size="small" value={v} style={{width:80}} placeholder="<70%"/> },
+          { title: '所属域', dataIndex:'domain', render: (v:string)=><Input size="small" value={v} style={{width:100}}/> },
+          { title: '', width:40, render: (_:any, __:Indicator, i:number)=>
+            <Button size="small" danger icon={<DeleteOutlined />} onClick={()=>onChange({...data, indicators: data.indicators.filter((_,idx)=>idx!==i)})}/> },
+        ]} dataSource={data.indicators} pagination={false} size="small" rowKey="key"
+          locale={{ emptyText: '暂无指标 — 如产线效率≥85%、SLA达标率≥95%' }} />
+        <Button icon={<PlusOutlined />} type="dashed" block style={{marginTop:8}}
+          onClick={()=>onChange({...data, indicators: [...data.indicators, {key:String(data.indicators.length),id:'',name:'',formula:'',target:'',warningThreshold:'',domain:''}]})}>
+          添加指标</Button>
       </Form.Item>
     </Form>
   );

@@ -7,9 +7,11 @@ interface Guardrail { key: string; id: string; name: string; condition: string; 
 interface Policy { key: string; id: string; name: string; rules: string; }
 interface Permission { key: string; role: string; resource: string; operations: string; }
 interface Exemption { key: string; id: string; constraint: string; reason: string; }
+interface Probe { key: string; id: string; name: string; target: string; frequency: string; alertCondition: string; domain: string; }
 interface RulesData {
   validations: Validation[]; guardrails: Guardrail[];
   policies: Policy[]; permissions: Permission[]; exemptions: Exemption[];
+  probes: Probe[];
 }
 
 function RulesForm({ data, onChange }: { data: RulesData; onChange: (d: RulesData) => void }) {
@@ -93,6 +95,24 @@ function RulesForm({ data, onChange }: { data: RulesData; onChange: (d: RulesDat
         <Button icon={<PlusOutlined />} type="dashed" block style={{marginTop:8}}
           onClick={() => onChange({...data, exemptions: [...data.exemptions, {key:String(data.exemptions.length),id:'',constraint:'',reason:''}]})}>
           添加豁免</Button>
+      </div>
+    )},
+    { key: 'probes', label: '探针', children: (
+      <div>
+        <Table<Probe> columns={[
+          { title: 'ID', dataIndex:'id', render: (v:string)=><Input size="small" value={v} style={{width:80}}/> },
+          { title: '名称', dataIndex:'name', render: (v:string)=><Input size="small" value={v} style={{width:120}}/> },
+          { title: '采样目标', dataIndex:'target', render: (v:string)=><Input size="small" value={v} style={{width:120}} placeholder="关键设备振动值"/> },
+          { title: '频率', dataIndex:'frequency', render: (v:string)=><Input size="small" value={v} style={{width:80}} placeholder="1min"/> },
+          { title: '预警条件', dataIndex:'alertCondition', render: (v:string)=><Input size="small" value={v} style={{width:150}} placeholder=">80%触发预警"/> },
+          { title: '所属域', dataIndex:'domain', render: (v:string)=><Input size="small" value={v} style={{width:100}}/> },
+          { title: '', width:40, render: (_:any, __:Probe, i:number)=>
+            <Button size="small" danger icon={<DeleteOutlined />} onClick={()=>onChange({...data, probes: data.probes.filter((_,idx)=>idx!==i)})}/> },
+        ]} dataSource={data.probes} pagination={false} size="small" rowKey="key"
+          locale={{ emptyText: '暂无探针 — 如设备振动探针(实时)、SLA倒计时探针(1min)' }} />
+        <Button icon={<PlusOutlined />} type="dashed" block style={{marginTop:8}}
+          onClick={()=>onChange({...data, probes: [...data.probes, {key:String(data.probes.length),id:'',name:'',target:'',frequency:'',alertCondition:'',domain:''}]})}>
+          添加探针</Button>
       </div>
     )},
   ];

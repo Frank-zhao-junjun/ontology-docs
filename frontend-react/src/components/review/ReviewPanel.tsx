@@ -17,8 +17,8 @@ function ReviewPanel({ entityName }: { entityName: string }) {
   const [sData, setSData] = useState({
     entityName, domain:'', subDomain:'', scenario:'', attributes:[]
   });
-  const [bData, setBData] = useState({ actions: [], stateMachines: [] });
-  const [rData, setRData] = useState({ validations: [], guardrails: [], policies: [], permissions: [], exemptions: [] });
+  const [bData, setBData] = useState({ actions: [], stateMachines: [], indicators: [] });
+  const [rData, setRData] = useState({ validations: [], guardrails: [], policies: [], permissions: [], exemptions: [], probes: [] });
   const [eData, setEData] = useState({ eventTypes: [], sources: [], causalities: [] });
   const [iData, setIData] = useState({ apis: [], queries: [], compute: [], notifications: [], reports: [] });
 

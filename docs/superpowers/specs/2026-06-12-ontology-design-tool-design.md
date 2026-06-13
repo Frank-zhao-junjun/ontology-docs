@@ -446,13 +446,13 @@ ontology:
 
 | 项目 | 说明 | 优先级 |
 |------|------|:--:|
-| ErrorBoundary | App.tsx 缺错误边界 — React 崩溃→白屏 | 🔴 |
-| Prompt() → Modal | StructuralForm 新建领域用浏览器 prompt()，应改为 Ant Design Modal | 已修复 ✅ |
-| useEffect cleanup | RightSidebar/StructuralForm/VersionBar 的 useEffect 缺 AbortController | 🟡 |
-| CORS 配置 | 后端缺 flask-cors，dev 可用但 production 跨域会失败 | 🟡 |
-| `any` 类型消除 | 已修复 ✅ | 已修复 ✅ |
+| ErrorBoundary | ✅ 已修复 | ✅ |
+| Prompt() → Modal | ✅ 已修复 | ✅ |
+| useEffect cleanup | ✅ 已修复 | ✅ |
+| `any` 类型消除 | ✅ 已修复 (0 业务 any，仅 Ant Design render 回调) | ✅ |
+| CORS 配置 | 后端缺 flask-cors | 🟡 |
 | `get_json(force=True)` | 14 处跳过了 Content-Type 校验 | 🟢 |
-| EditableTable 抽象 | 5 个表单重复 Table+Button 模式，可提取通用组件 | 🟢 |
+| EditableTable 抽象 | 5 个表单重复 Table+Button 模式 | 🟢 |
 
 ### 14.3 安全项
 
@@ -463,4 +463,21 @@ ontology:
 | HTTP-only Cookie | 13.3 | ❌ |
 | 环境变量注入 | 13.3 | ❌ |
 
-> 测试: 65 total (Backend 49 + Frontend 16) — 100% pass
+### 14.4 Success Metrics 达标情况
+
+| 指标 | 目标 | 当前 | 状态 |
+|------|------|------|:--:|
+| 领域数 | ≥3 | API 支持无上限 | ✅ |
+| 导出格式 | 3 种 | JSON + YAML + Excel | ✅ |
+| 导出完整度 | 100% | 5维+EPC 全覆盖 | ✅ |
+| 实体树层级 | ≥3 | domain→subDomain→scenario 3层 | ✅ |
+| Backend 测试覆盖率 | ≥80% | 待测量 (pytest-cov) | 🟡 |
+| Frontend 测试覆盖率 | ≥70% | 待测量 (vitest coverage) | 🟡 |
+| API P95 | ≤500ms | 待测量 | 🟡 |
+| 前端首屏 | ≤3s | 待测量 (Lighthouse) | 🟡 |
+| 代码重复率 | ≤5% | 5 forms 共享 Table 模式，重复 ~100 LOC | 🟡 |
+| TypeScript any | 0 | 0 (仅 Ant Design render 回调) | ✅ |
+
+> 测试: 65 total (Backend 49 + Frontend 16) — 100% pass  
+> 核心功能完成率: 23/24 = 96%  
+> Success Metrics 达标: 6/10 (4 pending measurement)

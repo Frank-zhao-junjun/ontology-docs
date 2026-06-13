@@ -23,7 +23,7 @@ export function ExcelImportDialog({ open, onOpenChange }: ExcelImportDialogProps
   const [importedVersion, setImportedVersion] = useState<ProjectVersion | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { createVersion, versions, project, approveVersion, rejectVersion } = useOntologyStore();
+  const { createVersionFromParsedData, versions, project, approveVersion, rejectVersion } = useOntologyStore();
 
   const handleDownloadTemplate = async () => {
     try {
@@ -64,25 +64,20 @@ export function ExcelImportDialog({ open, onOpenChange }: ExcelImportDialogProps
       const data: ExcelImportResult = await response.json();
       setResult(data);
 
-      if (data.success && data.versionId) {
-        // 生成新版本 (pending_review)
+      if (data.success && data.versionId && data.parsedData) {
+        // 使用解析后的数据生成新版本 (pending_review)
         const existingVersions = versions.filter(v => v.projectId === project?.id);
         const nextVersionNum = existingVersions.length + 1;
         const versionName = data.versionName || `v${nextVersionNum}.0.0`;
 
-        const newVersion = createVersion({
+        const newVersion = createVersionFromParsedData({
           version: versionName,
           name: `Excel导入 ${new Date().toLocaleDateString('zh-CN')}`,
           description: `从文件 ${file.name} 导入`,
+          parsedData: data.parsedData,
         });
 
-        // 更新为 pending_review 状态
-        useOntologyStore.getState().updateVersion(newVersion.id, {
-          status: 'pending_review',
-          source: 'excel_import',
-        });
-
-        setImportedVersion(useOntologyStore.getState().versions.find(v => v.id === newVersion.id) || null);
+        setImportedVersion(newVersion);
         setStep('review');
       } else {
         setStep('result');

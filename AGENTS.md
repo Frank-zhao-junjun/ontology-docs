@@ -100,8 +100,10 @@ src/
 - **模板下载**：GET /api/excel-template 生成含7个Sheet（填写说明+6数据Sheet）的 .xlsx 模板
 - **文件上传**：POST /api/excel-import 仅接受 .xlsx，5MB上限，Sheet结构校验
 - **数据校验**：必填字段、枚举值、布尔类型、跨Sheet引用完整性校验
-- **版本生成**：校验通过自动生成 pending_review 状态版本
-- **版本审核**：审核通过应用到工作区，驳回需填写原因
+- **数据解析**：校验通过后解析为 Entity/Attribute/Relation/StateMachine/Rule/Event 对象（parsedData）
+- **版本生成**：基于 parsedData 生成 pending_review 状态版本（非工作区快照）
+- **版本审核**：审核通过将 parsedData 应用到工作区（替换当前数据），驳回需填写原因
+- **Store 方法**：`createVersionFromParsedData({ parsedData })` 创建版本，`approveVersion` 应用解析数据
 
 ## 开发命令
 
@@ -240,7 +242,15 @@ POST /api/excel-import
   "success": true,
   "validation": { "totalRows": 8, "validRows": 8, "errorCount": 0, "errors": [] },
   "versionId": "v-xxx",
-  "versionName": "v2026-06-13"
+  "versionName": "v2026-06-13",
+  "parsedData": {
+    "entities": [{ "name": "物料", "nameEn": "Material", "role": "aggregate_root", ... }],
+    "attributes": [{ "entityNameEn": "Material", "name": "编码", "dataType": "string", ... }],
+    "relations": [...],
+    "stateMachines": [...],
+    "rules": [...],
+    "eventDefinitions": [...]
+  }
 }
 ```
 

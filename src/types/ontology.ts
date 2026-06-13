@@ -85,6 +85,7 @@ export interface ExcelImportResult {
   versionId?: string;
   versionName?: string;
   errorMessage?: string;
+  parsedData?: ExcelParsedData;
 }
 
 // ========== 主数据管理 ==========
@@ -822,6 +823,83 @@ export interface MetricsModel {
   metrics: BusinessMetric[];
   createdAt: string;
   updatedAt: string;
+}
+
+// ========== Excel 导入解析结果 ==========
+export interface ExcelParsedData {
+  entities: Array<{
+    name: string;
+    nameEn: string;
+    role: EntityRole;
+    parentAggregateId?: string;
+    projectName?: string;
+    businessScenario?: string;
+    description?: string;
+    businessMeaning?: string;
+    aliases?: string[];
+  }>;
+  attributes: Array<{
+    entityNameEn: string;
+    name: string;
+    nameEn: string;
+    dataType: AttributeDataType;
+    required: boolean;
+    unique: boolean;
+    length?: number;
+    precision?: number;
+    scale?: number;
+    defaultValue?: string;
+    referencedEntityNameEn?: string;
+    referenceType?: 'one_to_one' | 'one_to_many' | 'many_to_many';
+    masterDataType?: string;
+    enumRef?: string;
+    description?: string;
+    businessMeaning?: string;
+    metadataTemplateName?: string;
+  }>;
+  relations: Array<{
+    sourceEntityNameEn: string;
+    name: string;
+    type: 'one_to_one' | 'one_to_many' | 'many_to_many';
+    targetEntityNameEn: string;
+    foreignKey?: string;
+    intermediateEntity?: string;
+    cascade?: 'none' | 'cascade' | 'set_null';
+    recursive?: boolean;
+    directed?: boolean;
+    description?: string;
+  }>;
+  stateMachines: Array<{
+    entityNameEn: string;
+    name: string;
+    statusField: string;
+    states: Array<{ name: string; isInitial: boolean; isTerminal: boolean }>;
+    transitions: Array<{ name: string; from: string; to: string; triggerType: string }>;
+  }>;
+  rules: Array<{
+    entityNameEn: string;
+    name: string;
+    type: RuleType;
+    field?: string;
+    conditionType: string;
+    conditionValue?: string;
+    severity: 'error' | 'warning' | 'info';
+    errorMessage: string;
+    priority?: number;
+    enabled: boolean;
+    description?: string;
+  }>;
+  events: Array<{
+    entityNameEn: string;
+    name: string;
+    nameEn?: string;
+    trigger: 'create' | 'update' | 'delete' | 'state_change' | 'custom';
+    condition?: string;
+    transactionPhase?: string;
+    isDomainEvent: boolean;
+    payloadFields?: string[];
+    description?: string;
+  }>;
 }
 
 export interface OntologyProject {

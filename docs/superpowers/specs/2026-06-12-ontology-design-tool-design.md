@@ -1,7 +1,7 @@
 # AI辅助本体设计工具 — 需求设计文档
 
-**版本**：v2.1
-**日期**：2026-06-12
+**版本**：v2.2
+**日期**：2026-06-13
 **状态**：已确认（含评审修正）
 **评审角色**：业务需求分析 + 本体模型设计专家
 
@@ -225,13 +225,70 @@ epc_processes:
 
 ## 7. 发布 · 版本 · 导出
 
-| 格式 | 用途 | 状态 |
-|------|------|:--:|
-| JSON | 结构化，程序消费 | v1 |
-| YAML | 兼顾人可读 | v1 |
-| OWL/RDF | 行业标准本体交换 | Roadmap |
+### 导出格式
 
-### 导出内容结构
+| 格式 | 用途 | 内容 | 状态 |
+|------|------|------|:----:|
+| JSON | 程序消费，结构化完整数据 | 全部 5 维 + EPC 的完整本体定义 | v1 |
+| YAML | 兼顾人可读，适合版本控制 | 与 JSON 等价，格式不同 | v1 |
+| Excel (.xlsx) | 业务分析师审阅，多工作表 | **每维一张工作表**，按实体分组展开，含确认状态列 | v1 |
+
+### Excel 导出规范
+
+Excel 文件包含以下工作表：
+
+| 工作表名 | 内容 | 列 |
+|---------|------|----|
+| **领域总览** | 所有领域的列表 | 名称、描述、标签、实体数、状态 |
+| **维1_静态结构** | 按领域/场景分组的实体、属性、关系、值对象 | 领域、场景、实体、属性名、类型、关系、值对象 |
+| **维2_动态行为** | 行为列表、状态机、指标定义 | 所属实体、行为名、输入/输出、状态转移、指标公式 |
+| **维3_规则约束** | 校验规则、护栏、权限、豁免 | 规则名、类型、表达式、作用域 |
+| **维4_事件消息** | 事件类型、事件源、因果链 | 事件名、级别、事件源、作用实体、触发事件 |
+| **维5_外部接口** | API、查询、计算引擎、通知 | 接口名、类型、URL/方法、所属域 |
+| **EPC流程** | 跨维编排流程 | 流程名、步骤、触发事件、行为、规则引用 |
+
+> Excel 使用 openpyxl 生成，服务端直接输出 `.xlsx` 文件流。
+
+### 导出内容结构（JSON/YAML）
+
+```yaml
+ontology:
+  domain: manufacturing
+  version: "1.0.0"
+  exported_at: "2026-06-12T..."
+  semantic:        # 第1层
+    domains: [...]
+    scenarios: [...]
+    aggregate_roots: [...]
+    entities: [...]
+    value_objects: [...]
+    relations: [...]
+    indexes: [...]
+  behavior:        # 第2层
+    epc_processes: [...]
+    actions: [...]
+    action_rules: [...]
+    validation_rules: [...]
+    state_machines: [...]
+    indicators: [...]
+  event:           # 第3层
+    event_types: [...]
+    sources: [...]
+    causalities: [...]
+  governance:      # 第4层
+    constraints: [...]
+    guardrails: [...]
+    permissions: [...]
+    probes: [...]
+    policies: [...]
+    exemptions: [...]
+  tools:           # 第5层
+    apis: [...]
+    queries: [...]
+    compute: [...]
+    notifications: [...]
+    reports: [...]
+```
 
 ---
 
@@ -250,7 +307,7 @@ epc_processes:
 
 | 阶段 | 内容 |
 |------|------|
-| v1 | 5维+EPC建模、AI逐层生成、JSON/YAML导出、三栏交互 |
+| v1 | 5维+EPC建模、AI逐层生成、JSON/YAML/Excel导出、三栏交互 |
 | v1.x | OWL/RDF 导出、多版本 diff、PostgreSQL 迁移 |
 | v2 | 多人协作、权限管理、模板库 |
 

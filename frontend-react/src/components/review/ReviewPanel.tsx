@@ -17,6 +17,10 @@ function ReviewPanel({ entityName }: { entityName: string }) {
   const [sData, setSData] = useState({
     entityName, domain:'', subDomain:'', scenario:'', attributes:[]
   });
+  const [bData, setBData] = useState({ actions: [], stateMachines: [] });
+  const [rData, setRData] = useState({ validations: [], guardrails: [], policies: [], permissions: [], exemptions: [] });
+  const [eData, setEData] = useState({ eventTypes: [], sources: [], causalities: [] });
+  const [iData, setIData] = useState({ apis: [], queries: [], compute: [], notifications: [], reports: [] });
 
   const confirm = (dim: string) => {
     setStatuses(p=>({...p,[dim]:'confirmed'}));
@@ -37,19 +41,19 @@ function ReviewPanel({ entityName }: { entityName: string }) {
       </DimensionBlock>
       <DimensionBlock title="维2: 动态行为" status={statuses.behavioral}
         onConfirm={()=>confirm('behavioral')} onRegenerate={()=>regen('behavioral')}>
-        <BehavioralForm data={{}} onChange={()=>{}} />
+        <BehavioralForm data={bData} onChange={setBData} />
       </DimensionBlock>
       <DimensionBlock title="维3: 规则约束" status={statuses.rules}
         onConfirm={()=>confirm('rules')} onRegenerate={()=>regen('rules')}>
-        <RulesForm data={{}} onChange={()=>{}} />
+        <RulesForm data={rData} onChange={setRData} />
       </DimensionBlock>
       <DimensionBlock title="维4: 事件消息" status={statuses.events}
         onConfirm={()=>confirm('events')} onRegenerate={()=>regen('events')}>
-        <EventsForm data={{}} onChange={()=>{}} />
+        <EventsForm data={eData} onChange={setEData} />
       </DimensionBlock>
       <DimensionBlock title="维5: 外部接口" status={statuses.interfaces}
         onConfirm={()=>confirm('interfaces')} onRegenerate={()=>regen('interfaces')}>
-        <InterfacesForm data={{}} onChange={()=>{}} />
+        <InterfacesForm data={iData} onChange={setIData} />
       </DimensionBlock>
       <div style={{textAlign:'center',marginTop:24}}>
         <Button type="primary" size="large" disabled={!allOk}>全部确认 - 入库</Button>

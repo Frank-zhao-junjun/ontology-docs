@@ -3,7 +3,7 @@ import { Spin } from 'antd';
 import EntityTree from '../tree/EntityTree';
 import VersionBar from '../export/VersionBar';
 import { useAppStore } from '../../store/useAppStore';
-import { getDomains } from '../../services/api';
+import { getEntitiesGrouped } from '../../services/api';
 
 interface TreeNode { key: string; title: string; children?: TreeNode[]; data?: { dimsConfirmed: number }; }
 
@@ -13,16 +13,31 @@ function RightSidebar() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getDomains()
+    getEntitiesGrouped()
       .then(r => {
-        const domains: TreeNode[] = (r.data.items || []).map((d: any) => ({
-          key: 'd-' + d.id,
-          title: d.name,
-          children: [], // entities will be loaded on expand in future iteration
+        const grouped: any[] = r.data || [];
+        if (grouped.length === 0) {
+          setTree([{ key: 'empty', title: '暂无领域 — 在维1中添加实体开始建模' }]);
+          return;
+        }
+        const nodes: TreeNode[] = grouped.map((d: any) => ({
+          key: 'domain-' + d.domainId,
+          title: d.domainName,
+          children: (d.subDomains || []).map((sd: any) => ({
+            key: 'sd-' + d.domainId + '-' + sd.name,
+            title: sd.name,
+            children: (sd.scenarios || []).map((sc: any) => ({
+              key: 'sc-' + d.domainId + '-' + sd.name + '-' + sc.name,
+              title: sc.name,
+              children: (sc.entities || []).map((e: any) => ({
+                key: 'entity-' + e.id,
+                title: e.name,
+                data: { dimsConfirmed: e.dimsConfirmed || 0 },
+              })),
+            })),
+          })),
         }));
-        setTree(domains.length > 0 ? domains : [{
-          key: 'empty', title: '暂无领域 — 在左侧对话中创建或点击实体开始',
-        }]);
+        setTree(nodes);
       })
       .catch(() => setTree([{ key: 'err', title: '加载失败' }]))
       .finally(() => setLoading(false));

@@ -19,5 +19,6 @@ export const publishRelease = (rno: string, ids: number[], op: string) =>
 export const getDomains = () => api.get('/domains');
 export const createDomain = (name: string, description: string) =>
   api.post('/domains', { name, description });
+export const getEntitiesGrouped = () => api.get('/entities/grouped');
 export const exportJson = (rno: string) => api.get('/export/json/' + rno);
 export default api;

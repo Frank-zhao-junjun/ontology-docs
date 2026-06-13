@@ -59,6 +59,47 @@ def _load_record(config: dict, record_id: str, trace_id: str, entity_type: str):
     return record, None
 
 
+@bp_entities.get("/grouped")
+@require_auth()
+def list_entities_grouped():
+    from .models import MetaModelDefinition, Domain
+
+    models = MetaModelDefinition.query.filter_by(model_type="structural").all()
+    domains = {d.id: d.name for d in Domain.query.all()}
+
+    # Build: domain → subDomain → scenario → entities
+    tree: dict[int, dict[str, dict[str, list[dict]]]] = {}
+    for m in models:
+        c = m.content_json or {}
+        did = c.get("domainId")
+        if not did or did not in domains:
+            continue
+        sd = c.get("subDomain", "默认子域")
+        sc = c.get("scenario", "默认场景")
+        ent = c.get("entities", [])
+        if not ent:
+            continue
+        entity_name = c.get("entityName", ent[0].get("name", m.name))
+
+        tree.setdefault(did, {}).setdefault(sd, {}).setdefault(sc, []).append({
+            "id": ent[0].get("id", m.name),
+            "name": entity_name,
+            "dimsConfirmed": 0,
+        })
+
+    result = []
+    for did, subdoms in tree.items():
+        sd_list = []
+        for sname, scenarios in subdoms.items():
+            sc_list = []
+            for cname, entities in scenarios.items():
+                sc_list.append({"name": cname, "entities": entities})
+            sd_list.append({"name": sname, "scenarios": sc_list})
+        result.append({"domainId": did, "domainName": domains[did], "subDomains": sd_list})
+
+    return jsonify(result)
+
+
 @bp_entities.get("/<entity_type>")
 @require_auth()
 def list_entities(entity_type: str):

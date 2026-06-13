@@ -13,6 +13,13 @@ global.localStorage = localStorageMock as unknown as Storage;
 // Mock fetch
 global.fetch = vi.fn();
 
+// Mock ResizeObserver for antd components
+global.ResizeObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}));
+
 // Mock console.error to reduce noise in tests
 vi.spyOn(console, 'error').mockImplementation(() => {});
 

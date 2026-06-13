@@ -13,7 +13,7 @@ from .models import (
 )
 
 
-ALLOWED_MODEL_TYPES = {"structural", "behavioral", "rules", "events", "interfaces", "epc"}
+ALLOWED_MODEL_TYPES = {"data", "behavior", "rule", "event", "process", "structural", "behavioral", "rules", "events", "interfaces", "epc"}
 
 
 @dataclass

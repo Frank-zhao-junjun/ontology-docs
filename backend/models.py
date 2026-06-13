@@ -7,6 +7,22 @@ def utcnow():
     return datetime.now(timezone.utc)
 
 
+class ModelMixin:
+    """Provides to_dict() using SQLAlchemy column introspection.
+
+    Handles datetime columns by converting to ISO format strings.
+    """
+
+    def to_dict(self) -> dict[str, object]:
+        result = {}
+        for col in self.__table__.columns:
+            value = getattr(self, col.name)
+            if isinstance(value, datetime):
+                value = value.isoformat()
+            result[col.name] = value
+        return result
+
+
 class Domain(db.Model):
     __tablename__ = "domain"
 
@@ -97,7 +113,7 @@ class UserAccount(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
 
-class ContractRecord(db.Model):
+class ContractRecord(db.Model, ModelMixin):
     __tablename__ = "contract_record"
 
     id = db.Column(db.String(128), primary_key=True)
@@ -109,20 +125,8 @@ class ContractRecord(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
 
-    def to_dict(self) -> dict[str, object]:
-        return {
-            "id": self.id,
-            "contract_no": self.contract_no,
-            "title": self.title,
-            "counterparty": self.counterparty,
-            "amount": self.amount,
-            "status": self.status,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-        }
 
-
-class CustomerRecord(db.Model):
+class CustomerRecord(db.Model, ModelMixin):
     __tablename__ = "customer_record"
 
     id = db.Column(db.String(128), primary_key=True)
@@ -133,19 +137,8 @@ class CustomerRecord(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
 
-    def to_dict(self) -> dict[str, object]:
-        return {
-            "id": self.id,
-            "customer_no": self.customer_no,
-            "name": self.name,
-            "industry": self.industry,
-            "status": self.status,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-        }
 
-
-class EmployeeRecord(db.Model):
+class EmployeeRecord(db.Model, ModelMixin):
     __tablename__ = "employee_record"
 
     id = db.Column(db.String(128), primary_key=True)
@@ -157,20 +150,8 @@ class EmployeeRecord(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
 
-    def to_dict(self) -> dict[str, object]:
-        return {
-            "id": self.id,
-            "employee_no": self.employee_no,
-            "name": self.name,
-            "department": self.department,
-            "job_title": self.job_title,
-            "status": self.status,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-        }
 
-
-class ProductRecord(db.Model):
+class ProductRecord(db.Model, ModelMixin):
     __tablename__ = "product_record"
 
     id = db.Column(db.String(128), primary_key=True)
@@ -182,20 +163,8 @@ class ProductRecord(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
 
-    def to_dict(self) -> dict[str, object]:
-        return {
-            "id": self.id,
-            "product_no": self.product_no,
-            "name": self.name,
-            "category": self.category,
-            "price": self.price,
-            "status": self.status,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-        }
 
-
-class InvoiceRecord(db.Model):
+class InvoiceRecord(db.Model, ModelMixin):
     __tablename__ = "invoice_record"
 
     id = db.Column(db.String(128), primary_key=True)
@@ -206,15 +175,3 @@ class InvoiceRecord(db.Model):
     status = db.Column(db.String(64), nullable=False, default="draft")
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
-
-    def to_dict(self) -> dict[str, object]:
-        return {
-            "id": self.id,
-            "invoice_no": self.invoice_no,
-            "customer_id": self.customer_id,
-            "contract_id": self.contract_id,
-            "amount": self.amount,
-            "status": self.status,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-        }

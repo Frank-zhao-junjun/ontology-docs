@@ -79,8 +79,8 @@ def export_xlsx(release_no):
     for e in entities:
         for a in e.get('attributes', []):
             rows_v1.append([e.get('id',''), e.get('name',''), a.get('id',''), a.get('type',''), str(a.get('required','')), str(a.get('unique',''))])
-        for r in s.get('relations', []):
-            rows_v1.append([e.get('id',''), e.get('name',''), r.get('type',''), r.get('source',''), r.get('target',''), r.get('inverseOf','')])
+    for r in s.get('relations', []):
+        rows_v1.append(['', '', r.get('type',''), r.get('source',''), r.get('target',''), r.get('inverseOf','')])
     ws2 = wb.create_sheet('维1_静态结构')
     _write_sheet(ws2, ['实体ID', '实体名', '属性/关系', '类型', '必填', '唯一/inverseOf'], rows_v1)
 

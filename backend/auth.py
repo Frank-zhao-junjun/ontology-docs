@@ -61,16 +61,30 @@ DEFAULT_USERS = [
 
 
 def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+    from werkzeug.security import generate_password_hash
+    return generate_password_hash(password)
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    from werkzeug.security import check_password_hash
+    return check_password_hash(password_hash, password)
 
 
 def token_for(username: str, role: str) -> str:
-    return hashlib.sha256(f"ontology::{username}::{role}".encode("utf-8")).hexdigest()
+    import secrets
+    import hashlib
+    raw = f"ontology::{username}::{role}::{secrets.token_hex(16)}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def seed_default_users() -> None:
+    import os
     from .extensions import db
     from .models import UserAccount
+
+    env = os.environ.get('FLASK_ENV', 'development')
+    if env != 'development':
+        return  # 默认密码仅限开发环境
 
     for item in DEFAULT_USERS:
         existing = UserAccount.query.filter_by(username=item["username"]).first()

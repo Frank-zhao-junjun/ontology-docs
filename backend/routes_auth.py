@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 from .api_response import error_response, resolve_trace_id
-from .auth import ROLE_PERMISSIONS, hash_password, require_auth
+from .auth import ROLE_PERMISSIONS, verify_password, require_auth
 from .models import UserAccount
 
 
@@ -27,7 +27,7 @@ def login():
     username = payload.get("username", "")
     password = payload.get("password", "")
     user = UserAccount.query.filter_by(username=username, is_active=True).first()
-    if user is None or user.password_hash != hash_password(password):
+    if user is None or not verify_password(password, user.password_hash):
         return error_response(code="U4012", message="invalid username or password", status=401, trace_id=trace_id)
 
     permissions = ROLE_PERMISSIONS.get(user.role, {})

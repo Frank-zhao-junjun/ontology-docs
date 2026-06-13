@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Tree, Badge, Input } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { TreeDataNode } from 'antd';
@@ -7,6 +8,7 @@ interface EntityTreeNode extends TreeDataNode {
 }
 
 function EntityTree({ data, onSelect }: { data: EntityTreeNode[]; onSelect: (k: string) => void }) {
+  const [searchText, setSearchText] = useState('');
   const total = 5;
 
   return (
@@ -14,12 +16,19 @@ function EntityTree({ data, onSelect }: { data: EntityTreeNode[]; onSelect: (k: 
       <Input
         prefix={<SearchOutlined />}
         placeholder="搜索实体..."
+        value={searchText}
+        onChange={(e) => setSearchText(e.target.value)}
         style={{ margin: '0 8px 12px', width: 'calc(100% - 16px)' }}
       />
       <Tree
         treeData={data}
         defaultExpandAll
         onSelect={(keys) => { if (keys.length) onSelect(keys[0] as string); }}
+        filterTreeNode={(node) => {
+          if (!searchText) return true;
+          const title = node.title as string;
+          return title.toLowerCase().includes(searchText.toLowerCase());
+        }}
         titleRender={(node) => {
           const d = (node as EntityTreeNode).data?.dimsConfirmed;
           return (

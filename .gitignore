@@ -93,3 +93,7 @@ logs/
 
 # Preview files
 .preview
+
+# Local runtime database
+instance/
+*.db

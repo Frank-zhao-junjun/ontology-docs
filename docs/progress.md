@@ -1,6 +1,6 @@
 # Ontology 项目开发进度
 
-> 最后更新：2026-06-13
+> 最后更新：2026-06-15
 > 当前版本：v2.0
 
 ---
@@ -14,7 +14,7 @@
 | P3 | EPC 全域关联层 | ✅ 已完成 | 100% | 5 节点×12 模型关联矩阵，71 条双向校验 |
 | P4 | 组织体系与岗位模型 | ✅ 已完成 | 100% | 部门树+结构化职责+HR 同步+Excel 导入 |
 | P5 | 语义增强（Lifecycle + Agent Semantic Layer） | ✅ 已完成 | 100% | 实体生命周期+Agent 语义层+完备性评估 |
-| P6 | 持续增强 | 🔄 进行中 | 30% | 参考文档上传、代码实现、测试覆盖 |
+| P6 | 持续增强 | 🔄 进行中 | 65% | 类型定义+Store+API+校验规则已完成，UI待实现 |
 
 ---
 
@@ -82,10 +82,14 @@
 
 - [x] 参考文档上传辅助 AI 建模 Spec
 - [x] 清除首页所有运行态/代码生成残留文字
-- [ ] Entity Lifecycle 代码实现
-- [ ] Agent Semantic Layer 代码实现
-- [ ] HR 系统同步代码实现
-- [ ] 参考文档上传代码实现
+- [x] P0: Entity Lifecycle / Agent Semantic Layer / Organization 类型定义 (LC-T1/AS-T1/ORG-T1 + deps)
+- [x] P1: Store 扩展 — getEntityLifecycle + auditTrail + AS CRUD + Organization CRUD
+- [x] P1: API 路由 — POST entity-lifecycle + POST agent-semantic-layer + 5× HR sync
+- [x] P1: 校验规则 — V-LC-01~15 + V-AS-01~15 (30条) + Excel 8-Sheet V-XL-O01~23
+- [ ] LC-T4: UI 增强 — behavior-model-editor 生命周期 Tab
+- [ ] AS-T4: UI 新增 — Agent 语义层管理面板
+- [ ] ORG-T4: UI 新增 — 组织编辑器 + HR 同步面板
+- [ ] RD-T2~T5: 参考文档上传代码实现
 - [ ] 测试覆盖率提升
 
 ---
@@ -96,14 +100,11 @@
 
 | 提交 | 说明 |
 |------|------|
-| `2f92c88` | fix: 清除首页所有运行态/代码生成残留文字 |
-| `main` | feat: 首页全面更新 — 从4模型到12模型体系 |
-| `main` | docs: 参考文档上传辅助 AI 建模完整规格 |
-| `main` | docs: 组织体系 Excel 导入完整规格 + 8 Sheet 模板扩展 |
-| `main` | docs: 组织体系与岗位模型 v2.0 — 结构化职责 + HR系统定时同步 |
-| `main` | docs: Entity Lifecycle spec v2.0 修正 — 与代码库完全对齐 |
-| `main` | docs: EPC v3.1 升级 — 全域关联矩阵扩展至 Lifecycle + Semantic Layer |
-| `main` | docs: 新增 Entity Lifecycle 与 Agent Semantic Layer 完整规格 |
+| `6a0f9c6` | feat: LC-T5 + AS-T5 + ORG-T5 — 30条校验规则 + Excel 8-Sheet 扩展 |
+| `ec62e7f` | feat: P1 Store + API — Entity Lifecycle + Agent Semantic Layer + Organization (8文件+1246行) |
+| `5791c22` | feat: P0 类型定义 — Lifecycle + Agent Semantic Layer + Organization + deps (3文件+776行) |
+| `1ec4057` | docs: 5大规格文档同步 + 首页更新 + 宣传图资源 |
+| `d9da464` | docs: 新增项目待办清单 TODO.md |
 
 ### 2026-06-13~14
 
@@ -130,30 +131,30 @@
 
 ## 下一步计划
 
-### 短期
+### 短期（P1 剩余 — UI 层）
 
-1. **Entity Lifecycle 代码实现**
-   - types/ontology.ts 新增子类型（StateTimeout/StateDataVisibility/LifecycleAuditEntry/EntityLifecycle）
-   - Store: getEntityLifecycle + 审计方法
-   - API: POST /api/entity-lifecycle
-   - UI: State/Transition/Action 对话框增强 + 生命周期 Tab
+1. **LC-T4: Entity Lifecycle UI 增强**
+   - behavior-model-editor: State/Transition/Action 对话框新增生命周期 Tab
+   - 建模工作台新增「生命周期」聚合视图 Tab
 
-2. **Agent Semantic Layer 代码实现**
-   - types/ontology.ts 新增 9 大子类型
-   - Store: Agent 语义层 CRUD
-   - UI: 意图映射/术语词典/语义关系编辑器 + 完备性仪表盘
+2. **AS-T4: Agent Semantic Layer UI**
+   - 意图映射编辑器 + 术语词典编辑器 + 语义关系图谱
+   - Agent 完备性仪表盘（10 维度雷达图）
+
+3. **ORG-T4: 组织体系 UI**
+   - 部门树 + 岗位列表编辑器
+   - 职责重叠检测面板 + HR 同步配置面板
 
 ### 中期
 
-3. **HR 系统同步实现**
-   - API: /api/hr-sync/*
-   - 差异比对 + 冲突处理
-   - 定时同步调度
+4. **RD-T2~T5: 参考文档上传实现**
+   - types/ontology.ts 新增 ReferenceDocument 类型
+   - Store + API 路由
+   - UI: 上传/预览/删除 + AI 实体提取
 
-4. **参考文档上传实现**
-   - API: /api/reference-documents/*
-   - 文档解析（mammoth/pdf-parse/xlsx）
-   - AI Prompt 注入 + 实体提取
+5. **Q-T1~T3: 测试覆盖**
+   - 单元测试 + 集成测试
+   - 目标覆盖率 80%+
 
 ---
 

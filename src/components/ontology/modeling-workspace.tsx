@@ -27,6 +27,7 @@ import { MetadataManager } from './metadata-manager';
 import { MasterDataManager } from './masterdata-manager';
 import { PublishDialog } from './publish-dialog';
 import { ManifestExportDialog } from './manifest-export-dialog';
+import { ExcelImportDialog } from './excel-import-dialog';
 import { GovernanceEditor } from './governance-editor';
 import { DataSourceEditor } from './data-source-editor';
 import { MetricsEditor } from './metrics-editor';
@@ -163,6 +164,7 @@ export function ModelingWorkspace({ project }: ModelingWorkspaceProps) {
   const [editProjectDescription, setEditProjectDescription] = useState('');
   const [savingProject, setSavingProject] = useState(false);
   const [showMasterData, setShowMasterData] = useState(false);
+  const [showExcelImport, setShowExcelImport] = useState(false);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
   const [scenarioSearchQuery, setScenarioSearchQuery] = useState('');
   const [editingProject, setEditingProject] = useState<Partial<EntityProject>>({ color: '#3b82f6' });
@@ -597,6 +599,10 @@ export function ModelingWorkspace({ project }: ModelingWorkspaceProps) {
               </Button>
               <ManifestExportDialog project={project} />
               <PublishDialog />
+              <ExcelImportDialog open={showExcelImport} onOpenChange={setShowExcelImport} />
+              <Button variant="outline" onClick={() => setShowExcelImport(true)}>
+                📥 导入 Excel
+              </Button>
               <Button variant="outline" onClick={handleExport}>
                 导出 JSON 备份
               </Button>

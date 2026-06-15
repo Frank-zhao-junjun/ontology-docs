@@ -22,7 +22,9 @@ export interface ProjectVersion {
   createdAt: string;
   updatedAt?: string;
   publishedAt?: string;
-  status: 'draft' | 'published' | 'archived';
+  status: 'draft' | 'published' | 'archived' | 'pending_review' | 'rejected';
+  rejectionReason?: string;       // 驳回原因
+  source?: 'manual' | 'excel_import' | 'ai_generate';  // 版本来源
 }
 
 export interface PublishConfig {
@@ -45,6 +47,45 @@ export interface Metadata {
   source?: string;        // 信息源头
   createdAt: string;
   updatedAt: string;
+}
+
+// ==========================================
+// Excel 导入相关类型
+// ==========================================
+
+/** Excel 导入模板 Sheet 定义 */
+export interface ExcelTemplateSheet {
+  name: string;
+  nameEn: string;
+  headers: { label: string; key: string; required: boolean; type: 'string' | 'number' | 'boolean' | 'enum'; enumValues?: string[]; description: string }[];
+}
+
+/** Excel 导入校验错误 */
+export interface ExcelImportError {
+  sheet: string;
+  row: number;
+  column: string;
+  value: string;
+  errorType: 'missing_required' | 'invalid_enum' | 'invalid_type' | 'invalid_reference' | 'duplicate';
+  message: string;
+}
+
+/** Excel 导入校验结果 */
+export interface ExcelImportValidation {
+  totalRows: number;
+  validRows: number;
+  errorCount: number;
+  errors: ExcelImportError[];
+}
+
+/** Excel 导入结果 */
+export interface ExcelImportResult {
+  success: boolean;
+  validation: ExcelImportValidation;
+  versionId?: string;
+  versionName?: string;
+  errorMessage?: string;
+  parsedData?: ExcelParsedData;
 }
 
 // ========== 主数据管理 ==========
@@ -782,6 +823,83 @@ export interface MetricsModel {
   metrics: BusinessMetric[];
   createdAt: string;
   updatedAt: string;
+}
+
+// ========== Excel 导入解析结果 ==========
+export interface ExcelParsedData {
+  entities: Array<{
+    name: string;
+    nameEn: string;
+    role: EntityRole;
+    parentAggregateId?: string;
+    projectName?: string;
+    businessScenario?: string;
+    description?: string;
+    businessMeaning?: string;
+    aliases?: string[];
+  }>;
+  attributes: Array<{
+    entityNameEn: string;
+    name: string;
+    nameEn: string;
+    dataType: AttributeDataType;
+    required: boolean;
+    unique: boolean;
+    length?: number;
+    precision?: number;
+    scale?: number;
+    defaultValue?: string;
+    referencedEntityNameEn?: string;
+    referenceType?: 'one_to_one' | 'one_to_many' | 'many_to_many';
+    masterDataType?: string;
+    enumRef?: string;
+    description?: string;
+    businessMeaning?: string;
+    metadataTemplateName?: string;
+  }>;
+  relations: Array<{
+    sourceEntityNameEn: string;
+    name: string;
+    type: 'one_to_one' | 'one_to_many' | 'many_to_many';
+    targetEntityNameEn: string;
+    foreignKey?: string;
+    intermediateEntity?: string;
+    cascade?: 'none' | 'cascade' | 'set_null';
+    recursive?: boolean;
+    directed?: boolean;
+    description?: string;
+  }>;
+  stateMachines: Array<{
+    entityNameEn: string;
+    name: string;
+    statusField: string;
+    states: Array<{ name: string; isInitial: boolean; isTerminal: boolean }>;
+    transitions: Array<{ name: string; from: string; to: string; triggerType: string }>;
+  }>;
+  rules: Array<{
+    entityNameEn: string;
+    name: string;
+    type: RuleType;
+    field?: string;
+    conditionType: string;
+    conditionValue?: string;
+    severity: 'error' | 'warning' | 'info';
+    errorMessage: string;
+    priority?: number;
+    enabled: boolean;
+    description?: string;
+  }>;
+  events: Array<{
+    entityNameEn: string;
+    name: string;
+    nameEn?: string;
+    trigger: 'create' | 'update' | 'delete' | 'state_change' | 'custom';
+    condition?: string;
+    transactionPhase?: string;
+    isDomainEvent: boolean;
+    payloadFields?: string[];
+    description?: string;
+  }>;
 }
 
 export interface OntologyProject {

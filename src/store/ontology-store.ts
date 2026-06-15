@@ -50,6 +50,10 @@ import type {
   TransactionBoundary,
   BehaviorIndicator,
   BehaviorConstraint,
+  ExcelParsedData,
+  AttributeDataType,
+  Relation,
+  Transition,
 } from '@/types/ontology';
 
 interface OntologyState {
@@ -186,6 +190,7 @@ interface OntologyState {
   
   // 版本管理操作 (M1)
   createVersion: (config: { version: string; name: string; description?: string }) => ProjectVersion;
+  createVersionFromParsedData: (config: { version: string; name: string; description?: string; parsedData: ExcelParsedData }) => ProjectVersion;
   updateVersion: (versionId: string, updates: Partial<ProjectVersion>) => void;
   deleteVersion: (versionId: string) => void;
   publishVersion: (versionId: string) => void;
@@ -193,7 +198,11 @@ interface OntologyState {
   rollbackVersion: (versionId: string) => void;
   getVersionsByProject: (projectId: string) => ProjectVersion[];
   getLatestVersion: () => ProjectVersion | null;
-  
+
+  // Excel 导入版本审核
+  approveVersion: (versionId: string) => void;
+  rejectVersion: (versionId: string, reason: string) => void;
+
   // UI状态
   setActiveModelType: (type: 'data' | 'behavior' | 'rule' | 'process' | 'event' | null) => void;
   
@@ -210,6 +219,45 @@ interface OntologyState {
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 15);
+
+function buildRuleCondition(conditionType: string, conditionValue?: string) {
+  const condition: Rule['condition'] = { type: 'expression' };
+  switch (conditionType) {
+    case 'regex':
+      condition.type = 'regex';
+      condition.pattern = conditionValue;
+      break;
+    case 'range':
+      condition.type = 'range';
+      if (conditionValue) {
+        const parts = conditionValue.split(/[,，]/).map(s => s.trim());
+        if (parts[0]) condition.min = Number(parts[0]);
+        if (parts[1]) condition.max = Number(parts[1]);
+      }
+      break;
+    case 'expression':
+      condition.type = 'expression';
+      condition.expression = conditionValue;
+      break;
+    case 'reference_check':
+      condition.type = 'reference_check';
+      break;
+    case 'sum_match':
+      condition.type = 'sum_match';
+      break;
+    case 'deadline':
+      condition.type = 'deadline';
+      break;
+    case 'custom':
+      condition.type = 'custom';
+      condition.customScript = conditionValue;
+      break;
+    default:
+      condition.type = 'expression';
+      condition.expression = conditionValue;
+  }
+  return condition;
+}
 
 function ensureEntityScenario(entity: Entity, stateProject: OntologyProject | null): Entity {
   const scenarios = stateProject?.dataModel?.businessScenarios || [];
@@ -2176,6 +2224,233 @@ export const useOntologyStore = create<OntologyState>()(
         return newVersion;
       },
       
+      createVersionFromParsedData: (config) => {
+        const state = get();
+        if (!state.project) {
+          throw new Error('没有活动项目');
+        }
+
+        const { parsedData } = config;
+        const now = new Date().toISOString();
+
+        // Collect project names and business scenarios from parsed data
+        const projectNames = new Set<string>();
+        const scenarioNames = new Set<string>();
+        for (const e of parsedData.entities) {
+          if (e.projectName) projectNames.add(e.projectName);
+          if (e.businessScenario) scenarioNames.add(e.businessScenario);
+        }
+
+        // Build projects and scenarios from parsed data
+        const projects: EntityProject[] = Array.from(projectNames).map(name => ({
+          id: generateId(),
+          name,
+          description: '',
+        }));
+        const projectNameToId = new Map(projects.map(p => [p.name, p.id]));
+
+        const businessScenarios: BusinessScenario[] = Array.from(scenarioNames).map(name => ({
+          id: generateId(),
+          name,
+          nameEn: name,
+          description: '',
+          projectId: '',
+        }));
+        const scenarioNameToId = new Map(businessScenarios.map(s => [s.name, s.id]));
+
+        // Build DataModel from parsed entities/attributes/relations
+        const entityMap = new Map<string, string>(); // nameEn → id
+        const entities: Entity[] = parsedData.entities.map(e => {
+          const id = generateId();
+          entityMap.set(e.nameEn, id);
+          return {
+            id,
+            name: e.name,
+            nameEn: e.nameEn,
+            projectId: e.projectName ? (projectNameToId.get(e.projectName) || '') : '',
+            businessScenarioId: e.businessScenario ? (scenarioNameToId.get(e.businessScenario) || '') : '',
+            description: e.description,
+            businessMeaning: e.businessMeaning,
+            aliases: e.aliases,
+            entityRole: e.role,
+            parentAggregateId: e.parentAggregateId,
+            attributes: [],
+            relations: [],
+            computedProperties: [],
+            sourceMappings: [],
+            domainEvents: [],
+          };
+        });
+
+        // Assign attributes to entities
+        for (const attr of parsedData.attributes) {
+          const entityId = entityMap.get(attr.entityNameEn);
+          if (!entityId) continue;
+          const entity = entities.find(e => e.id === entityId);
+          if (!entity) continue;
+          entity.attributes.push({
+            id: generateId(),
+            name: attr.name,
+            nameEn: attr.nameEn,
+            dataType: attr.dataType as AttributeDataType,
+            required: attr.required,
+            unique: attr.unique,
+            length: attr.length,
+            precision: attr.precision,
+            scale: attr.scale,
+            default: attr.defaultValue,
+            referencedEntityId: attr.referencedEntityNameEn ? entityMap.get(attr.referencedEntityNameEn) : undefined,
+            referenceKind: attr.referenceType ? (attr.referenceType === 'one_to_one' || attr.referenceType === 'one_to_many' || attr.referenceType === 'many_to_many' ? 'entity' as const : undefined) : undefined,
+            masterDataType: attr.masterDataType,
+            enumRef: attr.enumRef,
+            description: attr.description,
+            businessMeaning: attr.businessMeaning,
+            metadataTemplateName: attr.metadataTemplateName,
+          });
+        }
+
+        // Assign relations to entities
+        for (const rel of parsedData.relations) {
+          const sourceId = entityMap.get(rel.sourceEntityNameEn);
+          if (!sourceId) continue;
+          const entity = entities.find(e => e.id === sourceId);
+          if (!entity) continue;
+          entity.relations.push({
+            id: generateId(),
+            name: rel.name,
+            type: rel.type,
+            targetEntity: entityMap.get(rel.targetEntityNameEn) || '',
+            foreignKey: rel.foreignKey,
+            viaEntity: rel.intermediateEntity,
+            cascade: (rel.cascade === 'cascade' ? 'all' : rel.cascade === 'set_null' ? 'none' : 'none') as Relation['cascade'],
+            isRecursive: rel.recursive,
+            directionality: rel.directed ? 'directed' : 'undirected',
+            description: rel.description,
+          });
+        }
+
+        const dataModel: DataModel = {
+          id: generateId(),
+          name: state.project.dataModel?.name || '数据模型',
+          version: '1.0.0',
+          domain: state.project.domain?.name || '',
+          projects,
+          businessScenarios,
+          entities,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        // Build BehaviorModel from parsed state machines
+        const stateMachines: StateMachine[] = parsedData.stateMachines.map(sm => ({
+          id: generateId(),
+          name: sm.name,
+          entity: entityMap.get(sm.entityNameEn) || sm.entityNameEn,
+          statusField: sm.statusField,
+          states: sm.states.map(s => ({
+            id: generateId(),
+            name: s.name,
+            isInitial: s.isInitial,
+            isFinal: s.isTerminal,
+            color: s.isInitial ? '#22c55e' : s.isTerminal ? '#ef4444' : '#3b82f6',
+          })),
+          transitions: sm.transitions.map(t => ({
+            id: generateId(),
+            name: t.name,
+            from: t.from,
+            to: t.to,
+            trigger: t.triggerType as Transition['trigger'],
+          })),
+        }));
+
+        const behaviorModel: BehaviorModel = {
+          id: generateId(),
+          name: state.project.behaviorModel?.name || '行为模型',
+          version: '1.0.0',
+          domain: state.project.domain?.name || '',
+          stateMachines,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        // Build RuleModel from parsed rules
+        const rules: Rule[] = parsedData.rules.map(r => ({
+          id: generateId(),
+          name: r.name,
+          type: r.type as Rule['type'],
+          entity: entityMap.get(r.entityNameEn) || r.entityNameEn,
+          field: r.field,
+          priority: r.priority,
+          condition: buildRuleCondition(r.conditionType, r.conditionValue),
+          errorMessage: r.errorMessage,
+          severity: r.severity,
+          enabled: r.enabled,
+          description: r.description,
+        }));
+
+        const ruleModel: RuleModel = {
+          id: generateId(),
+          name: state.project.ruleModel?.name || '规则模型',
+          version: '1.0.0',
+          domain: state.project.domain?.name || '',
+          rules,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        // Build EventModel from parsed events
+        const eventDefinitions: EventDefinition[] = parsedData.events.map(ev => ({
+          id: generateId(),
+          name: ev.name,
+          nameEn: ev.nameEn,
+          entity: entityMap.get(ev.entityNameEn) || ev.entityNameEn,
+          trigger: ev.trigger,
+          condition: ev.condition,
+          payload: (ev.payloadFields || []).map(f => ({ field: f })),
+          description: ev.description,
+        }));
+
+        const eventModel: EventModel = {
+          id: generateId(),
+          name: state.project.eventModel?.name || '事件模型',
+          version: '1.0.0',
+          domain: state.project.domain?.name || '',
+          events: eventDefinitions,
+          subscriptions: [],
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        const newVersion: ProjectVersion = {
+          id: generateId(),
+          projectId: state.project.id,
+          version: config.version,
+          name: config.name,
+          description: config.description,
+          metamodels: {
+            data: dataModel,
+            behavior: behaviorModel,
+            rules: ruleModel,
+            process: state.project.processModel ? JSON.parse(JSON.stringify(state.project.processModel)) : null,
+            events: eventModel,
+            epc: state.project.epcModel ? JSON.parse(JSON.stringify(state.project.epcModel)) : null,
+            masterData: {
+              definitions: JSON.parse(JSON.stringify(state.masterDataList)),
+              records: JSON.parse(JSON.stringify(state.masterDataRecords)),
+            },
+          },
+          createdAt: now,
+          status: 'pending_review',
+          source: 'excel_import',
+        };
+
+        set((s) => ({
+          versions: [...s.versions, newVersion],
+        }));
+
+        return newVersion;
+      },
+      
       updateVersion: (versionId, updates) => {
         set((state) => ({
           versions: state.versions.map((v) =>
@@ -2253,7 +2528,45 @@ export const useOntologyStore = create<OntologyState>()(
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         )[0];
       },
-      
+
+      approveVersion: (versionId) => {
+        const state = get();
+        const version = state.versions.find((v) => v.id === versionId);
+        if (!version || version.status !== 'pending_review') return;
+
+        // 将版本数据应用到工作区
+        set((s) => ({
+          versions: s.versions.map((v) =>
+            v.id === versionId
+              ? { ...v, status: 'published' as const, publishedAt: new Date().toISOString() }
+              : v
+          ),
+          project: s.project
+            ? {
+                ...s.project,
+                dataModel: version.metamodels.data ? JSON.parse(JSON.stringify(version.metamodels.data)) : s.project.dataModel,
+                behaviorModel: version.metamodels.behavior ? JSON.parse(JSON.stringify(version.metamodels.behavior)) : s.project.behaviorModel,
+                ruleModel: version.metamodels.rules ? JSON.parse(JSON.stringify(version.metamodels.rules)) : s.project.ruleModel,
+                processModel: version.metamodels.process ? JSON.parse(JSON.stringify(version.metamodels.process)) : s.project.processModel,
+                eventModel: version.metamodels.events ? JSON.parse(JSON.stringify(version.metamodels.events)) : s.project.eventModel,
+                epcModel: version.metamodels.epc ? JSON.parse(JSON.stringify(version.metamodels.epc)) : s.project.epcModel,
+              }
+            : s.project,
+          masterDataList: version.metamodels.masterData ? JSON.parse(JSON.stringify(version.metamodels.masterData.definitions)) : s.masterDataList,
+          masterDataRecords: version.metamodels.masterData ? JSON.parse(JSON.stringify(version.metamodels.masterData.records)) : s.masterDataRecords,
+        }));
+      },
+
+      rejectVersion: (versionId, reason) => {
+        set((s) => ({
+          versions: s.versions.map((v) =>
+            v.id === versionId
+              ? { ...v, status: 'rejected' as const, rejectionReason: reason, updatedAt: new Date().toISOString() }
+              : v
+          ),
+        }));
+      },
+
       // 代码生成 (M2准备 - 占位)
       generateCodePackage: async (versionId, config) => {
         const state = get();

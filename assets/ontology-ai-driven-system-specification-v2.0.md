@@ -62,6 +62,29 @@
 | **AI能力** | 语义注入 | 按需注入，混合格式，仅直接关联 |
 | | 交付加载入口 | 独立对话界面（左栏） |
 | | 自愈机制 | 最多2次重试，详细展示，返回原始错误 |
+| **EPC** | 定位 | 全域关联层，串联12大模型（含Lifecycle+Semantic），非只读文档视图 |
+| | 节点类型 | Event/Function/Connector/InfoObject/OrgUnit，每节点可引用多模型元素 |
+| | 双向校验 | EPC→模型(VE×17) + 模型→EPC(VM×39) + 交叉一致性(VX×15) = 71条规则 |
+| | 流程图 | @xyflow/react 自定义节点渲染 |
+| **组织** | 组织模型 | Department(树形)+Position(岗位)，OrganizationModel为一级模型 |
+| | 岗位关联 | Position.roleIds→GovernanceRole，EPC OrgUnit引用Department/Position |
+| | 结构化职责 | PositionResponsibility(scope+actions+decisionAuthority+delegateToPositionIds) |
+| | HR同步 | 飞书/钉钉/企微/SAP/Workday/自定义API定时同步，含字段映射+冲突策略 |
+| **生命周期** | State增强 | entryActions/exitActions/availableActions/constraints/allowedRoles/timeout/dataVisibility |
+| | Transition增强 | guardCondition/compensationAction/sideEffects/publishEventId/notifyRoleIds/requiresApproval/auditLog |
+| | Action增强 | aliases/triggerPhrases/successMessage/failureMessage/fallbackActionId/requiresConfirmation |
+| | 聚合视图 | EntityLifecycle一站式聚合+LifecycleAuditEntry审计追溯 |
+| | 校验规则 | V-LC-01~15 生命周期完整性与一致性校验 |
+| **语义层** | 意图映射 | Intent将自然语言短语映射到Action，含triggerPhrases/slotFilling |
+| | 槽位填充 | SlotFillingStrategy定义参数追问顺序、校验规则、默认值、上下文推断 |
+| | 对话上下文 | DialogContext维护聚焦实体、最近操作、指代消解 |
+| | 语义关系 | SemanticRelation定义is-a/part-of/synonym-of/causes等10种语义关系 |
+| | 术语词典 | BusinessTerm统一术语定义、同义词、歧义说明、模型引用 |
+| | 错误恢复 | ErrorRecovery定义操作失败后的重试/回退/升级/补偿策略 |
+| | Agent策略 | AgentPolicy定义Agent行为边界（allow/deny/confirm/escalate） |
+| | 完备性 | 10维度评估：55→81分（+26），意图映射从0→9 |
+| **导入** | Excel导入 | 模板下载+文件上传+数据校验+解析为模型对象+生成待审核版本 |
+| | 版本审核 | pending_review/rejected状态，审核通过应用Excel数据到工作区 |
 | **交互** | 布局 | 三栏式（对话/数据/上下文） |
 | | 数据视图 | 6种模式，Flowchart默认 |
 | | 可视化 | ECharts静态展示，Table为P0 |
@@ -135,6 +158,13 @@
 | 元数据管理 | 57条标准字段+CRUD | ✅ 保持 |
 | AI辅助生成 | 豆包大模型生成建议 | ✅ 保持 |
 | 手册导出 | Markdown格式 | ✅ 保持 |
+| EPC全域关联 | 事件-流程-动作链路+12大模型关联+流程图 | 🆕 新增 |
+| 组织体系建模 | 部门树+结构化岗位职责+HR系统同步+EPC引用 | 🆕 新增 |
+| Entity Lifecycle | State/Transition/Action增强+聚合视图+审计 | 🆕 新增 |
+| Agent Semantic Layer | 意图映射+槽位填充+语义关系+术语词典+Agent策略 | 🆕 新增 |
+| 双向校验 | EPC↔模型 71条规则(VE×17+VM×39+VX×15)+覆盖率 | 🆕 新增 |
+| Excel导入 | 模板下载+上传校验+解析+待审核版本 | 🆕 新增 |
+| 版本审核 | pending_review/rejected+应用数据 | 🆕 新增 |
 
 ### 3.2 新增：版本发布功能
 
@@ -156,7 +186,10 @@ interface ProjectVersion {
   };
   createdAt: string;
   publishedAt?: string;
-  status: 'draft' | 'published' | 'archived';
+  status: 'draft' | 'pending_review' | 'published' | 'archived' | 'rejected';
+  source?: 'manual' | 'excel_import';
+  reviewComment?: string;
+  parsedData?: ExcelParsedData;
 }
 
 interface PublishConfig {
@@ -254,18 +287,108 @@ interface PublishConfig {
 
 ---
 
-### 3.2.4 EPC事件说明书页签——详细设计
+### 3.2.4 EPC全域关联层——详细设计
 
-> **可追溯**：与 `REQUIREMENT.md` 中 **REQ-EPC-01～REQ-EPC-06** 对应；技能名 **`business-spec-generator`** 为规范调用名。
+> **可追溯**：与 `docs/EPC-Upgrade-Spec.md` v3.1 对应；EPC 从只读文档升级为全域关联层。
 
-| 需求编号 | 设计要点 |
-|----------|----------|
-| REQ-EPC-01 | 仅聚合根显示页签 |
-| REQ-EPC-02 | 只读自动生成，无新建/编辑/保存 |
-| REQ-EPC-03 | 基于数据/行为/规则/事件模型汇总 |
-| REQ-EPC-04 | 业务背景**仅**引用 `BusinessScenario.description` |
-| REQ-EPC-05 | 展示/导出须经 `business-spec-generator` |
-| REQ-EPC-06 | 可导出 Markdown/PDF，与页面对齐 |
+#### 核心定位
+
+EPC 不是第六个模型，而是将五大核心模型+五大平台模型+组织模型+Entity Lifecycle+Agent Semantic Layer 串联为一体的**复合关联视图**。
+
+#### EPC 链路数据结构
+
+```typescript
+interface EpcChain {
+  id: string;
+  name: string;
+  entityId: string;            // 关联的聚合根实体
+  description?: string;
+  nodes: EpcNode[];
+  edges: EpcEdge[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface EpcNode {
+  id: string;
+  type: 'event' | 'function' | 'connector' | 'infoObject' | 'orgUnit';
+  label: string;
+  refs: EpcModelRef[];         // 关联的模型元素引用
+  position?: { x: number; y: number };
+  style?: Record<string, unknown>;
+}
+
+interface EpcEdge {
+  id: string;
+  source: string;              // 源节点ID
+  target: string;              // 目标节点ID
+  label?: string;
+  type?: 'normal' | 'conditional';
+  condition?: string;          // 条件表达式
+}
+
+interface EpcModelRef {
+  modelType: 'data' | 'behavior' | 'rule' | 'event' | 'process' | 'governance' | 'metric' | 'dataSource' | 'masterData' | 'metadata' | 'organization';
+  elementId: string;
+  elementName?: string;
+  refRole: 'primary' | 'input' | 'output' | 'constraint' | 'metric' | 'source' | 'permission'
+         | 'guard' | 'compensate' | 'recovery' | 'intent' | 'term' | 'timeout';  // v3.1 新增
+}
+```
+
+#### 全域关联矩阵 (v3.1)
+
+| EPC节点 | 数据模型 | 行为模型 | 规则模型 | 事件模型 | 流程模型 | 治理模型 | 指标模型 | 数据源 | 主数据 | 元数据 | 组织模型 | **Lifecycle** | **Semantic** |
+|---------|---------|---------|---------|---------|---------|---------|---------|--------|-------|-------|---------|:---:|:---:|
+| Event   | 触发实体 | 状态转换 | 触发规则 | 事件定义 | 流程步骤 | 权限角色 | 关联指标 | 数据源 | 主数据 | 元数据 | 处理岗位 | State.entry/exitActions | Intent(触发类), BusinessTerm |
+| Function| 输入输出实体 | 动作/转换 | 前后置规则 | 产生事件 | 流程步骤 | 执行角色 | 活动指标 | 数据源 | 主数据 | 元数据 | 责任岗位 | availableActions, guardCondition | Intent(操作类), ErrorRecovery |
+| Connector| - | - | 分支规则 | - | 决策点 | 角色权限 | - | - | - | - | - | guardCondition | contextConstraints |
+| InfoObject| 实体/属性 | - | 校验规则 | 变更事件 | - | 字段权限 | 质量指标 | 数据源 | 主数据 | 元数据 | - | dataVisibility | SemanticFieldMapping, BusinessTerm |
+| OrgUnit | - | 行为约束 | 角色规则 | 事件处理 | 流程参与 | 角色/权限 | 考核指标 | - | - | - | 部门/岗位 | allowedRoles, notifyRoleIds | AgentPolicy |
+
+#### 双向校验体系（71 条规则）
+
+| 方向 | 编号前缀 | 规则数 | 核心问题 |
+|------|---------|--------|---------|
+| EPC → 模型 | VE | 17 | EPC引用的模型元素是否真实有效、一致、合法？ |
+| 模型 → EPC | VM | 39 | 模型定义的元素是否被EPC覆盖？(10大模型+组织+Lifecycle+Semantic) |
+| 交叉一致性 | VX | 15 | EPC关联声明与模型内部定义是否矛盾？ |
+
+#### 推导生成
+
+从已有模型自动推导 EPC 链路骨架：
+1. 遍历聚合根的 DomainEvent → Event 节点
+2. Event.trigger → 关联 StateMachine.Transition → Function 节点
+3. Transition.fromState/toState → 标注状态
+4. Action → Function 节点 + OrgUnit(执行角色)
+5. Rule → Connector 条件分支
+6. Orchestration.Step → Function 序列
+7. Entity.Attribute → InfoObject 节点
+8. State.availableActions → Function 节点关联的 State 上下文 (v3.1)
+9. Transition.guardCondition → Connector 分支条件 (v3.1)
+10. Transition.compensationAction → 回滚 Function 节点 (v3.1)
+11. Intent → Function/Event 节点的语义关联 (v3.1)
+12. AgentPolicy → OrgUnit 节点的策略关联 (v3.1)
+8. Metric → 关联 Function/Event KPI
+9. DataSource → 关联 InfoObject 数据来源
+10. Position/Department → OrgUnit 节点
+
+#### 流程图渲染
+
+使用 @xyflow/react 自定义5种节点形状：
+- Event: 六边形（起始）/ 椭圆（中间/终止）
+- Function: 圆角矩形
+- Connector: 菱形
+- InfoObject: 矩形
+- OrgUnit: 椭圆+阴影
+
+#### 导出增强
+
+| 格式 | 内容 |
+|------|------|
+| Markdown | 链路文档+关联模型清单+校验报告 |
+| JSON | EpcChain完整数据+关联映射 |
+| 整包 | 所有链路+关联模型快照 |
 
 #### 1. 展示与生成逻辑
 
@@ -328,7 +451,373 @@ interface PublishConfig {
 
 ---
 
-### 3.2.5 属性编辑与主数据关联——详细设计
+### 3.2.5 组织体系与岗位模型——详细设计
+
+> **可追溯**：与 `docs/Organization-Position-Spec.md` v2.0 对应
+
+#### 核心类型
+
+```typescript
+interface Department {
+  id: string;
+  name: string;
+  nameEn: string;
+  code?: string;
+  type: 'headquarters' | 'division' | 'department' | 'team' | 'group';
+  parentId?: string;           // 组织树
+  managerPositionId?: string;
+  description?: string;
+  status: 'active' | 'inactive';
+  syncSource?: string;         // HR同步来源
+  syncExternalId?: string;     // HR系统外部ID
+  syncUpdatedAt?: string;      // 最后同步时间
+}
+
+interface PositionResponsibility {
+  id: string;
+  name: string;                // 职责名称
+  description?: string;
+  scope: 'entity' | 'process' | 'domain' | 'custom';
+  scopeRefs: string[];         // 关联 Entity/Process/Domain IDs
+  actions: string[];           // 可执行 Action IDs
+  decisionAuthority: 'none' | 'recommend' | 'approve' | 'veto';
+  delegateToPositionIds?: string[]; // 可委托岗位IDs
+  isActive: boolean;
+}
+
+interface Position {
+  id: string;
+  name: string;
+  nameEn: string;
+  code?: string;
+  departmentId: string;        // 归属部门
+  parentPositionId?: string;   // 汇报线
+  level?: number;
+  roleIds: string[];           // → GovernanceRole
+  headcount?: number;
+  responsibilities: PositionResponsibility[];  // 结构化职责
+  status: 'active' | 'inactive';
+  syncSource?: string;
+  syncExternalId?: string;
+  syncUpdatedAt?: string;
+}
+
+interface OrganizationModel {
+  id: string;
+  departments: Department[];
+  positions: Position[];
+  syncConfig?: HRSyncConfig;
+  lastSyncResult?: HRSyncResult;
+}
+```
+
+#### HR 系统同步
+
+- 支持 6 种 HR 数据源：飞书/钉钉/企微/SAP/Workday/自定义API
+- 同步频率：实时(Webhook)/每小时/每天/每周/手动
+- 字段映射：`HRFieldMapping` 定义 HR 字段 → 本体模型字段路径
+- 冲突策略：HR优先/本地优先/合并/人工审核
+- 差异比对：3-way diff，自动识别新增/更新/停用
+- 安全：API凭证存后端环境变量，同步日志脱敏
+- API: `POST /api/hr-sync/trigger`, `GET /api/hr-sync/config`, `GET /api/hr-sync/history`, `POST /api/hr-sync/resolve-conflict`
+
+#### 关联链路
+
+```
+Department (组织树)
+  └── Position (岗位)
+        ├── roleIds → GovernanceRole (权限角色)
+        │     └── permissions → 实体/动作/字段权限
+        └── responsibilities[] → PositionResponsibility
+              ├── scopeRefs → Entity / Process / Domain
+              ├── actions → Action
+              └── delegateToPositionIds → Position (委托链)
+```
+
+EPC 的 `EpcOrganizationalUnit` 通过 `refType/refId` 引用 Department 或 Position。
+
+#### UI
+
+建模工作台新增「组织」Tab，含部门树+岗位列表+结构化职责编辑+HR同步配置面板。
+
+#### 双向校验(新增)
+
+| 编号 | 规则 | 级别 |
+|------|------|------|
+| VM-O01 | 聚合根实体关联部门至少1个 | warning |
+| VM-O02 | 部门树无环路 | error |
+| VM-O03 | 活跃岗位必须有部门归属 | error |
+| VM-O04 | 岗位引用的Role必须存在 | error |
+| VM-O05 | 组织变更(部门/岗位)需EPC确认 | warning |
+| VM-O06 | 岗位职责无重叠冲突 | warning |
+| VM-O07 | 职责中的actions必须存在 | warning |
+| VM-O08 | 委托链无环路 | info |
+| VM-HR01 | syncExternalId引用HR侧记录存在 | error |
+| VM-HR02 | 同步时效告警 | warning |
+| VM-HR03 | 孤儿记录标记停用 | warning |
+| VM-HR04 | 同步配置完整性 | info |
+
+---
+
+### 3.2.6 Entity Lifecycle（实体生命周期）——详细设计
+
+> **可追溯**：与 `docs/Entity-Lifecycle-Spec.md` v1.0 对应
+
+#### 设计目标
+
+将 State 从"标签"升级为"一等公民"，让 Agent 无需跨模型拼凑即可完整理解 Entity 的生命周期。
+
+#### State 增强
+
+```typescript
+interface State {
+  // 现有字段保留...
+  /** 进入状态时自动执行的动作ID列表 */
+  entryActions?: string[];
+  /** 离开状态时自动执行的动作ID列表 */
+  exitActions?: string[];
+  /** 在此状态下可执行的动作ID列表（Agent 操作菜单） */
+  availableActions?: string[];
+  /** 在此状态下生效的规则ID列表 */
+  constraints?: string[];
+  /** 在此状态下可操作的角色ID列表 */
+  allowedRoles?: string[];
+  /** 状态超时配置 */
+  timeout?: StateTimeout;
+  /** 状态级字段可见性 */
+  dataVisibility?: StateDataVisibility;
+  /** 业务语义标签 */
+  semanticTag?: 'created' | 'pending' | 'processing' | 'reviewing' | 'approved' | 'rejected' | 'completed' | 'cancelled' | 'archived' | 'custom';
+}
+```
+
+#### Transition 增强
+
+```typescript
+interface Transition {
+  // 现有字段保留...
+  /** 守卫条件表达式 */
+  guardCondition?: string;
+  guardFailureMessage?: string;
+  /** 回滚/补偿动作ID */
+  compensationAction?: string;
+  /** 结构化的副作用 */
+  sideEffects?: SideEffect[];
+  /** 转换时发布的事件ID */
+  publishEventId?: string;
+  /** 转换时通知的角色ID列表 */
+  notifyRoleIds?: string[];
+  /** 是否需要审批 */
+  requiresApproval?: boolean;
+  approvalRoleIds?: string[];
+  /** 是否记录审计日志 */
+  auditLog?: boolean;
+  /** 语义标签 */
+  semanticTag?: 'submit' | 'approve' | 'reject' | 'cancel' | 'revise' | 'complete' | 'archive' | 'custom';
+}
+```
+
+#### Action 增强
+
+```typescript
+interface Action {
+  // 现有字段保留...
+  /** 自然语言别名（Agent 意图匹配用） */
+  aliases?: string[];
+  /** 触发短语（Agent NLU 用） */
+  triggerPhrases?: string[];
+  successMessage?: string;
+  failureMessage?: string;
+  /** 失败后的回退动作ID */
+  fallbackActionId?: string;
+  requiresConfirmation?: boolean;
+  confirmationMessage?: string;
+  idempotencyKeyTemplate?: string;
+}
+```
+
+#### 新增类型
+
+- `EntityLifecycle`：聚合视图（actionsByState/rulesByState/eventsByState/rolesByState/auditTrail/stats）
+- `LifecycleAuditEntry`：审计记录（timestamp/eventType/fromStateId/toStateId/actionId/actorRoleId/result/snapshot）
+- `StateTimeout`：超时配置（duration/unit/onTimeout/targetStateId/notifyRoleIds/escalateRoleId）
+- `StateDataVisibility`：字段可见性（visibleFields/editableFields/hiddenFields/requiredFields）
+
+#### 校验规则（15 条）
+
+| 编号 | 规则 | 级别 |
+|------|------|------|
+| V-LC-01 | 非终止状态必须有 outgoing transition | warning |
+| V-LC-02 | 非初始状态必须有 incoming transition | warning |
+| V-LC-03 | availableActions 引用完整性 | error |
+| V-LC-04 | constraints 引用完整性 | error |
+| V-LC-05 | allowedRoles 引用完整性 | error |
+| V-LC-06 | timeout.targetStateId 有效性 | error |
+| V-LC-07 | guardCondition 语法校验 | error |
+| V-LC-08 | compensationAction 引用完整性 | error |
+| V-LC-09 | dataVisibility 字段有效性 | error |
+| V-LC-10 | 孤立状态检测 | warning |
+| V-LC-11 | entryActions 引用完整性 | error |
+| V-LC-12 | exitActions 引用完整性 | error |
+| V-LC-13 | triggerableEvents 引用完整性 | error |
+| V-LC-14 | fallbackActionId 引用完整性 | error |
+| V-LC-15 | 终止状态不应有 outgoing transition | warning |
+
+#### UI
+
+- 建模工作台新增「生命周期」Tab：状态流转图（Mermaid/@xyflow）+ 状态详情 + 审计记录
+- State 编辑对话框新增「生命周期配置」折叠面板
+- Transition 编辑对话框新增「高级配置」折叠面板
+- Action 编辑对话框新增「Agent 语义」折叠面板
+
+#### API
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/entity-lifecycle?entityId=xxx` | GET | 返回完整 EntityLifecycle JSON |
+
+---
+
+### 3.2.7 Agent Semantic Layer（Agent 语义层）——详细设计
+
+> **可追溯**：与 `docs/Agent-Semantic-Layer-Spec.md` v1.0 对应
+
+#### 定位
+
+本体模型之上的第 11 个模型，专门解决"AI Agent 如何精准理解企业语义并正确执行任务"的问题。
+
+#### 核心数据结构
+
+```typescript
+interface AgentSemanticLayer {
+  intents: Intent[];                    // 意图列表
+  dialogContextTemplate: DialogContext; // 对话上下文模板
+  semanticRelations: SemanticRelation[]; // 语义关系
+  businessTerms: BusinessTerm[];       // 业务术语词典
+  errorRecoveries: ErrorRecovery[];    // 错误恢复策略
+  temporalValidities: TemporalValidity[]; // 时效性标记
+  fieldMappings: SemanticFieldMapping[];  // 跨实体字段映射
+  agentPolicies: AgentPolicy[];        // Agent 行为策略
+  metadata: { version, lastUpdated, totalIntents, totalTerms, totalRelations, coverage };
+}
+```
+
+#### 9 大子模型
+
+| 子模型 | 核心字段 | 解决的问题 |
+|--------|---------|-----------|
+| Intent | triggerPhrases/actionId/slotFilling/contextConstraints | "用户说X时我该做什么？" |
+| SlotFillingStrategy | slots/requiredSlots/fillOrder/allowBatchFill | "参数不完整时追问什么？" |
+| DialogContext | focusedEntity/lastAction/referencedEntities/pendingIntent | "用户说的'它'指什么？" |
+| SemanticRelation | type(is-a/part-of/synonym-of等)/sourceEntityId/targetEntityId | "采购订单和销售订单什么关系？" |
+| BusinessTerm | term/synonyms/definition/examples/modelRefs | "这个术语在不同上下文中的含义？" |
+| ErrorRecovery | errorType/errorPattern/strategy/recoveryActionId/agentMessage | "操作失败了怎么办？" |
+| TemporalValidity | targetType/targetId/effectiveDate/expiryDate/version | "这个规则现在生效吗？" |
+| SemanticFieldMapping | sourceField/targetField/type/transformRule | "物料.编码和订单.物料编码是同一个吗？" |
+| AgentPolicy | roleId/policyType/scope/rules/priority | "Agent能自主执行哪些操作？" |
+
+#### Agent 工作流
+
+```
+用户: "帮我创建一个采购订单，供应商华为，数量100"
+
+Step 1: 意图识别 → Intent: create_po (confidence: 0.95)
+Step 2: 槽位填充 → supplier=华为 ✅, quantity=100 ✅, deliveryDate=? ❌
+Step 3: 追问 → "好的，还需要确认交货日期，您希望什么时候交货？"
+Step 4: 确认+执行 → 调用 Action: createPurchaseOrder
+```
+
+#### 校验规则（15 条）
+
+| 编号 | 规则 | 级别 |
+|------|------|------|
+| V-AS-01 | Intent.actionId 引用完整性 | error |
+| V-AS-02 | Intent.targetEntityId 引用完整性 | error |
+| V-AS-03 | Intent.slotFilling.slots[].paramName 必须在 Action.parameters 中 | error |
+| V-AS-04 | Intent.requiredSlots 必须是 slots 的子集 | error |
+| V-AS-05 | SemanticRelation 两端实体必须存在 | error |
+| V-AS-06 | BusinessTerm.modelRefs 引用完整性 | error |
+| V-AS-07 | ErrorRecovery.actionId 引用完整性 | error |
+| V-AS-08 | ErrorRecovery.recoveryActionId 引用完整性 | error |
+| V-AS-09 | AgentPolicy.roleId 引用完整性 | error |
+| V-AS-10 | SemanticFieldMapping 两端字段必须存在 | error |
+| V-AS-11 | TemporalValidity.targetId 引用完整性 | error |
+| V-AS-12 | TemporalValidity 时间范围合法性 | error |
+| V-AS-13 | Intent.triggerPhrases 非空 | warning |
+| V-AS-14 | 同一 Action 无 ErrorRecovery | warning |
+| V-AS-15 | 同一 Role 无 AgentPolicy | warning |
+
+#### Agent 完备性评估
+
+| 维度 | 实施前 | 实施后 | 提升 |
+|------|:---:|:---:|:---:|
+| 身份识别 | 8 | 9 | +1 |
+| 可操作性 | 6 | 9 | +3 |
+| 时机判断 | 7 | 9 | +2 |
+| 约束感知 | 7 | 8 | +1 |
+| 后果预知 | 6 | 8 | +2 |
+| 归属认知 | 6 | 8 | +2 |
+| 数据溯源 | 5 | 7 | +2 |
+| 度量感知 | 5 | 5 | — |
+| 关联理解 | 5 | 9 | +4 |
+| 意图映射 | 0 | 9 | +9 |
+| **总分** | **55** | **81** | **+26** |
+
+#### UI
+
+- 新增「语义层」管理入口（与领域选择/项目管理/建模工作台/EPC/手册平级）
+- 8 个子模块：意图管理/术语词典/语义关系/错误恢复/Agent策略/字段映射/时效管理/完备性仪表盘
+
+#### API
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/agent-semantic-layer` | GET | 返回完整 AgentSemanticLayer JSON（含 coverage 统计） |
+
+---
+
+### 3.2.6 Excel导入与版本审核——详细设计
+
+> **可追溯**：与 `assets/REQUIREMENT.md` 第六章对应
+
+#### API
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/excel-template` | GET | 下载含7个Sheet(填写说明+实体/属性/关系/状态机/规则/事件)的.xlsx模板 |
+| `/api/excel-import` | POST | 上传.xlsx(5MB上限)，校验+解析+生成待审核版本 |
+
+#### 校验规则
+
+- 文件格式: 仅 .xlsx，最大5MB
+- Sheet结构: 必须包含6个数据Sheet
+- 必填字段: 各Sheet(必填)标记字段
+- 枚举值: 实体角色、数据类型、关系类型、规则类型、触发时机等
+- 布尔类型: 必须为 true/false
+- 跨Sheet引用: 属性/关系/状态机/规则/事件中的实体英文名必须在实体Sheet中存在
+
+#### 版本状态扩展
+
+```typescript
+type VersionStatus = 'draft' | 'pending_review' | 'published' | 'archived' | 'rejected';
+```
+
+#### 流程
+
+1. 下载模板 → 填写数据 → 上传文件
+2. 后端校验(格式/大小/Sheet结构/必填/枚举/引用完整性) + 解析为模型对象
+3. 生成 `pending_review` 版本(数据来自Excel而非工作区快照)
+4. 审核通过 → 应用Excel数据到工作区；驳回 → 填写原因
+
+#### Store方法
+
+- `createVersionFromParsedData({ parsedData })` — 从Excel解析数据创建版本
+- `approveVersion(versionId)` — 审核通过，应用parsedData到工作区
+- `rejectVersion(versionId, reason)` — 驳回版本
+
+---
+
+### 3.2.7 属性编辑与主数据关联——详细设计
 
 > **可追溯**：与 `REQUIREMENT.md` 中 **REQ-ATTR-MD-01～REQ-ATTR-MD-05** 对应。
 
@@ -1178,6 +1667,11 @@ Week 23-24: 订阅幂等+集成
 | **自愈机制** | 在交付加载中输入"查寻合同"（错别字）→AI首次SQL失败→自动修正"查询"→成功执行→对话显示完整修正过程 |
 | **版本切换** | 交付加载界面切换至v1.0.0→数据模型回退→操作旧版本数据 |
 | **事件订阅幂等** | 同一事件被订阅者处理两次→第二次检测到已处理ID→跳过不重复执行 |
+| **EPC全域关联** | 聚合根实体创建EPC链路→添加Event/Function/OrgUnit节点→关联已有模型元素(含Lifecycle+Semantic)→流程图正确渲染 |
+| **EPC双向校验** | EPC引用不存在的模型元素→VE报error；模型Action未被EPC覆盖→VM报warning；EPC声明与模型定义矛盾→VX报error；71条规则全覆盖 |
+| **组织体系建模** | 创建部门树+岗位→结构化职责(PositionResponsibility)→HR系统定时同步→EPC OrgUnit引用Department/Position |
+| **Excel导入** | 下载模板→填写数据→上传→校验通过→生成pending_review版本→审核通过→数据应用到工作区 |
+| **版本审核** | 上传Excel→生成待审核版本→审核通过→工作区数据更新；驳回→版本状态rejected+原因记录 |
 
 ---
 
@@ -1364,7 +1858,132 @@ interface ProjectVersion {
   };
   createdAt: string;
   publishedAt?: string;
-  status: 'draft' | 'published' | 'archived';
+  status: 'draft' | 'pending_review' | 'published' | 'archived' | 'rejected';
+  source?: 'manual' | 'excel_import';
+  reviewComment?: string;
+  parsedData?: ExcelParsedData;
+}
+
+// ==================== EPC全域关联类型 ====================
+
+interface EpcChain {
+  id: string;
+  name: string;
+  entityId: string;            // 关联的聚合根实体
+  description?: string;
+  nodes: EpcNode[];
+  edges: EpcEdge[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface EpcNode {
+  id: string;
+  type: 'event' | 'function' | 'connector' | 'infoObject' | 'orgUnit';
+  label: string;
+  refs: EpcModelRef[];         // 关联的模型元素引用
+  position?: { x: number; y: number };
+  style?: Record<string, unknown>;
+}
+
+interface EpcEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+  type?: 'normal' | 'conditional';
+  condition?: string;
+}
+
+interface EpcModelRef {
+  modelType: 'data' | 'behavior' | 'rule' | 'event' | 'process' | 'governance' | 'metric' | 'dataSource' | 'masterData' | 'metadata' | 'organization';
+  elementId: string;
+  elementName?: string;
+  refRole: 'primary' | 'input' | 'output' | 'constraint' | 'metric' | 'source' | 'permission';
+}
+
+// ==================== 组织体系类型 ====================
+
+interface Department {
+  id: string;
+  name: string;
+  nameEn: string;
+  code?: string;
+  type: 'headquarters' | 'division' | 'department' | 'team' | 'group';
+  parentId?: string;
+  managerPositionId?: string;
+  description?: string;
+  status: 'active' | 'inactive';
+}
+
+interface Position {
+  id: string;
+  name: string;
+  nameEn: string;
+  code?: string;
+  departmentId: string;
+  parentPositionId?: string;
+  level?: number;
+  roleIds: string[];           // → GovernanceRole
+  headcount?: number;
+  responsibilities?: string;
+  status: 'active' | 'inactive';
+}
+
+interface OrganizationModel {
+  id: string;
+  departments: Department[];
+  positions: Position[];
+}
+
+// ==================== Excel导入类型 ====================
+
+interface ExcelImportValidation {
+  totalRows: number;
+  validRows: number;
+  errorCount: number;
+  errors: ExcelImportError[];
+}
+
+interface ExcelImportError {
+  sheet: string;
+  row: number;
+  column: string;
+  value: string;
+  errorType: 'missing_required' | 'invalid_enum' | 'invalid_type' | 'ref_not_found';
+  message: string;
+}
+
+interface ExcelParsedData {
+  entities: Record<string, unknown>[];
+  attributes: Record<string, unknown>[];
+  relations: Record<string, unknown>[];
+  stateMachines: Record<string, unknown>[];
+  rules: Record<string, unknown>[];
+  eventDefinitions: Record<string, unknown>[];
+}
+
+// ==================== 双向校验类型 ====================
+
+interface EpcValidationResult {
+  ve: EpcValidationItem[];     // EPC→模型
+  vm: EpcValidationItem[];     // 模型→EPC
+  vx: EpcValidationItem[];     // 交叉一致性
+  coverage: EpcCoverageReport;
+}
+
+interface EpcValidationItem {
+  code: string;                // VE-01, VM-D01, VX-01 等
+  level: 'error' | 'warning' | 'info';
+  message: string;
+  elementId?: string;
+  elementName?: string;
+  epcChainId?: string;
+}
+
+interface EpcCoverageReport {
+  overall: number;             // 0-100%
+  byModel: Record<string, { total: number; covered: number; rate: number }>;
 }
 
 interface AIAction {

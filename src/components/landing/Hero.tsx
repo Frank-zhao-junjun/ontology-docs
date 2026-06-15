@@ -168,14 +168,14 @@ const Hero = () => {
 
           {/* Subtitle */}
           <p ref={subtitleRef} className="text-lg text-[#b7b7b7] mb-6 font-medium">
-            Ontology-Driven Metamodeling &amp; Hybrid AI Execution Framework
+            Ontology-Driven Metamodeling &amp; Agent Semantic Framework
           </p>
 
           {/* Description */}
           <p ref={descRef} className="body-text text-[#171717]/70 max-w-2xl mx-auto mb-10">
-            聚焦建模工具与发布能力的完整演进路径。实施完成后，系统将具备
-            <span className="text-[#ff6e00] font-medium">&quot;本体抽象→模型共识→AI辅助建模+版本化发布&quot;</span>
-            的完整闭环能力。
+            覆盖<span className="text-[#ff6e00] font-medium">12大元模型</span>的可视化建模工具，
+            从数据、行为、规则到组织体系与Agent语义层，
+            构建<span className="text-[#ff6e00] font-medium">"本体定义→EPC全域关联→Agent精准理解"</span>的完整闭环。
           </p>
 
           {/* CTA Buttons */}

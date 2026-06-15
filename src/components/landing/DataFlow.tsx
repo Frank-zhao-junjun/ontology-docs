@@ -4,11 +4,11 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { 
   Edit3, 
   Database, 
-  Server, 
-  Box,
-  FileCode,
-  Cpu,
-  Container,
+  Brain,
+  Network,
+  FileSpreadsheet,
+  ShieldCheck,
+  RefreshCw,
   Save
 } from 'lucide-react';
 
@@ -23,74 +23,37 @@ const DataFlow = () => {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Title animation
       gsap.fromTo(
         titleRef.current,
         { y: 50, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.8,
-          ease: 'expo.out',
-          scrollTrigger: {
-            trigger: titleRef.current,
-            start: 'top 80%',
-            toggleActions: 'play none none reverse',
-          },
+        { y: 0, opacity: 1, duration: 0.8, ease: 'expo.out',
+          scrollTrigger: { trigger: titleRef.current, start: 'top 80%', toggleActions: 'play none none reverse' },
         }
       );
 
-      // Phase 1 animation
       gsap.fromTo(
         phase1Ref.current,
         { x: -100, opacity: 0 },
-        {
-          x: 0,
-          opacity: 1,
-          duration: 0.7,
-          ease: 'expo.out',
-          scrollTrigger: {
-            trigger: phase1Ref.current,
-            start: 'top 75%',
-            toggleActions: 'play none none reverse',
-          },
+        { x: 0, opacity: 1, duration: 0.7, ease: 'expo.out',
+          scrollTrigger: { trigger: phase1Ref.current, start: 'top 75%', toggleActions: 'play none none reverse' },
         }
       );
 
-      // Arrow 1 animation
       gsap.fromTo(
         arrow1Ref.current,
         { scaleX: 0, opacity: 0 },
-        {
-          scaleX: 1,
-          opacity: 1,
-          duration: 0.5,
-          ease: 'expo.out',
-          scrollTrigger: {
-            trigger: arrow1Ref.current,
-            start: 'top 75%',
-            toggleActions: 'play none none reverse',
-          },
+        { scaleX: 1, opacity: 1, duration: 0.5, ease: 'expo.out',
+          scrollTrigger: { trigger: arrow1Ref.current, start: 'top 75%', toggleActions: 'play none none reverse' },
         }
       );
 
-      // Phase 2 animation
       gsap.fromTo(
         phase2Ref.current,
         { y: 50, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.7,
-          ease: 'expo.out',
-          scrollTrigger: {
-            trigger: phase2Ref.current,
-            start: 'top 75%',
-            toggleActions: 'play none none reverse',
-          },
+        { y: 0, opacity: 1, duration: 0.7, ease: 'expo.out',
+          scrollTrigger: { trigger: phase2Ref.current, start: 'top 75%', toggleActions: 'play none none reverse' },
         }
       );
-
     }, sectionRef);
 
     return () => ctx.revert();
@@ -98,18 +61,18 @@ const DataFlow = () => {
 
   const modelingComponents = [
     { icon: Edit3, label: '可视化编辑器' },
-    { icon: Database, label: '数据模型定义' },
-    { icon: Box, label: '行为模型定义' },
-    { icon: FileCode, label: '规则模型定义' },
-    { icon: Cpu, label: '事件模型定义' },
+    { icon: Database, label: '数据/行为/规则/事件' },
+    { icon: ShieldCheck, label: '组织与岗位模型' },
+    { icon: RefreshCw, label: '实体生命周期' },
+    { icon: Brain, label: 'Agent语义层' },
   ];
 
-  const publishOutputs = [
-    { icon: Database, label: 'SQLite DDL' },
-    { icon: Server, label: 'Flask API' },
-    { icon: FileCode, label: 'React组件' },
-    { icon: Cpu, label: 'AI Agent' },
-    { icon: Container, label: 'Docker配置' },
+  const integrationComponents = [
+    { icon: Network, label: 'EPC全域关联(71条规则)' },
+    { icon: Brain, label: 'AI智能生成' },
+    { icon: FileSpreadsheet, label: 'Excel导入(8 Sheet)' },
+    { icon: Database, label: '57条元数据初始化' },
+    { icon: ShieldCheck, label: '版本管理与审核' },
   ];
 
   return (
@@ -123,7 +86,7 @@ const DataFlow = () => {
           ref={titleRef}
           className="heading-2 text-center text-[#171717] mb-16"
         >
-          数据流转<span className="text-[#ff6e00]">架构</span>
+          建模工作<span className="text-[#ff6e00]">流程</span>
         </h2>
 
         {/* Data Flow Diagram */}
@@ -138,8 +101,8 @@ const DataFlow = () => {
                 <Edit3 className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="heading-5 text-[#171717]">建模期（设计时）</h3>
-                <p className="text-sm text-[#b7b7b7]">Modeling Phase</p>
+                <h3 className="heading-5 text-[#171717]">本体建模</h3>
+                <p className="text-sm text-[#b7b7b7]">Ontology Modeling</p>
               </div>
             </div>
 
@@ -157,11 +120,11 @@ const DataFlow = () => {
 
             <div className="mt-4 p-3 bg-white/50 rounded-lg flex items-center gap-2">
               <Save className="w-4 h-4 text-[#b7b7b7]" />
-              <span className="text-sm text-[#b7b7b7]">Zustand状态 + localStorage</span>
+              <span className="text-sm text-[#b7b7b7]">Zustand 状态 + localStorage</span>
             </div>
           </div>
 
-          {/* Arrow 1 */}
+          {/* Arrow */}
           <div
             ref={arrow1Ref}
             className="hidden lg:flex items-center justify-center"
@@ -169,42 +132,41 @@ const DataFlow = () => {
           >
             <div className="flex flex-col items-center gap-2">
               <div className="w-16 h-1 bg-gradient-to-r from-[#ff6e00] to-[#171717] rounded-full"/>
-              <span className="text-xs text-[#b7b7b7]">发布</span>
+              <span className="text-xs text-[#b7b7b7]">关联</span>
             </div>
           </div>
 
-          {/* Phase 2: Publish */}
+          {/* Phase 2: Integration */}
           <div
             ref={phase2Ref}
             className="flex-1 bg-gradient-to-br from-[#171717]/5 to-[#171717]/10 rounded-2xl p-6"
           >
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-[#171717] flex items-center justify-center">
-                <Box className="w-6 h-6 text-white" />
+                <Network className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="heading-5 text-[#171717]">发布</h3>
-                <p className="text-sm text-[#b7b7b7]">Publish Phase</p>
+                <h3 className="heading-5 text-[#171717]">全域关联与集成</h3>
+                <p className="text-sm text-[#b7b7b7]">Integration & Validation</p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              {publishOutputs.map((output, index) => (
+              {integrationComponents.map((comp, index) => (
                 <div
                   key={index}
                   className="flex items-center gap-2 p-3 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
                 >
-                  <output.icon className="w-4 h-4 text-[#171717]" />
-                  <span className="text-sm text-[#171717]">{output.label}</span>
+                  <comp.icon className="w-4 h-4 text-[#171717]" />
+                  <span className="text-sm text-[#171717]">{comp.label}</span>
                 </div>
               ))}
             </div>
 
             <div className="mt-4 p-3 bg-white/50 rounded-lg text-center">
-              <span className="text-sm font-medium text-[#171717]">版本化代码包</span>
+              <span className="text-sm font-medium text-[#171717]">71 条双向校验规则 + Agent 语义完备性评估</span>
             </div>
           </div>
-
         </div>
       </div>
     </section>

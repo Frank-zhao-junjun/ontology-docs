@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { 
-  Layers, 
-  Clock, 
-  FileText, 
+  GitBranch, 
   Shield, 
-  Globe, 
-  History
+  FileSearch, 
+  Users, 
+  ArrowRightLeft, 
+  Clock
 } from 'lucide-react';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -21,7 +21,6 @@ const DDDEvents = () => {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Title animation
       gsap.fromTo(
         titleRef.current,
         { y: 30, opacity: 0 },
@@ -38,7 +37,6 @@ const DDDEvents = () => {
         }
       );
 
-      // Tabs animation
       gsap.fromTo(
         tabsRef.current,
         { y: 30, opacity: 0 },
@@ -55,7 +53,6 @@ const DDDEvents = () => {
         }
       );
 
-      // Content animation
       gsap.fromTo(
         contentRef.current,
         { opacity: 0 },
@@ -78,93 +75,113 @@ const DDDEvents = () => {
   const decisions = [
     {
       id: 'E1',
-      icon: Layers,
-      title: '聚合根约束',
-      decision: '标记聚合根',
-      description: '数据模型使用 `entityRole` / `parentAggregateId`，仅聚合根可发布事件',
-      details: '在Ontology建模中，实体通过 `entityRole` 明确区分 `aggregate_root` 与 `child_entity`。只有聚合根可以发布领域事件；聚合内子实体需要通过 `parentAggregateId` 归属到对应聚合。',
-      code: `interface Entity {
-  id: string;
-  name: string;
-  entityRole: 'aggregate_root' | 'child_entity';
-  parentAggregateId?: string; // 子实体时必填
+      icon: GitBranch,
+      title: 'EPC全域关联',
+      decision: '模型即关联',
+      description: 'EPC 将 12 大元模型通过 EpcModelRef 全域关联，EpcChain 串联完整业务链路',
+      details: '每个 EPC 节点（Event/Function/Connector/InfoObject/OrgUnit）通过 refs 引用具体模型元素，支持 12 种 modelType 和 13 种 refRole。一条 EpcChain 从起点到终点，自动推导涉及的实体、状态、规则、事件、角色。',
+      code: `interface EpcModelRef {
+  modelType: 'data' | 'behavior' | 'rule' 
+    | 'event' | 'process' | 'governance'
+    | 'lifecycle' | 'semantic' | ...;
+  elementId: string;
+  refRole: 'primary' | 'guard' 
+    | 'compensate' | 'intent' | ...;
 }`,
     },
     {
       id: 'E2',
-      icon: Clock,
-      title: '事务边界',
-      decision: '默认AFTER_COMMIT',
-      description: '事务提交后发布（默认），事务内执行（高级BEFORE_COMMIT）',
-      details: '领域事件默认在事务提交后发布（AFTER_COMMIT），确保数据持久化成功后才触发事件。对于需要事务内执行的校验或审计场景，可选择BEFORE_COMMIT。',
-      code: `interface EventDefinition {
-  trigger: 'create' | 'update' | 'delete' | 'state_change';
-  transactionPhase: 'AFTER_COMMIT' | 'BEFORE_COMMIT';
-  // 默认AFTER_COMMIT
-}`,
+      icon: Shield,
+      title: '双向校验',
+      decision: '71条一致性规则',
+      description: 'EPC→模型(VE)、模型→EPC(VM)、交叉一致性(VX) 三维度双向校验',
+      details: 'VE-17 条确保 EPC 引用的模型元素真实存在；VM-39 条确保每个模型元素被 EPC 覆盖；VX-15 条确保 EPC 与模型之间逻辑不矛盾。包括 Lifecycle 和 Semantic Layer 的完整校验。',
+      code: `// 校验示例
+VE-15: EPC Function 引用 Action,
+  但 Action 不在当前 State 
+  的 availableActions 中 → warning
+VM-LC01: 非初始/终止 State 
+  应出现在 EPC 链路中 → warning
+VX-09: EPC Function 引用 Action,
+  但无 Intent 指向该 Action → error`,
     },
     {
       id: 'E3',
-      icon: FileText,
-      title: '事件内容',
-      decision: '强制精简模式',
-      description: '领域事件模式开关，限制5个字段，强制ID+关键字段',
-      details: '开启"领域事件模式"后，事件载荷限制最多5个字段，强制包含聚合ID和关联聚合ID。这避免了事件过于臃肿，同时保证必要信息的传递。',
-      code: `interface EventPayload {
-  mandatory: ['entity_id', 'related_aggregate_id'];
-  optional: string[]; // 最多3个可选字段
-  // 总计最多5个字段
+      icon: FileSearch,
+      title: '语义完备性',
+      decision: 'Agent可理解',
+      description: 'Agent Semantic Layer 让 AI Agent 精准理解企业语义并正确执行任务',
+      details: '9 大子模型覆盖意图映射(Intent)、槽位填充(SlotFilling)、对话上下文(DialogContext)、语义关系(SemanticRelation)、术语词典(BusinessTerm)、错误恢复(ErrorRecovery)、时效性(TemporalValidity)、字段映射(SemanticFieldMapping)、Agent策略(AgentPolicy)。',
+      code: `interface Intent {
+  triggerPhrases: string[]; 
+    // "创建采购订单"
+  actionId: string;      
+    // → CreatePurchaseOrder
+  slots: SlotFillingStrategy;
+    // 追问供应商/物料/数量
+  contextConstraints: string[];
+    // 需要当前状态为 "draft"
 }`,
     },
     {
       id: 'E4',
-      icon: Shield,
-      title: '幂等性',
-      decision: '事件ID去重',
-      description: '系统生成唯一事件ID，订阅者记录已处理ID',
-      details: '每个领域事件生成唯一的UUID作为事件ID。订阅者处理事件时，使用"{event_id}:{handler_id}"作为幂等键，确保同一事件不会被重复处理。',
-      code: `class EventSubscriber {
-  handle(event: DomainEvent) {
-    const idempotencyKey = 
-      \`\${event.id}:\${this.handlerId}\`;
-    // INSERT IGNORE语义
-    // 防止重复处理
-  }
+      icon: Users,
+      title: '组织与岗位',
+      decision: '结构化职责',
+      description: 'Department 树形组织 + Position 结构化职责 + HR系统定时同步',
+      details: 'Position.responsibilities 从 string 升级为 PositionResponsibility[]，包含 scope(职责范围)、actions(可执行操作)、decisionAuthority(决策权限)、delegateToPositionIds(委托链)。支持飞书/钉钉/企微/SAP/Workday 定时同步，4种冲突策略。',
+      code: `interface PositionResponsibility {
+  scope: 'entity' | 'process' 
+    | 'domain' | 'custom';
+  scopeRefs: string[];    
+  actions: string[];       
+  decisionAuthority: 'none' 
+    | 'recommend' | 'approve' | 'veto';
+  delegateToPositionIds: string[];
 }`,
     },
     {
       id: 'E5',
-      icon: Globe,
-      title: '跨上下文',
-      decision: '保持现状',
-      description: 'MVP阶段webhook作为跨系统方式',
-      details: '在MVP阶段，跨限界上下文的通信通过webhook实现。订阅者可以配置webhook URL，当事件触发时，系统会向指定的URL发送HTTP请求。',
-      code: `interface EventSubscription {
-  actionType: 'webhook';
-  actionRef: 'https://api.example.com/webhook';
-  // 跨系统通知
+      icon: ArrowRightLeft,
+      title: '生命周期增强',
+      decision: 'State即一等公民',
+      description: 'State 从标签升级为一等公民，11个增强字段让 Agent 无需跨模型拼凑',
+      details: 'State 新增 entryActions/exitActions/availableActions/constraints/allowedRoles/timeout/dataVisibility/semanticTag/triggerableEvents。Transition 新增 guardCondition/compensationAction/publishEventId/requiresApproval/auditLog。EntityLifecycle 聚合视图一站式查看。',
+      code: `interface EnhancedState {
+  availableActions: string[];
+  constraints: string[];     // Rule IDs
+  allowedRoles: string[];    // Role IDs
+  timeout: StateTimeout;     // 超时自动转换
+  dataVisibility: {          // 字段可见性
+    fieldId: string;
+    visibility: 'visible' 
+      | 'readonly' | 'hidden';
+  }[];
 }`,
     },
     {
       id: 'E6',
-      icon: History,
-      title: '事件溯源',
-      decision: '不支持',
-      description: 'MVP阶段事件仅作为通知，状态存储于实体表',
-      details: 'MVP阶段不实现完整的事件溯源（Event Sourcing）。领域事件仅作为通知机制使用，系统状态仍然存储在实体表中。这简化了实现复杂度，同时满足基本需求。',
-      code: `// 事件仅作为通知
-// 状态存储于实体表
-class Contract {
-  private _state: ContractState; // 状态存储
-  // 非事件溯源
-}`,
+      icon: Clock,
+      title: '参考文档驱动',
+      decision: '文档即需求源',
+      description: '上传 Word/PDF/Excel 参考文档，AI 基于文档生成更精准的模型初稿',
+      details: '支持 6 种文件格式，mammoth/pdf-parse/xlsx 自动提取文本+表格。AI Prompt 自动注入文档内容（智能截断≤10000字符），生成建议优先与文档一致。还可从文档自动提取实体候选，含置信度和来源定位，支持批量创建。',
+      code: `interface ReferenceDocument {
+  fileName: string;
+  fileType: 'docx' | 'pdf' 
+    | 'xlsx' | 'txt' | 'md' | 'csv';
+  extractedText: string;  
+  parseStatus: 'pending' 
+    | 'success' | 'failed';
+}
+// AI生成时自动注入:
+// "请参考以下业务文档..."`,
     },
   ];
 
   const handleTabChange = (index: number) => {
     if (index === activeTab) return;
     
-    // Animate content transition
     gsap.to(contentRef.current, {
       opacity: 0,
       x: index > activeTab ? -30 : 30,
@@ -192,7 +209,7 @@ class Contract {
           ref={titleRef}
           className="heading-2 text-center text-[#171717] mb-12"
         >
-          DDD领域事件<span className="text-[#ff6e00]">设计</span>
+          核心设计<span className="text-[#ff6e00]">决策</span>
         </h2>
 
         {/* Tabs */}

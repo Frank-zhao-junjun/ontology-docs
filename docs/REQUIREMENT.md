@@ -59,6 +59,12 @@ Implementation Roadmap v1.1
 | 元数据管理   | 57条标准字段+CRUD   | ✅ 保持 |
 | AI辅助生成  | 豆包大模型生成建议      | ✅ 保持 |
 | 手册导出    | Markdown格式     | ✅ 保持 |
+| **Excel导入** | **模板下载+文件上传+数据校验+解析为模型对象+生成待审核版本+审核流程** | **✅ 新增** |
+| **EPC全域关联** | **链路建模+模型关联+流程图渲染+双向校验(71条规则: VE×17+VM×39+VX×15)** | **✅ 新增** |
+| **组织体系建模** | **部门树+结构化岗位职责+HR系统定时同步+EPC引用** | **✅ 新增** |
+| **Entity Lifecycle** | **State/Transition/Action增强+聚合视图+审计追溯+15条校验规则** | **✅ 新增** |
+| **Agent Semantic Layer** | **意图映射+槽位填充+对话上下文+语义关系+术语词典+错误恢复+Agent策略** | **✅ 新增** |
+| **参考文档上传** | **Word/PDF/Excel/TXT/MD/CSV上传+自动解析+AI注入+实体提取** | **✅ 新增** |
 | **AI代理框架** | **Superpowers + Gstack + Ralph Loop** | **✅ 新增** |
 2.1.1 补充约束：业务场景归属
 - 实体创建必须绑定 `businessScenarioId`，形成“项目 → 业务场景 → 实体 → 四大元模型”的固定归属链路。
@@ -78,6 +84,40 @@ Implementation Roadmap v1.1
 - 当 `dataType = 'reference'` 且引用实体时，必须填写 `referencedEntityId`。
 - 当 `isMasterDataRef = true` 时，系统必须同时满足：`dataType = 'reference'`、`referenceKind = 'masterData'`、`masterDataType` 必填，`masterDataField` 可选。
 - `referencedEntityId` 与 `masterDataType` 互斥，同一属性不允许同时有效绑定实体引用和主数据引用。
+2.1.4 补充约束：组织体系与岗位模型
+- 新增 OrganizationModel 为一级模型，包含 Department(树形) + Position(岗位)。
+- Department 支持5种类型(集团/事业部/部门/团队/班组)，通过 parentId 构建组织树。
+- Position 归属部门(departmentId)，关联治理角色(roleIds → GovernanceRole)，含汇报线/编制/任职要求。
+- **结构化职责**：PositionResponsibility 定义职责项(scope/actions/decisionAuthority/delegateToPositionIds)，替代原有 responsibilities:string。
+- **HR 系统同步**：支持飞书/钉钉/企微/SAP/Workday/自定义API定时同步，含字段映射(HRFieldMapping)、冲突策略(4种)、同步范围、同步历史。
+- EPC 的 EpcOrganizationalUnit 通过 refType/refId 引用 Department 或 Position。
+- 双向校验新增 VM-O(8条)+VM-HR(4条)+VE-O(2条)+VX-O(4条)。
+- 建模工作台新增「组织」Tab，含 HR 同步配置面板。
+- Excel导入扩展：模板新增「部门」和「岗位」2个Sheet。
+
+2.1.5 补充约束：Entity Lifecycle（实体生命周期）
+- State 增强 7 个字段：entryActions/exitActions/availableActions/constraints/allowedRoles/timeout/dataVisibility。
+- Transition 增强 4 个字段：guardCondition/compensationAction/sideEffects/auditLog。
+- Action 增强：aliases/triggerPhrases/successMessage/failureMessage/fallbackActionId/requiresConfirmation。
+- 新增 EntityLifecycle 聚合视图：actionsByState/rulesByState/eventsByState/rolesByState/auditTrail/stats。
+- 新增 LifecycleAuditEntry：记录每次状态变更的时间戳/事件类型/状态变更/操作/执行者/结果。
+- 新增校验规则 V-LC-01~15：状态可达性、引用完整性、guardCondition 语法、孤立状态检测等。
+- 建模工作台新增「生命周期」Tab：状态流转图 + 状态详情 + 审计记录。
+
+2.1.6 补充约束：Agent Semantic Layer（Agent 语义层）
+- 新增 Intent 类型：将自然语言短语映射到 Action，含 triggerPhrases/slotFilling/contextConstraints。
+- 新增 SlotFillingStrategy：定义参数追问顺序、校验规则、默认值、上下文推断。
+- 新增 DialogContext：维护聚焦实体、最近操作、指代消解、pendingIntent。
+- 新增 SemanticRelation：定义 is-a/part-of/synonym-of/causes/depends-on 等 10 种语义关系。
+- 新增 BusinessTerm：统一术语定义、同义词、歧义说明、模型引用、时效性。
+- 新增 ErrorRecovery：定义操作失败后的重试/回退/升级/补偿/询问用户策略。
+- 新增 TemporalValidity：为模型元素添加生效/失效时间、版本号、变更说明。
+- 新增 SemanticFieldMapping：自动推断跨实体字段等价关系（exact_match/derived/composed/renamed）。
+- 新增 AgentPolicy：定义 Agent 行为边界（allow/deny/confirm/escalate），支持全局/意图/实体/操作/领域多级范围。
+- 新增 API：GET /api/agent-semantic-layer 导出完整 AgentSemanticLayer JSON。
+- 新增「语义层」管理入口：意图管理/术语词典/语义关系/错误恢复/Agent策略/字段映射/时效管理/完备性仪表盘。
+
+
 
 2.2 新增功能：版本发布
 2.2.1 版本管理功能
@@ -97,7 +137,7 @@ interface ProjectVersion {
   };
   createdAt: string;
   publishedAt?: string;  // 发布时间
-  status: 'draft' | 'published' | 'archived';
+  status: 'draft' | 'published' | 'archived' | 'pending_review' | 'rejected';
 }
 
 interface PublishConfig {
@@ -604,4 +644,196 @@ Response: {
   healingLog?: HealingLog[];  // 如有自愈过程
 }
 
+六、Excel 导入与版本审核
 
+6.1 功能概述
+
+支持通过 Excel 文件批量导入本体模型数据，生成待审核版本，审核通过后应用到工作区。适用于项目初始化、跨团队协作和批量数据迁移场景。
+
+6.2 API 接口
+
+6.2.1 模板下载
+
+GET /api/excel-template
+
+返回含 7 个 Sheet（填写说明 + 实体/属性/关系/状态机/规则/事件）的 .xlsx 导入模板。
+
+Response: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet 二进制文件
+
+6.2.2 文件上传与解析
+
+POST /api/excel-import
+
+Request: multipart/form-data, field: file（仅 .xlsx，最大 5MB）
+
+Response:
+```json
+{
+  "success": true,
+  "validation": {
+    "totalRows": 8,
+    "validRows": 8,
+    "errorCount": 0,
+    "errors": []
+  },
+  "versionId": "v-xxx",
+  "versionName": "v2026-06-13",
+  "parsedData": {
+    "entities": [{ "name": "物料", "nameEn": "Material", "role": "aggregate_root", ... }],
+    "attributes": [{ "entityNameEn": "Material", "name": "编码", "dataType": "string", ... }],
+    "relations": [...],
+    "stateMachines": [...],
+    "rules": [...],
+    "eventDefinitions": [...]
+  }
+}
+```
+
+校验规则：
+- 文件格式：仅 .xlsx，最大 5MB
+- Sheet 结构：必须包含实体/属性/关系/状态机/规则/事件 6 个 Sheet
+- 必填字段：各 Sheet 的(必填)标记字段
+- 枚举值：实体角色、数据类型、关系类型、规则类型、触发时机等
+- 跨 Sheet 引用：属性/关系/状态机/规则/事件中的实体英文名必须在实体 Sheet 中存在
+- 描述行/示例行：以 #DESC# / #EXAMPLE# 开头的行自动跳过
+
+6.3 User Stories
+
+US-1: 下载 Excel 导入模板 — 生成含 8 个数据 Sheet (实体/属性/关系/状态机/规则/事件/部门/岗位) + 填写说明的 .xlsx 模板
+US-2: 上传 Excel 文件 — 仅接受 .xlsx，5MB 上限，Sheet 结构校验
+US-3: 数据解析与校验 — 逐行校验+解析，返回校验结果和 parsedData
+US-4: 生成待审核版本 — status=pending_review，版本号按日期自动递增
+US-5: 版本审核流程 — approveVersion(应用到工作区) / rejectVersion(驳回+原因)
+
+6.4 版本状态流转
+
+```text
+draft → published → archived
+              ↑
+pending_review → published (审核通过)
+pending_review → rejected  (审核驳回)
+```
+
+6.5 Store 方法
+
+- createVersionFromParsedData({ parsedData }) — 从 Excel 解析数据创建 pending_review 版本
+- approveVersion(versionId) — 审核通过，将 parsedData 应用到工作区
+- rejectVersion(versionId, reason) — 审核驳回
+
+七、EPC 全域关联层
+
+7.1 功能概述
+
+EPC 从只读文档升级为全域关联层，是串联 12 大模型（含 Lifecycle + Semantic Layer）的复合关联视图。详见 `docs/EPC-Upgrade-Spec.md` v3.1。
+
+7.2 核心数据结构
+
+- EpcChain：链路（节点+边），关联聚合根实体
+- EpcNode：5 种类型(event/function/connector/infoObject/orgUnit)，每节点通过 refs 引用多模型元素
+- EpcEdge：节点间连线，支持条件分支
+- EpcModelRef：统一关联接口，modelType×refRole 标明引用的模型和角色
+
+7.3 全域关联矩阵
+
+| EPC 节点 | 可关联的模型 |
+|---------|----------|
+| Event | 事件定义+触发实体+状态转换+触发规则+订阅+权限角色+指标+数据源+主数据+元数据+处理岗位+State.entry/exitActions+Intent(触发类)+BusinessTerm+TemporalValidity |
+| Function | 动作/转换+输入输出实体+前后置规则+产生事件+流程步骤+执行角色+指标+数据源+主数据+元数据+责任岗位+State.availableActions+guardCondition+compensationAction+Intent(操作类)+SlotFillingStrategy+ErrorRecovery+AgentPolicy |
+| Connector | 分支规则+角色权限+Transition.guardCondition+Intent.contextConstraints |
+| InfoObject | 实体/属性+校验规则+变更事件+字段权限+质量指标+数据源+主数据+元数据+State.dataVisibility+SemanticFieldMapping+BusinessTerm+TemporalValidity |
+| OrgUnit | 治理角色+权限+行为约束+部门+岗位+State.allowedRoles+notifyRoleIds+approvalRoleIds+AgentPolicy |
+
+7.4 双向校验体系（71 条规则）
+
+| 方向 | 编号前缀 | 规则数 | 核心问题 |
+|------|---------|--------|---------|
+| EPC → 模型 | VE | 17 | EPC 引用的模型元素是否真实有效、一致、合法？ |
+| 模型 → EPC | VM | 39 | 模型定义的元素是否被 EPC 覆盖？(10 大模型+组织+Lifecycle+Semantic) |
+| 交叉一致性 | VX | 15 | EPC 关联声明与模型内部定义是否矛盾？ |
+
+7.5 User Stories
+
+US-EPC-1: 创建/编辑 EPC 链路 — 聚合根实体下创建链路，添加节点和边
+US-EPC-2: 全域关联选择器 — 节点关联时展示所有模型可选元素
+US-EPC-3: 推导生成 — 从已有模型自动推导 EPC 链路骨架
+US-EPC-4: 全域关联视图 — 以节点为中心展示所有关联的模型元素
+US-EPC-5: 反向引用 — 各模型编辑器显示"出现在哪些 EPC 中"
+US-EPC-6: 流程图渲染 — @xyflow/react 自定义 5 种节点形状
+US-EPC-7: 关联图谱 — 全局视图展示所有 EPC 链路的关联网络
+US-EPC-8: EPC→模型校验 — VE-01~17 规则
+US-EPC-9: 模型→EPC 校验 — VM-D/B/R/E/P/G/M/S/O/LC/AS 规则(39 条)
+US-EPC-10: 交叉一致性校验 — VX-01~15 规则
+
+7.6 技术选型
+
+@xyflow/react — 流程图渲染，自定义节点组件
+
+八、组织体系与岗位模型
+
+8.1 功能概述
+
+新增 OrganizationModel 为一级模型，包含 Department(树形部门结构) + Position(岗位定义) + HR同步能力。详见 `docs/Organization-Position-Spec.md`。
+
+8.2 核心数据结构
+
+- Department：5 种类型(集团/事业部/部门/团队/班组)，parentId 构建组织树，含 HR 同步字段(syncSource/syncExternalId/syncUpdatedAt)
+- Position：归属部门(departmentId)，关联治理角色(roleIds → GovernanceRole)，含汇报线/编制/任职要求
+- PositionResponsibility：结构化职责(scope+actions+decisionAuthority+delegateToPositionIds)，替代原 responsibilities:string
+- HRSyncConfig：同步配置(source/interval/fieldMapping/conflictStrategy/syncScope)
+- HRSyncResult：同步结果(变更统计+冲突列表+错误列表)
+
+8.3 关联链路
+
+```
+Department (组织树)
+  └── Position (岗位)
+        ├── roleIds → GovernanceRole (权限角色)
+        │     └── permissions → 实体/动作/字段权限
+        └── responsibilities[] → PositionResponsibility
+              ├── scopeRefs → Entity / Process / Domain
+              ├── actions → Action
+              └── delegateToPositionIds → Position (委托链)
+```
+
+8.4 EPC 关联
+
+EpcOrganizationalUnit 通过 refType/refId 引用 Department 或 Position。
+
+8.5 HR 系统同步
+
+- 支持 6 种 HR 数据源：飞书/钉钉/企微/SAP/Workday/自定义API
+- 同步频率：实时(Webhook)/每小时/每天/每周/手动
+- 字段映射：HRFieldMapping 定义 HR 字段 → 本体模型字段路径
+- 冲突策略：HR优先/本地优先/合并/人工审核
+- 差异比对：3-way diff，自动识别新增/更新/停用
+- 安全：API凭证存后端环境变量，同步日志脱敏
+
+8.6 双向校验
+
+- VM-O(8条)：部门覆盖、岗位覆盖、角色关联、组织树环路、岗位归属、职责冲突、职责覆盖、委托链环路
+- VM-HR(4条)：同步引用完整性、同步时效、孤儿记录、配置完整性
+- VE-O(2条)：组织引用存在性、组织引用类型匹配
+- VX-O(4条)：岗位角色一致性、指标对齐、职责-Lifecycle一致、职责-EPC覆盖
+
+8.7 User Stories
+
+US-ORG-1: 创建/编辑部门树 — 树形结构 CRUD，支持 5 种部门类型
+US-ORG-2: 创建/编辑岗位 — 归属部门+关联角色+汇报线+编制+结构化职责
+US-ORG-3: 职责重叠检测 — 自动检测两个岗位的职责冲突
+US-ORG-4: HR系统同步 — 配置数据源后一键同步部门和岗位
+US-ORG-5: 定时同步 — 配置同步频率后系统自动按计划同步
+US-ORG-6: 同步冲突处理 — 冲突列表可逐条或批量处理
+US-ORG-7: 岗位职责委托 — 支持请假/离职场景的职责委托链
+US-ORG-3: 岗位角色关联 — Position.roleIds 多选 GovernanceRole
+US-ORG-4: EPC 引用组织 — OrgUnit 节点引用 Department/Position
+US-ORG-5: Excel 批量导入 — 模板新增「部门」和「岗位」Sheet
+
+8.6 双向校验(新增)
+
+| 编号 | 规则 | 级别 |
+|------|------|------|
+| VM-O01 | 聚合根实体关联部门至少 1 个 | warning |
+| VM-O02 | 部门树无环路 | error |
+| VM-O03 | 活跃岗位必须有部门归属 | error |
+| VM-O04 | 岗位引用的 Role 必须存在 | error |
+| VM-O05 | 组织变更需 EPC 确认 | warning |

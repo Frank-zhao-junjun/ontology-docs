@@ -59,10 +59,10 @@ const Architecture = () => {
   }, []);
 
   const systemAFeatures = [
-    { icon: Box, label: '部署', value: 'Coze Studio' },
-    { icon: Code, label: '技术', value: 'Next.js 16' },
-    { icon: Layers, label: '功能', value: '四大元模型可视化编辑' },
-    { icon: Sparkles, label: 'AI', value: '设计时辅助生成' },
+    { icon: Box, label: '平台', value: 'Web SaaS' },
+    { icon: Code, label: '技术', value: 'Next.js 16 + React 19' },
+    { icon: Layers, label: '元模型', value: '12大元模型可视化建模' },
+    { icon: Sparkles, label: 'AI', value: 'AI辅助建模+语义层生成' },
     { icon: Users, label: '用户', value: '业务架构师/系统设计师' },
   ];
 

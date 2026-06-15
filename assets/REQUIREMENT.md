@@ -98,6 +98,12 @@ Ontology Modeling Tool - MVP Implementation Roadmap
 | 主数据管理   | 核心业务实体记录（按领域分类）+CRUD+状态管理（确保业务数据的唯一性和稳定性）   | 新增 |
 | 元数据管理   | 字段模板定义+CRUD（定义标准字段属性，确保数据结构一致性）   | ✅ 保持 |
 | AI辅助生成  | 豆包大模型生成建议（优先匹配元数据模板确保数据标准一致性，参考主数据记录确保业务相关性）      | ✅ 保持 |
+| Excel导入   | 模板下载+文件上传+数据校验+解析为模型对象+生成待审核版本+审核流程 | 新增 |
+| EPC全域关联   | 链路建模+模型关联+流程图渲染+双向校验(71条规则: VE×17+VM×39+VX×15) | 新增 |
+| 组织体系建模   | 部门树+结构化岗位职责+HR系统定时同步+EPC引用 | 新增 |
+| Entity Lifecycle | State/Transition/Action增强+聚合视图+审计追溯+15条校验规则 | 新增 |
+| Agent Semantic Layer | 意图映射+槽位填充+对话上下文+语义关系+术语词典+错误恢复+Agent策略 | 新增 |
+| 参考文档上传 | Word/PDF/Excel/TXT/MD/CSV上传+自动解析+AI注入+实体提取 | 新增 |
 | 手册导出    | Markdown格式     | ✅ 保持 |
 
 2.1.1 实体聚合角色建模规范
@@ -137,7 +143,7 @@ interface ProjectVersion {
     events: EventModel;
   };
   createdAt: string;
-  status: 'draft' | 'published';
+  status: 'draft' | 'published' | 'pending_review' | 'rejected';
 }
 
 interface ExportConfig {
@@ -705,7 +711,7 @@ export interface ProjectVersion {
   };
   createdAt: string;
   publishedAt?: string;
-  status: 'draft' | 'published' | 'archived';
+  status: 'draft' | 'pending_review' | 'published' | 'archived' | 'rejected';
 }
 ```
 
@@ -750,3 +756,367 @@ export interface ProjectVersion {
 
 完成 Week 1 后，进入 Week 2，优先实现代码生成器基础能力，包括 SQLite DDL 生成与 Flask 模型生成。
 
+六、Excel 导入与版本审核
+
+6.1 功能概述
+
+支持通过 Excel 文件批量导入本体模型数据，生成待审核版本，审核通过后应用到工作区。适用于项目初始化、跨团队协作和批量数据迁移场景。
+
+6.2 User Stories
+
+US-1: 下载 Excel 导入模板
+
+- 角色：业务架构师 / 系统设计师
+- 需求：下载标准 .xlsx 模板，包含 8 个数据 Sheet（实体/属性/关系/状态机/规则/事件/部门/岗位）和 1 个填写说明 Sheet
+- 验收标准：
+  - GET /api/excel-template 返回 application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+  - 每个 Sheet 包含表头行（含"(必填)"标记）、描述行和示例行
+  - 描述行和示例行在校验时自动跳过（以 #DESC# / #EXAMPLE# 开头或与描述/示例关键词匹配）
+
+US-2: 上传 Excel 文件与格式校验
+
+- 角色：业务架构师 / 系统设计师
+- 需求：上传 .xlsx 文件，系统自动校验格式、大小和 Sheet 结构
+- 验收标准：
+  - POST /api/excel-import 仅接受 .xlsx 格式，5MB 上限
+  - 缺少必需 Sheet（实体/属性/关系/状态机/规则/事件）时返回具体错误
+  - 非 .xlsx 文件或超限文件返回 400 错误
+
+US-3: Excel 数据解析与校验
+
+- 角色：业务架构师 / 系统设计师
+- 需求：逐行校验和解析 Excel 数据，返回行级校验结果和解析后的模型对象
+- 验收标准：
+  - 必填字段缺失 → missing_required 错误
+  - 枚举值不在允许范围 → invalid_enum 错误
+  - 布尔字段非 true/false → invalid_type 错误
+  - 跨 Sheet 引用不存在（如属性引用的实体不存在）→ ref_not_found 错误
+  - 校验通过的数据行被解析为 Entity/Attribute/Relation/StateMachine/Rule/EventDefinition 模型对象
+  - 返回 parsedData 包含 6 种模型数组
+
+US-4: 生成待审核版本
+
+- 角色：业务架构师 / 系统设计师
+- 需求：基于解析数据生成 pending_review 状态版本，版本号自动递增
+- 验收标准：
+  - 版本状态为 pending_review
+  - 版本内容来自 parsedData（非当前工作区快照）
+  - 版本号格式为 vYYYY-MM-DD，同日自动追加序号
+  - 返回 versionId 和 versionName
+
+US-5: 版本审核流程
+
+- 角色：技术负责人 / 交付工程师
+- 需求：审核待审核版本，通过则应用到工作区，驳回需填写原因
+- 验收标准：
+  - approveVersion：将版本 parsedData 替换当前工作区数据，版本状态变为 published
+  - rejectVersion：填写驳回原因，版本状态变为 rejected
+  - 发布对话框中 pending_review 版本显示审核按钮
+  - rejected 版本显示驳回原因
+
+6.3 Excel 模板 Sheet 结构
+
+| Sheet | 必填字段 | 说明 |
+|-------|---------|------|
+| 实体 | 实体名称、英文名称 | 支持聚合根/子实体角色 |
+| 属性 | 实体英文名称、属性名称、英文名称、数据类型 | 9 种数据类型，支持引用和枚举 |
+| 关系 | 源实体英文名称、关系名称、关系类型、目标实体英文名称 | one_to_one/one_to_many/many_to_many |
+| 状态机 | 实体英文名称、状态机名称、状态名称 | 支持初始/终止状态和转换定义 |
+| 规则 | 实体英文名称、规则名称、规则类型、错误消息 | 5 种规则类型 |
+| 事件 | 实体英文名称、事件名称、触发时机 | 支持 create/update/delete/status_change/custom |
+
+6.4 版本状态流转
+
+```text
+draft → published → archived
+              ↑
+pending_review → published (审核通过)
+pending_review → rejected  (审核驳回)
+```
+
+七、EPC 全域关联层
+
+7.1 功能概述
+
+EPC 从只读文档升级为全域关联层，是串联 10 大模型+组织模型的复合关联视图。详见 `docs/EPC-Upgrade-Spec.md` v3.0。
+
+7.2 核心数据结构
+
+- EpcChain：链路（节点+边），关联聚合根实体
+- EpcNode：5 种类型(event/function/connector/infoObject/orgUnit)，每节点通过 refs 引用多模型元素
+- EpcEdge：节点间连线，支持条件分支
+- EpcModelRef：统一关联接口，modelType×refRole 标明引用的模型和角色
+
+7.3 全域关联矩阵
+
+| EPC 节点 | 可关联的模型 |
+|---------|----------|
+| Event | 事件定义+触发实体+状态转换+触发规则+订阅+权限角色+指标+数据源+主数据+元数据+处理岗位 |
+| Function | 动作/转换+输入输出实体+前后置规则+产生事件+流程步骤+执行角色+指标+数据源+主数据+元数据+责任岗位 |
+| Connector | 分支规则+角色权限 |
+| InfoObject | 实体/属性+校验规则+变更事件+字段权限+质量指标+数据源+主数据+元数据 |
+| OrgUnit | 治理角色+权限+行为约束+部门+岗位 |
+
+7.4 双向校验体系（40+规则）
+
+| 方向 | 编号前缀 | 规则数 | 核心问题 |
+|------|---------|--------|---------|
+| EPC → 模型 | VE | 14 | EPC 引用的模型元素是否真实有效、一致、合法？ |
+| 模型 → EPC | VM | 25 | 模型定义的元素是否被 EPC 覆盖？(8 大模型+组织) |
+| 交叉一致性 | VX | 10 | EPC 关联声明与模型内部定义是否矛盾？ |
+
+7.5 User Stories
+
+US-EPC-1: 创建/编辑 EPC 链路
+- 角色：业务架构师
+- 需求：在聚合根实体下创建链路，添加节点和边
+- 验收：EpcChain CRUD 完整，节点可拖拽排列
+
+US-EPC-2: 全域关联选择器
+- 角色：业务架构师
+- 需求：节点关联时展示所有模型可选元素，按 modelType 分组
+- 验收：选择器展示 10 大模型+组织的可选元素列表
+
+US-EPC-3: 推导生成
+- 角色：业务架构师
+- 需求：从已有模型自动推导 EPC 链路骨架
+- 验收：10 步推导算法执行后生成包含 Event/Function/Connector/InfoObject/OrgUnit 的链路
+
+US-EPC-4: 全域关联视图
+- 角色：业务架构师
+- 需求：以节点为中心展示所有关联的模型元素
+- 验收：点击节点显示关联面板，按模型类型分组展示
+
+US-EPC-5: 反向引用
+- 角色：业务架构师
+- 需求：各模型编辑器显示"出现在哪些 EPC 中"
+- 验收：Action/Event/Rule 等编辑器中显示 EPC 覆盖 Badge
+
+US-EPC-6: 流程图渲染
+- 角色：业务架构师
+- 需求：@xyflow/react 自定义 5 种节点形状渲染流程图
+- 验收：Event(六边形)、Function(圆角矩形)、Connector(菱形)、InfoObject(矩形)、OrgUnit(椭圆)
+
+US-EPC-7: 关联图谱
+- 角色：业务架构师
+- 需求：全局视图展示所有 EPC 链路的关联网络
+- 验收：可视化展示链路间共享的模型元素
+
+US-EPC-8: EPC→模型校验
+- 角色：交付工程师
+- 需求：VE-01~14 规则校验 EPC 引用的模型元素
+- 验收：引用不存在/不一致/非法均报错
+
+US-EPC-9: 模型→EPC 校验
+- 角色：交付工程师
+- 需求：VM-D/B/R/E/P/G/M/S/O 规则(25 条)校验模型覆盖率
+- 验收：未被 EPC 覆盖的模型元素报 warning
+
+US-EPC-10: 交叉一致性校验
+- 角色：交付工程师
+- 需求：VX-01~10 规则校验 EPC 关联与模型定义一致性
+- 验收：EPC 声明与模型内部定义矛盾时报 error
+
+7.6 技术选型
+
+@xyflow/react — 流程图渲染，自定义节点组件
+
+八、组织体系与岗位模型
+
+8.1 功能概述
+
+新增 OrganizationModel 为一级模型，包含 Department(树形部门结构) + Position(岗位定义) + HR同步能力。详见 `docs/Organization-Position-Spec.md`。
+
+8.2 核心数据结构
+
+- Department：5 种类型(集团/事业部/部门/团队/班组)，parentId 构建组织树，含 HR 同步字段(syncSource/syncExternalId/syncUpdatedAt)
+- Position：归属部门(departmentId)，关联治理角色(roleIds → GovernanceRole)，含汇报线/编制/任职要求
+- PositionResponsibility：结构化职责(scope+actions+decisionAuthority+delegateToPositionIds)
+- HRSyncConfig：同步配置(source/interval/fieldMapping/conflictStrategy/syncScope)
+- HRSyncResult：同步结果(变更统计+冲突列表+错误列表)
+
+8.3 关联链路
+
+```
+Department (组织树)
+  └── Position (岗位)
+        ├── roleIds → GovernanceRole (权限角色)
+        │     └── permissions → 实体/动作/字段权限
+        └── responsibilities[] → PositionResponsibility
+              ├── scopeRefs → Entity / Process / Domain
+              ├── actions → Action
+              └── delegateToPositionIds → Position (委托链)
+```
+
+8.4 HR 系统同步
+
+- 支持 6 种 HR 数据源：飞书/钉钉/企微/SAP/Workday/自定义API
+- 同步频率：实时(Webhook)/每小时/每天/每周/手动
+- 字段映射：HRFieldMapping 定义 HR 字段 → 本体模型字段路径
+- 冲突策略：HR优先/本地优先/合并/人工审核
+- 差异比对：3-way diff，自动识别新增/更新/停用
+- 安全：API凭证存后端环境变量，同步日志脱敏
+
+8.5 User Stories
+
+US-ORG-1: 创建/编辑部门树
+- 角色：业务架构师
+- 需求：树形结构 CRUD，支持 5 种部门类型
+- 验收：部门树渲染正确，支持展开/折叠/拖拽排序
+
+US-ORG-2: 创建/编辑岗位
+- 角色：业务架构师
+- 需求：归属部门+关联角色+汇报线+编制+结构化职责
+- 验收：岗位 CRUD 完整，responsibilities 可结构化编辑
+
+US-ORG-3: 职责重叠检测
+- 角色：业务架构师
+- 需求：自动检测两个岗位的职责冲突
+- 验收：scopeRefs+actions 交集非空时告警
+
+US-ORG-4: HR系统同步
+- 角色：管理员
+- 需求：配置数据源后一键同步部门和岗位
+- 验收：同步结果含变更统计+冲突列表
+
+US-ORG-5: 定时同步
+- 角色：管理员
+- 需求：配置同步频率后系统自动按计划同步
+- 验收：按配置频率自动执行，生成同步历史
+
+US-ORG-6: 同步冲突处理
+- 角色：管理员
+- 需求：冲突列表可逐条或批量处理
+- 验收：4种冲突策略可选，处理后更新本地数据
+
+US-ORG-7: 岗位职责委托
+- 角色：业务架构师
+- 需求：支持请假/离职场景的职责委托链
+- 验收：delegateToPositionIds 无环路，委托链可追溯
+
+8.6 双向校验(新增)
+
+| 编号 | 规则 | 级别 |
+|------|------|------|
+| VM-O01 | 聚合根实体关联部门至少 1 个 | warning |
+| VM-O02 | 部门树无环路 | error |
+| VM-O03 | 活跃岗位必须有部门归属 | error |
+| VM-O04 | 岗位引用的 Role 必须存在 | error |
+| VM-O05 | 组织变更需 EPC 确认 | warning |
+| VM-O06 | 岗位职责无重叠冲突 | warning |
+| VM-O07 | 职责中的 actions 必须存在 | warning |
+| VM-O08 | 委托链无环路 | info |
+| VM-HR01 | syncExternalId 引用 HR 侧记录存在 | error |
+| VM-HR02 | 同步时效告警 | warning |
+| VM-HR03 | 孤儿记录标记停用 | warning |
+| VM-HR04 | 同步配置完整性 | info |
+
+九、Entity Lifecycle（实体生命周期）
+
+9.1 功能概述
+
+将 State 从"标签"升级为"一等公民"，让 Agent 无需跨模型拼凑即可完整理解 Entity 的生命周期。详见 `docs/Entity-Lifecycle-Spec.md`。
+
+9.2 核心增强
+
+- State 增强 7 个字段：entryActions/exitActions/availableActions/constraints/allowedRoles/timeout/dataVisibility
+- Transition 增强 4 个字段：guardCondition/compensationAction/sideEffects/auditLog
+- Action 增强：aliases/triggerPhrases/successMessage/failureMessage/fallbackActionId/requiresConfirmation
+- 新增 EntityLifecycle 聚合视图：actionsByState/rulesByState/eventsByState/rolesByState/auditTrail/stats
+- 新增 LifecycleAuditEntry：记录每次状态变更的完整上下文
+
+9.3 User Stories
+
+US-LC-1: State 生命周期增强 — 配置 entryActions/exitActions/availableActions/constraints/allowedRoles/timeout/dataVisibility
+US-LC-2: Transition 生命周期增强 — 配置 guardCondition/compensationAction/sideEffects/publishEventId/notifyRoleIds/requiresApproval/auditLog
+US-LC-3: Action 语义增强 — 配置 aliases/triggerPhrases/successMessage/failureMessage/fallbackActionId/requiresConfirmation
+US-LC-4: EntityLifecycle 聚合视图 — 以 Entity 为中心展示完整生命周期（状态流转图+状态详情+审计记录）
+US-LC-5: 生命周期校验 — V-LC-01~15 完整性与一致性校验
+US-LC-6: 生命周期审计 — 查看 Entity 的生命周期变更历史
+US-LC-7: Agent 语义层导出 — GET /api/entity-lifecycle 返回完整 EntityLifecycle JSON
+
+9.4 校验规则（15 条）
+
+| 编号 | 规则 | 级别 |
+|------|------|------|
+| V-LC-01 | 非终止状态必须有 outgoing transition | warning |
+| V-LC-02 | 非初始状态必须有 incoming transition | warning |
+| V-LC-03 | availableActions 引用完整性 | error |
+| V-LC-04 | constraints 引用完整性 | error |
+| V-LC-05 | allowedRoles 引用完整性 | error |
+| V-LC-06 | timeout.targetStateId 有效性 | error |
+| V-LC-07 | guardCondition 语法校验 | error |
+| V-LC-08 | compensationAction 引用完整性 | error |
+| V-LC-09 | dataVisibility 字段有效性 | error |
+| V-LC-10 | 孤立状态检测 | warning |
+| V-LC-11 | entryActions 引用完整性 | error |
+| V-LC-12 | exitActions 引用完整性 | error |
+| V-LC-13 | triggerableEvents 引用完整性 | error |
+| V-LC-14 | fallbackActionId 引用完整性 | error |
+| V-LC-15 | 终止状态不应有 outgoing transition | warning |
+
+十、Agent Semantic Layer（Agent 语义层）
+
+10.1 功能概述
+
+本体模型之上的第 11 个模型，专门解决"AI Agent 如何精准理解企业语义并正确执行任务"的问题。详见 `docs/Agent-Semantic-Layer-Spec.md`。
+
+10.2 核心能力
+
+- Intent（意图映射）：将自然语言短语映射到 Action，含 triggerPhrases/slotFilling/contextConstraints
+- SlotFillingStrategy（槽位填充）：定义参数追问顺序、校验规则、默认值、上下文推断
+- DialogContext（对话上下文）：维护聚焦实体、最近操作、指代消解
+- SemanticRelation（语义关系）：定义 is-a/part-of/synonym-of/causes/depends-on 等 10 种语义关系
+- BusinessTerm（业务术语词典）：统一术语定义、同义词、歧义说明、模型引用
+- ErrorRecovery（错误恢复）：定义操作失败后的重试/回退/升级/补偿策略
+- TemporalValidity（时效性标记）：为模型元素添加生效/失效时间
+- SemanticFieldMapping（字段映射）：自动推断跨实体字段等价关系
+- AgentPolicy（Agent 策略）：定义 Agent 行为边界（允许/拒绝/确认/升级）
+
+10.3 User Stories
+
+US-AS-1: 意图管理 — 创建和管理 Intent，将自然语言短语映射到 Action
+US-AS-2: 槽位填充配置 — 为每个 Intent 配置参数槽位的填充策略
+US-AS-3: 语义关系管理 — 定义实体间的语义关系（is-a/part-of/synonym-of 等）
+US-AS-4: 业务术语词典 — 维护统一的业务术语词典
+US-AS-5: 错误恢复配置 — 为 Action 配置错误恢复策略
+US-AS-6: Agent 策略配置 — 定义 Agent 的行为边界
+US-AS-7: 跨实体字段映射 — 定义跨实体的字段等价关系
+US-AS-8: Agent 语义层导出 — GET /api/agent-semantic-layer 返回完整 JSON
+US-AS-9: 语义完备性仪表盘 — 可视化查看语义层的覆盖度
+
+10.4 校验规则（15 条）
+
+| 编号 | 规则 | 级别 |
+|------|------|------|
+| V-AS-01 | Intent.actionId 引用完整性 | error |
+| V-AS-02 | Intent.targetEntityId 引用完整性 | error |
+| V-AS-03 | Intent.slotFilling.slots[].paramName 必须在 Action.parameters 中 | error |
+| V-AS-04 | Intent.requiredSlots 必须是 slots 的子集 | error |
+| V-AS-05 | SemanticRelation 两端实体必须存在 | error |
+| V-AS-06 | BusinessTerm.modelRefs 引用完整性 | error |
+| V-AS-07 | ErrorRecovery.actionId 引用完整性 | error |
+| V-AS-08 | ErrorRecovery.recoveryActionId 引用完整性 | error |
+| V-AS-09 | AgentPolicy.roleId 引用完整性 | error |
+| V-AS-10 | SemanticFieldMapping 两端字段必须存在 | error |
+| V-AS-11 | TemporalValidity.targetId 引用完整性 | error |
+| V-AS-12 | TemporalValidity 时间范围合法性 | error |
+| V-AS-13 | Intent.triggerPhrases 非空 | warning |
+| V-AS-14 | 同一 Action 无 ErrorRecovery | warning |
+| V-AS-15 | 同一 Role 无 AgentPolicy | warning |
+
+10.5 Agent 完备性评估
+
+| 维度 | 实施前 | 实施后 | 提升 |
+|------|:---:|:---:|:---:|
+| 身份识别 | 8 | 9 | +1 |
+| 可操作性 | 6 | 9 | +3 |
+| 时机判断 | 7 | 9 | +2 |
+| 约束感知 | 7 | 8 | +1 |
+| 后果预知 | 6 | 8 | +2 |
+| 归属认知 | 6 | 8 | +2 |
+| 数据溯源 | 5 | 7 | +2 |
+| 度量感知 | 5 | 5 | — |
+| 关联理解 | 5 | 9 | +4 |
+| 意图映射 | 0 | 9 | +9 |
+| **总分** | **55** | **81** | **+26** |

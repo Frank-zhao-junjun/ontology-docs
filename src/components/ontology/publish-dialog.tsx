@@ -25,7 +25,7 @@ interface PublishDialogProps {
 }
 
 export function PublishDialog({ onPublished }: PublishDialogProps) {
-  const { project, versions, createVersion, publishVersion, getLatestVersion } = useOntologyStore();
+  const { project, versions, createVersion, publishVersion, getLatestVersion, approveVersion, rejectVersion } = useOntologyStore();
   const [showSnapDialog, setShowSnapDialog] = useState(false);
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -152,6 +152,10 @@ export function PublishDialog({ onPublished }: PublishDialogProps) {
         return <Badge variant="outline" className="text-green-600 border-green-300">已保存</Badge>;
       case 'archived':
         return <Badge variant="outline" className="text-gray-600 border-gray-300">已归档</Badge>;
+      case 'pending_review':
+        return <Badge variant="outline" className="text-orange-600 border-orange-300">待审核</Badge>;
+      case 'rejected':
+        return <Badge variant="outline" className="text-red-600 border-red-300">已驳回</Badge>;
       default:
         return null;
     }
@@ -379,6 +383,19 @@ export function PublishDialog({ onPublished }: PublishDialogProps) {
                         <span>规则: {version.metamodels.rules?.rules.length || 0}</span>
                         <span>事件: {version.metamodels.events?.events.length || 0}</span>
                       </div>
+                      {version.status === 'pending_review' && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <Button size="sm" onClick={() => { approveVersion(version.id); }} className="h-7 text-xs">
+                            通过
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => { rejectVersion(version.id, '版本审核驳回'); }} className="h-7 text-xs">
+                            驳回
+                          </Button>
+                        </div>
+                      )}
+                      {version.status === 'rejected' && version.rejectionReason && (
+                        <p className="text-xs text-red-500 mt-1">驳回原因: {version.rejectionReason}</p>
+                      )}
                     </div>
                   ))}
               </div>

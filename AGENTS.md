@@ -25,7 +25,9 @@ src/
 │   ├── globals.css              # 全局样式
 │   └── api/                     # API 路由
 │       ├── metadata/init/       # 元数据初始化接口
-│       └── generate-model/      # AI模型生成接口
+│       ├── generate-model/      # AI模型生成接口
+│       ├── excel-template/      # Excel模板下载接口
+│       └── excel-import/        # Excel文件导入接口
 ├── components/
 │   └── ontology/                # 本体建模组件
 │       ├── domain-selector.tsx  # 领域选择器
@@ -37,7 +39,8 @@ src/
 │       ├── process-model-editor.tsx # 流程模型编辑器
 │       ├── event-model-editor.tsx # 事件模型编辑器
 │       ├── metadata-manager.tsx # 元数据管理器
-│       └── manual-generator.tsx # 建模手册生成器
+│       ├── manual-generator.tsx # 建模手册生成器
+│       └── excel-import-dialog.tsx # Excel导入对话框
 ├── store/
 │   └── ontology-store.ts        # Zustand 状态管理
 ├── types/
@@ -92,6 +95,56 @@ src/
 - Markdown 格式输出
 - JSON 格式导出
 - 实体维度/项目维度手册
+
+### 9.5. 组织体系与岗位模型 (Organization & Position)
+- **部门树**：Department 5种类型(集团/事业部/部门/团队/班组)，parentId 构建组织树
+- **岗位定义**：Position 归属部门、关联治理角色、汇报线、编制、任职要求
+- **结构化职责**：PositionResponsibility 定义职责项(scope+actions+decisionAuthority+delegateToPositionIds)
+- **职责重叠检测**：自动检测两个岗位的职责冲突
+- **HR系统同步**：支持飞书/钉钉/企微/SAP/Workday/自定义API定时同步
+- **同步配置**：HRSyncConfig(source/interval/fieldMapping/conflictStrategy/syncScope)
+- **冲突策略**：HR优先/本地优先/合并/人工审核
+- **EPC集成**：EpcOrganizationalUnit 通过 refType/refId 引用 Department/Position
+- **校验规则**：VM-O(8条)+VM-HR(4条)+VE-O(2条)+VX-O(4条)
+
+### 10. Entity Lifecycle（实体生命周期）
+- **State 增强**：entryActions/exitActions/availableActions/constraints/allowedRoles/timeout/dataVisibility
+- **Transition 增强**：guardCondition/compensationAction/sideEffects/publishEventId/notifyRoleIds/requiresApproval/auditLog
+- **Action 增强**：aliases/triggerPhrases/successMessage/failureMessage/fallbackActionId/requiresConfirmation/idempotencyKeyTemplate
+- **聚合视图**：EntityLifecycle 一站式聚合 StateMachine + Action + Rule + Event 中的生命周期信息
+- **审计追溯**：LifecycleAuditEntry 记录每次状态变更的完整上下文
+- **校验规则**：V-LC-01~15 生命周期完整性与一致性校验
+
+### 11. Agent Semantic Layer（Agent 语义层）
+- **意图映射**：Intent 将自然语言短语映射到 Action，含 triggerPhrases/slotFilling/contextConstraints
+- **槽位填充**：SlotFillingStrategy 定义参数追问顺序、校验规则、默认值、上下文推断
+- **对话上下文**：DialogContext 维护聚焦实体、最近操作、指代消解
+- **语义关系**：SemanticRelation 定义 is-a/part-of/synonym-of/causes/depends-on 等 10 种语义关系
+- **业务术语词典**：BusinessTerm 统一术语定义、同义词、歧义说明、模型引用
+- **错误恢复**：ErrorRecovery 定义操作失败后的重试/回退/升级/补偿策略
+- **时效性标记**：TemporalValidity 为模型元素添加生效/失效时间
+- **字段映射**：SemanticFieldMapping 自动推断跨实体字段等价关系
+- **Agent 策略**：AgentPolicy 定义 Agent 行为边界（允许/拒绝/确认/升级）
+- **完备性仪表盘**：可视化语义层覆盖度（意图覆盖率/术语数/关系数/缺失提醒）
+
+### 12. Excel 导入 (Excel Import)
+- **模板下载**：GET /api/excel-template 生成含8个Sheet（填写说明+7数据Sheet，含部门+岗位）的 .xlsx 模板
+- **文件上传**：POST /api/excel-import 仅接受 .xlsx，5MB上限，Sheet结构校验
+- **数据校验**：必填字段、枚举值、布尔类型、跨Sheet引用完整性校验
+- **数据解析**：校验通过后解析为 Entity/Attribute/Relation/StateMachine/Rule/Event 对象（parsedData）
+- **版本生成**：基于 parsedData 生成 pending_review 状态版本（非工作区快照）
+- **版本审核**：审核通过将 parsedData 应用到工作区（替换当前数据），驳回需填写原因
+- **Store 方法**：`createVersionFromParsedData({ parsedData })` 创建版本，`approveVersion` 应用解析数据
+
+### 13. 参考文档上传辅助 AI 建模 (Reference Document Upload)
+- **文档上传**：支持 Word(.docx)/PDF(.xlsx)/Excel(.xlsx)/TXT/Markdown/CSV 格式，10MB/文件
+- **文档解析**：mammoth(docx)/pdf-parse(pdf)/xlsx(excel) 自动提取纯文本+表格
+- **AI 注入**：generate-model API 自动将参考文档内容注入 Prompt，AI 基于文档生成更精准建议
+- **实体提取**：AI 从文档中自动提取实体候选（含属性、置信度、来源定位）
+- **项目级管理**：ReferenceDocument 存储于项目数据，最多 10 份/项目
+- **文本截断**：智能截断策略，AI 注入文本 ≤ 10000 字符/次
+- **API**：POST /api/reference-documents/upload + DELETE + POST extract-entities
+- **安全**：文档仅存浏览器 localStorage，不上传云端
 
 ## 开发命令
 
@@ -208,6 +261,63 @@ POST /api/generate-model
 }
 ```
 
+### Excel模板下载
+```
+GET /api/excel-template
+```
+生成含填写说明+8个数据Sheet的 .xlsx 导入模板。
+
+**返回**: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet 二进制文件
+
+### Excel文件导入
+```
+POST /api/excel-import
+```
+上传 .xlsx 文件，校验并解析为项目数据。
+
+**请求**: multipart/form-data, field: `file`
+
+**返回格式**:
+```json
+{
+  "success": true,
+  "validation": { "totalRows": 8, "validRows": 8, "errorCount": 0, "errors": [] },
+  "versionId": "v-xxx",
+  "versionName": "v2026-06-13",
+  "parsedData": {
+    "entities": [{ "name": "物料", "nameEn": "Material", "role": "aggregate_root", ... }],
+    "attributes": [{ "entityNameEn": "Material", "name": "编码", "dataType": "string", ... }],
+    "relations": [...],
+    "stateMachines": [...],
+    "rules": [...],
+    "eventDefinitions": [...],
+    "departments": [{ "name": "生产管理部", "nameEn": "ProductionMgmt", "type": "department", ... }],
+    "positions": [{ "name": "生产主管", "nameEn": "ProductionSupervisor", "responsibilities": [...], ... }]
+  }
+}
+```
+
+**校验规则**:
+- 文件格式: 仅 .xlsx，最大5MB
+- Sheet结构: 至少包含实体/属性/关系/状态机/规则/事件/部门/岗位中1个Sheet
+- 必填字段: 各Sheet的(必填)标记字段
+- 枚举值: 实体角色、数据类型、关系类型、规则类型、触发时机等
+- 跨Sheet引用: 属性/关系/状态机/规则/事件中的实体英文名必须在实体Sheet中存在；岗位.所属部门编码必须在部门Sheet中存在
+- 组织校验: 部门树环检测、职责列对齐、角色引用完整性等 23 条规则 (V-XL-O01~O23)
+- 描述行/示例行: 以 `#DESC#`/`#EXAMPLE#` 开头的行自动跳过
+
+### Entity Lifecycle 导出
+```
+GET /api/entity-lifecycle?entityId=xxx
+```
+返回 EntityLifecycle 聚合视图（actionsByState/rulesByState/eventsByState/rolesByState/auditTrail/stats）。
+
+### Agent 语义层导出
+```
+GET /api/agent-semantic-layer
+```
+返回完整 AgentSemanticLayer JSON（intents/terms/relations/recoveries/policies/mappings + metadata.coverage 统计）。
+
 ## 类型定义
 
 所有类型定义位于 `src/types/ontology.ts`，主要包括：
@@ -224,6 +334,19 @@ POST /api/generate-model
 - `Subscription` - 事件订阅
 - `Metadata` - 元数据定义
 - `OntologyProject` - 完整项目结构
+- `Intent` - Agent 意图定义
+- `IntentSlot` / `SlotFillingStrategy` - 槽位填充
+- `DialogContext` - 对话上下文
+- `SemanticRelation` - 语义关系
+- `BusinessTerm` - 业务术语
+- `ErrorRecovery` - 错误恢复策略
+- `TemporalValidity` - 时效性标记
+- `SemanticFieldMapping` - 跨实体字段映射
+- `AgentPolicy` - Agent 行为策略
+- `AgentSemanticLayer` - Agent 语义层聚合
+- `EntityLifecycle` - 实体生命周期聚合
+- `LifecycleAuditEntry` - 生命周期审计记录
+- `StateTimeout` / `StateDataVisibility` - 状态增强
 
 ## 构建与部署
 

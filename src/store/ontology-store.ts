@@ -73,6 +73,9 @@ import type {
   HRSyncConfig,
   HRSyncResult,
   DepartmentTreeNode,
+  ReferenceDocument,
+  ExtractedEntity,
+  ExtractedAttribute,
 } from '@/types/ontology';
 
 interface OntologyState {
@@ -268,6 +271,12 @@ interface OntologyState {
   getDepartmentTree: () => DepartmentTreeNode[];
   getPositionsByDepartment: (deptId: string) => Position[];
   getPositionsByRole: (roleId: string) => Position[];
+
+  // 参考文档管理
+  addReferenceDocument: (doc: Omit<ReferenceDocument, 'id'>) => ReferenceDocument;
+  removeReferenceDocument: (docId: string) => void;
+  updateReferenceDocument: (docId: string, updates: Partial<ReferenceDocument>) => void;
+  clearReferenceDocuments: () => void;
 
   // UI状态
   setActiveModelType: (type: 'data' | 'behavior' | 'rule' | 'process' | 'event' | null) => void;
@@ -2995,6 +3004,66 @@ export const useOntologyStore = create<OntologyState>()(
         const { project } = get();
         if (!project?.organizationModel) return [];
         return project.organizationModel.positions.filter((p) => p.roleIds.includes(roleId));
+      },
+
+      // 参考文档管理
+      addReferenceDocument: (doc) => {
+        const newDoc: ReferenceDocument = { ...doc, id: generateId() };
+        set((state) => {
+          if (!state.project) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              referenceDocuments: [...(state.project.referenceDocuments || []), newDoc],
+              updatedAt: now,
+            },
+          };
+        });
+        return newDoc;
+      },
+
+      removeReferenceDocument: (docId) => {
+        set((state) => {
+          if (!state.project?.referenceDocuments) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              referenceDocuments: state.project.referenceDocuments.filter((d) => d.id !== docId),
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      updateReferenceDocument: (docId, updates) => {
+        set((state) => {
+          if (!state.project?.referenceDocuments) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              referenceDocuments: state.project.referenceDocuments.map((d) =>
+                d.id === docId ? { ...d, ...updates } : d
+              ),
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      clearReferenceDocuments: () => {
+        set((state) => {
+          if (!state.project) return state;
+          return {
+            project: {
+              ...state.project,
+              referenceDocuments: [],
+              updatedAt: new Date().toISOString(),
+            },
+          };
+        });
       },
 
       // UI状态

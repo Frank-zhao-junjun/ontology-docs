@@ -34,6 +34,7 @@ import { MetricsEditor } from './metrics-editor';
 import { LifecycleTab } from './lifecycle-tab';
 import { SemanticLayerTab } from './semantic-layer-tab';
 import { OrganizationEditor } from './organization-editor';
+import { ReferenceDocPanel } from './reference-doc-panel';
 import { updateProject, deleteProject } from '@/services/project-service';
 import type { OntologyProject, Entity, EntityProject, BusinessScenario } from '@/types/ontology';
 
@@ -114,7 +115,7 @@ interface ModelingWorkspaceProps {
 }
 
 type ModelType = 'data' | 'behavior' | 'rule' | 'event' | 'epc' | 'lifecycle' | 'semantic';
-type WorkspaceScope = 'entity' | 'metrics' | 'governance' | 'dataSources' | 'organization';
+type WorkspaceScope = 'entity' | 'metrics' | 'governance' | 'dataSources' | 'organization' | 'referenceDocs';
 
 const PROJECT_LAYER_TABS: { id: WorkspaceScope; label: string; icon: string }[] = [
   { id: 'entity', label: '实体建模', icon: '🏗️' },
@@ -122,6 +123,7 @@ const PROJECT_LAYER_TABS: { id: WorkspaceScope; label: string; icon: string }[] 
   { id: 'governance', label: '治理', icon: '🛡️' },
   { id: 'dataSources', label: '数据源', icon: '🔌' },
   { id: 'organization', label: '组织', icon: '🏢' },
+  { id: 'referenceDocs', label: '参考文档', icon: '📄' },
 ];
 
 const MODEL_TABS = [
@@ -1184,6 +1186,10 @@ export function ModelingWorkspace({ project }: ModelingWorkspaceProps) {
             <div className="flex-1 overflow-auto p-6">
               <h2 className="text-lg font-semibold mb-4">组织体系 (organization)</h2>
               <OrganizationEditor />
+            </div>
+          ) : workspaceScope === 'referenceDocs' ? (
+            <div className="flex-1 overflow-auto p-6">
+              <ReferenceDocPanel />
             </div>
           ) : selectedEntityId && relatedModels?.entity ? (
             (() => {

@@ -1711,6 +1711,45 @@ export interface ExcelParsedData {
   }>;
 }
 
+// ========== 参考文档 ==========
+
+/** 参考文档 */
+export interface ReferenceDocument {
+  id: string;
+  fileName: string;
+  fileType: 'docx' | 'pdf' | 'xlsx' | 'txt' | 'md' | 'csv';
+  fileSize: number;
+  uploadedAt: string;
+  extractedText: string;
+  textLength: number;
+  parseStatus: 'pending' | 'success' | 'failed';
+  parseError?: string;
+  title?: string;
+  summary?: string;
+  extractedEntities?: ExtractedEntity[];
+  extractionStatus?: 'none' | 'processing' | 'done' | 'failed';
+}
+
+/** 从文档提取的实体候选 */
+export interface ExtractedEntity {
+  name: string;
+  nameEn?: string;
+  description: string;
+  source: string;
+  confidence: number;
+  attributes?: ExtractedAttribute[];
+}
+
+/** 从文档提取的属性候选 */
+export interface ExtractedAttribute {
+  name: string;
+  nameEn?: string;
+  dataType: string;
+  description: string;
+  required?: boolean;
+  source: string;
+}
+
 export interface OntologyProject {
   id: string;
   name: string;
@@ -1727,6 +1766,7 @@ export interface OntologyProject {
   metricsModel?: MetricsModel | null;
   organizationModel?: OrganizationModel | null;
   agentSemanticLayer?: AgentSemanticLayer | null;
+  referenceDocuments?: ReferenceDocument[];
   createdAt: string;
   updatedAt: string;
 }

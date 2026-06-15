@@ -103,6 +103,42 @@ const TEMPLATE_SHEETS: ExcelTemplateSheet[] = [
       { label: '描述', key: 'description', required: false, type: 'string', description: '事件描述' },
     ],
   },
+  {
+    name: '部门',
+    nameEn: 'departments',
+    headers: [
+      { label: '部门名称(必填)', key: 'name', required: true, type: 'string', description: '部门中文名称' },
+      { label: '英文名称(必填)', key: 'nameEn', required: true, type: 'string', description: '部门英文标识' },
+      { label: '部门编码', key: 'code', required: false, type: 'string', description: '唯一编码，用于跨Sheet引用；不填则自动生成' },
+      { label: '部门类型', key: 'type', required: false, type: 'enum', enumValues: ['headquarters', 'division', 'department', 'team', 'group'], description: '默认department' },
+      { label: '上级部门编码', key: 'parentCode', required: false, type: 'string', description: '引用本Sheet中其他部门的编码' },
+      { label: '负责人岗位编码', key: 'managerPositionCode', required: false, type: 'string', description: '引用岗位Sheet的岗位编码' },
+      { label: '描述', key: 'description', required: false, type: 'string', description: '部门描述' },
+      { label: '排序', key: 'sortOrder', required: false, type: 'number', description: '同级排序，数字越小越靠前' },
+      { label: '状态', key: 'status', required: false, type: 'enum', enumValues: ['active', 'inactive'], description: '默认active' },
+    ],
+  },
+  {
+    name: '岗位',
+    nameEn: 'positions',
+    headers: [
+      { label: '岗位名称(必填)', key: 'name', required: true, type: 'string', description: '岗位中文名称' },
+      { label: '英文名称(必填)', key: 'nameEn', required: true, type: 'string', description: '岗位英文标识' },
+      { label: '岗位编码', key: 'code', required: false, type: 'string', description: '唯一编码，用于跨Sheet引用' },
+      { label: '所属部门编码(必填)', key: 'departmentCode', required: true, type: 'string', description: '引用部门Sheet的部门编码' },
+      { label: '上级岗位编码', key: 'parentPositionCode', required: false, type: 'string', description: '引用本Sheet中其他岗位的编码' },
+      { label: '层级', key: 'level', required: false, type: 'number', description: '岗位层级，正整数' },
+      { label: '关联角色(分号分隔)', key: 'roleNames', required: false, type: 'string', description: 'GovernanceRole名称，多个用分号分隔' },
+      { label: '编制人数', key: 'headcount', required: false, type: 'number', description: '该岗位的编制人数' },
+      { label: '职责_名称(分号分隔)', key: 'respNames', required: false, type: 'string', description: '职责名称，多个用分号分隔' },
+      { label: '职责_范围(分号分隔)', key: 'respScopes', required: false, type: 'string', description: 'entity/process/domain/custom，与名称一一对应' },
+      { label: '职责_范围引用(分号分隔)', key: 'respScopeRefs', required: false, type: 'string', description: '范围引用的ID或英文名，内部用逗号分隔' },
+      { label: '职责_操作(分号分隔)', key: 'respActions', required: false, type: 'string', description: 'Action英文名或ID，内部用逗号分隔' },
+      { label: '职责_决策权限(分号分隔)', key: 'respDecisionAuthorities', required: false, type: 'string', description: 'none/recommend/approve/veto，与名称一一对应' },
+      { label: '职责_委托岗位(分号分隔)', key: 'respDelegates', required: false, type: 'string', description: '委托岗位编码，内部用逗号分隔' },
+      { label: '状态', key: 'status', required: false, type: 'enum', enumValues: ['active', 'inactive'], description: '默认active' },
+    ],
+  },
 ];
 
 export async function GET() {
@@ -113,7 +149,7 @@ export async function GET() {
   const instrData = [
     ['Ontology 建模数据导入模板 — 填写说明'],
     [''],
-    ['1. 本模板包含6个Sheet：实体、属性、关系、状态机、规则、事件'],
+    ['1. 本模板包含8个Sheet：实体、属性、关系、状态机、规则、事件、部门、岗位'],
     ['2. 必填字段标有"(必填)"，未填写将导致校验失败'],
     ['3. 枚举类型字段只能填写指定值，见列说明'],
     ['4. 多个值用分号(;)或逗号(,)分隔，具体见各字段说明'],
@@ -129,6 +165,8 @@ export async function GET() {
     ['状态机: 定义实体状态机、状态和转换'],
     ['规则: 定义校验规则'],
     ['事件: 定义领域事件，仅限聚合根实体'],
+    ['部门: 定义组织部门（支持树形结构，通过上级部门编码关联）'],
+    ['岗位: 定义组织岗位（关联部门和角色，支持结构化职责）'],
   ];
   const wsInstr = XLSX.utils.aoa_to_sheet(instrData);
   wsInstr['!cols'] = [{ wch: 80 }];
@@ -181,6 +219,10 @@ function getExampleRow(sheetName: string): string[] {
       return ['Material', '物料编码格式校验', 'field_validation', 'materialCode', 'regex', '^[A-Z]{2}\\d{6}$', 'error', '物料编码必须为2位大写字母+6位数字', '100', 'true', '物料编码格式规范'];
     case 'events':
       return ['Material', '物料已创建', 'MaterialCreated', 'create', '', 'AFTER_COMMIT', 'true', 'materialCode,name', '新物料创建事件'];
+    case 'departments':
+      return ['生产管理部', 'ProductionDept', 'DEPT-PROD', 'department', '', '', '负责生产计划与调度', '10', 'active'];
+    case 'positions':
+      return ['生产主管', 'ProductionManager', 'POS-MGR-01', 'DEPT-PROD', '', '3', '生产经理', '2', '生产计划审批', 'process', 'ProductionPlan', 'approvePlan', 'approve', '', 'active'];
     default:
       return [];
   }

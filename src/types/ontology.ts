@@ -1678,6 +1678,37 @@ export interface ExcelParsedData {
     payloadFields?: string[];
     description?: string;
   }>;
+  departments?: Array<{
+    name: string;
+    nameEn: string;
+    code?: string;
+    type: string;
+    parentCode?: string;
+    managerPositionCode?: string;
+    description?: string;
+    sortOrder?: number;
+    status: 'active' | 'inactive';
+  }>;
+  positions?: Array<{
+    name: string;
+    nameEn: string;
+    code?: string;
+    departmentCode: string;
+    parentPositionCode?: string;
+    level?: number;
+    roleNames: string[];
+    headcount?: number;
+    responsibilities: Array<{
+      name: string;
+      description?: string;
+      scope: string;
+      scopeRefs: string[];
+      actions: string[];
+      decisionAuthority: string;
+      delegateToPositionCodes?: string[];
+    }>;
+    status: 'active' | 'inactive';
+  }>;
 }
 
 export interface OntologyProject {

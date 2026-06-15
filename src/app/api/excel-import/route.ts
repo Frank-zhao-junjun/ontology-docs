@@ -4,6 +4,7 @@ import type { ExcelImportResult, ExcelImportError, ExcelImportValidation } from 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const EXPECTED_SHEETS = ['实体', '属性', '关系', '状态机', '规则', '事件'];
+const OPTIONAL_SHEETS = ['部门', '岗位'];
 const SHEET_HEADER_MAP: Record<string, Record<number, { key: string; required: boolean; type: 'string' | 'number' | 'boolean' | 'enum'; enumValues?: string[] }>> = {
   '实体': {
     0: { key: 'name', required: true, type: 'string' },
@@ -47,6 +48,22 @@ const SHEET_HEADER_MAP: Record<string, Record<number, { key: string; required: b
     1: { key: 'name', required: true, type: 'string' },
     3: { key: 'trigger', required: true, type: 'enum', enumValues: ['create', 'update', 'delete', 'state_change', 'custom'] },
   },
+  '部门': {
+    0: { key: 'name', required: true, type: 'string' },
+    1: { key: 'nameEn', required: true, type: 'string' },
+    2: { key: 'code', required: false, type: 'string' },
+    3: { key: 'type', required: false, type: 'enum', enumValues: ['headquarters', 'division', 'department', 'team', 'group'] },
+    8: { key: 'status', required: false, type: 'enum', enumValues: ['active', 'inactive'] },
+  },
+  '岗位': {
+    0: { key: 'name', required: true, type: 'string' },
+    1: { key: 'nameEn', required: true, type: 'string' },
+    2: { key: 'code', required: false, type: 'string' },
+    3: { key: 'departmentCode', required: true, type: 'string' },
+    4: { key: 'parentPositionCode', required: false, type: 'string' },
+    5: { key: 'level', required: false, type: 'number' },
+    14: { key: 'status', required: false, type: 'enum', enumValues: ['active', 'inactive'] },
+  },
 };
 
 export async function POST(request: NextRequest) {
@@ -81,6 +98,8 @@ export async function POST(request: NextRequest) {
       } as ExcelImportResult, { status: 400 });
     }
 
+    const allSheetNames = [...EXPECTED_SHEETS, ...OPTIONAL_SHEETS];
+
     // 逐 Sheet 逐行校验
     const allErrors: ExcelImportError[] = [];
     let totalRows = 0;
@@ -98,7 +117,32 @@ export async function POST(request: NextRequest) {
 
     // 第二遍: 校验每个 Sheet + 收集数据
     const sheetDataList: { name: string; headers: string[]; rows: Record<string, string>[] }[] = [];
-    for (const sheetName of EXPECTED_SHEETS) {
+    // Collect department codes for cross-sheet validation
+    const departmentCodes = new Set<string>();
+    const departmentSheet = wb.Sheets['部门'];
+    if (departmentSheet) {
+      const deptRows = XLSX.utils.sheet_to_json<Record<string, string>>(departmentSheet, { defval: '' });
+      for (const row of deptRows) {
+        const firstVal = Object.values(row)[0]?.toString() || '';
+        if (firstVal.startsWith('#DESC#') || firstVal.startsWith('#EXAMPLE#')) continue;
+        const code = (row['部门编码'] || '').trim();
+        if (code) departmentCodes.add(code);
+      }
+    }
+
+    const positionCodes = new Set<string>();
+    const positionSheet = wb.Sheets['岗位'];
+    if (positionSheet) {
+      const posRows = XLSX.utils.sheet_to_json<Record<string, string>>(positionSheet, { defval: '' });
+      for (const row of posRows) {
+        const firstVal = Object.values(row)[0]?.toString() || '';
+        if (firstVal.startsWith('#DESC#') || firstVal.startsWith('#EXAMPLE#')) continue;
+        const code = (row['岗位编码'] || '').trim();
+        if (code) positionCodes.add(code);
+      }
+    }
+
+    for (const sheetName of [...EXPECTED_SHEETS, ...OPTIONAL_SHEETS]) {
       const ws = wb.Sheets[sheetName];
       if (!ws) continue;
 
@@ -165,7 +209,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 跨Sheet引用校验: 非实体Sheet中引用的 entityNameEn 必须在实体Sheet中存在
-        if (sheetName !== '实体') {
+        if (EXPECTED_SHEETS.includes(sheetName) && sheetName !== '实体') {
           const entityNameEnCol = Object.entries(colMap).find(([, s]) => s.key === 'entityNameEn')?.[0];
           if (entityNameEnCol) {
             const colLabel = headers[Number(entityNameEnCol)];
@@ -181,6 +225,51 @@ export async function POST(request: NextRequest) {
               });
               hasError = true;
             }
+          }
+        }
+
+        // V-XL-O05: 上级部门引用存在
+        if (sheetName === '部门') {
+          const parentCode = (row['上级部门编码'] || '').trim();
+          if (parentCode && !departmentCodes.has(parentCode)) {
+            allErrors.push({
+              sheet: sheetName,
+              row: i + 2,
+              column: '上级部门编码',
+              value: parentCode,
+              errorType: 'invalid_reference',
+              message: `第${i + 2}行: 上级部门编码"${parentCode}"在部门Sheet中不存在`,
+            });
+            hasError = true;
+          }
+        }
+
+        // V-XL-O13: 岗位→部门引用
+        if (sheetName === '岗位') {
+          const deptCode = (row['所属部门编码(必填)'] || '').trim();
+          if (deptCode && !departmentCodes.has(deptCode)) {
+            allErrors.push({
+              sheet: sheetName,
+              row: i + 2,
+              column: '所属部门编码(必填)',
+              value: deptCode,
+              errorType: 'invalid_reference',
+              message: `第${i + 2}行: 所属部门编码"${deptCode}"在部门Sheet中不存在`,
+            });
+            hasError = true;
+          }
+          // V-XL-O14: 上级岗位引用存在
+          const parentPosCode = (row['上级岗位编码'] || '').trim();
+          if (parentPosCode && !positionCodes.has(parentPosCode)) {
+            allErrors.push({
+              sheet: sheetName,
+              row: i + 2,
+              column: '上级岗位编码',
+              value: parentPosCode,
+              errorType: 'invalid_reference',
+              message: `第${i + 2}行: 上级岗位编码"${parentPosCode}"在岗位Sheet中不存在`,
+            });
+            hasError = true;
           }
         }
 
@@ -242,6 +331,8 @@ function parseExcelToModels(sheets: SheetData[], entityNameEns: Set<string>) {
   const smSheet = sheets.find(s => s.name === '状态机');
   const ruleSheet = sheets.find(s => s.name === '规则');
   const eventSheet = sheets.find(s => s.name === '事件');
+  const deptSheet = sheets.find(s => s.name === '部门');
+  const posSheet = sheets.find(s => s.name === '岗位');
 
   const entities = (entitySheet?.rows || []).map(row => ({
     name: (row['实体名称(必填)'] || '').trim(),
@@ -293,8 +384,10 @@ function parseExcelToModels(sheets: SheetData[], entityNameEns: Set<string>) {
   const stateMachines = parseStateMachines(smSheet?.rows || []);
   const rules = parseRules(ruleSheet?.rows || []);
   const events = parseEvents(eventSheet?.rows || []);
+  const departments = parseDepartments(deptSheet?.rows || []);
+  const positions = parsePositions(posSheet?.rows || []);
 
-  return { entities, attributes, relations, stateMachines, rules, eventDefinitions: events };
+  return { entities, attributes, relations, stateMachines, rules, eventDefinitions: events, departments, positions };
 }
 
 function parseStateMachines(rows: Record<string, string>[]) {
@@ -388,4 +481,57 @@ function parseEvents(rows: Record<string, string>[]) {
       : undefined,
     description: (row['描述'] || '').trim() || undefined,
   }));
+}
+
+function parseDepartments(rows: Record<string, string>[]) {
+  return rows.map(row => ({
+    name: (row['部门名称(必填)'] || '').trim(),
+    nameEn: (row['英文名称(必填)'] || '').trim(),
+    code: (row['部门编码'] || '').trim() || undefined,
+    type: (row['部门类型'] || 'department').trim() || 'department',
+    parentCode: (row['上级部门编码'] || '').trim() || undefined,
+    managerPositionCode: (row['负责人岗位编码'] || '').trim() || undefined,
+    description: (row['描述'] || '').trim() || undefined,
+    sortOrder: (row['排序'] || '').trim() ? Number(row['排序']) : undefined,
+    status: (((row['状态'] || 'active').trim() || 'active') as 'active' | 'inactive'),
+  }));
+}
+
+function parsePositions(rows: Record<string, string>[]) {
+  return rows.map(row => {
+    // Parse responsibilities (multi-value columns with semicolons)
+    const respNames = (row['职责_名称(分号分隔)'] || '').split(/[;；]/).map(s => s.trim()).filter(Boolean);
+    const respScopes = (row['职责_范围(分号分隔)'] || '').split(/[;；]/).map(s => s.trim()).filter(Boolean);
+    const respScopeRefsRaw = (row['职责_范围引用(分号分隔)'] || '').split(/[;；]/).map(s => s.trim()).filter(Boolean);
+    const respActionsRaw = (row['职责_操作(分号分隔)'] || '').split(/[;；]/).map(s => s.trim()).filter(Boolean);
+    const respDecisionAuthorities = (row['职责_决策权限(分号分隔)'] || '').split(/[;；]/).map(s => s.trim()).filter(Boolean);
+    const respDelegatesRaw = (row['职责_委托岗位(分号分隔)'] || '').split(/[;；]/).map(s => s.trim()).filter(Boolean);
+
+    const responsibilities = respNames.map((name, idx) => ({
+      name,
+      description: undefined as string | undefined,
+      scope: (respScopes[idx] || 'custom') as string,
+      scopeRefs: (respScopeRefsRaw[idx] || '').split(/[,，]/).map(s => s.trim()).filter(Boolean),
+      actions: (respActionsRaw[idx] || '').split(/[,，]/).map(s => s.trim()).filter(Boolean),
+      decisionAuthority: (respDecisionAuthorities[idx] || 'none') as string,
+      delegateToPositionCodes: (respDelegatesRaw[idx] || '').split(/[,，]/).map(s => s.trim()).filter(Boolean).length > 0
+        ? (respDelegatesRaw[idx] || '').split(/[,，]/).map(s => s.trim()).filter(Boolean)
+        : undefined,
+    }));
+
+    return {
+      name: (row['岗位名称(必填)'] || '').trim(),
+      nameEn: (row['英文名称(必填)'] || '').trim(),
+      code: (row['岗位编码'] || '').trim() || undefined,
+      departmentCode: (row['所属部门编码(必填)'] || '').trim(),
+      parentPositionCode: (row['上级岗位编码'] || '').trim() || undefined,
+      level: (row['层级'] || '').trim() ? Number(row['层级']) : undefined,
+      roleNames: (row['关联角色(分号分隔)'] || '').trim()
+        ? (row['关联角色(分号分隔)'] || '').split(/[;；]/).map(s => s.trim()).filter(Boolean)
+        : [],
+      headcount: (row['编制人数'] || '').trim() ? Number(row['编制人数']) : undefined,
+      responsibilities,
+      status: (((row['状态'] || 'active').trim() || 'active') as 'active' | 'inactive'),
+    };
+  });
 }

@@ -31,6 +31,9 @@ import { ExcelImportDialog } from './excel-import-dialog';
 import { GovernanceEditor } from './governance-editor';
 import { DataSourceEditor } from './data-source-editor';
 import { MetricsEditor } from './metrics-editor';
+import { LifecycleTab } from './lifecycle-tab';
+import { SemanticLayerTab } from './semantic-layer-tab';
+import { OrganizationEditor } from './organization-editor';
 import { updateProject, deleteProject } from '@/services/project-service';
 import type { OntologyProject, Entity, EntityProject, BusinessScenario } from '@/types/ontology';
 
@@ -110,14 +113,15 @@ interface ModelingWorkspaceProps {
   project: OntologyProject;
 }
 
-type ModelType = 'data' | 'behavior' | 'rule' | 'event' | 'epc';
-type WorkspaceScope = 'entity' | 'metrics' | 'governance' | 'dataSources';
+type ModelType = 'data' | 'behavior' | 'rule' | 'event' | 'epc' | 'lifecycle' | 'semantic';
+type WorkspaceScope = 'entity' | 'metrics' | 'governance' | 'dataSources' | 'organization';
 
 const PROJECT_LAYER_TABS: { id: WorkspaceScope; label: string; icon: string }[] = [
   { id: 'entity', label: '实体建模', icon: '🏗️' },
   { id: 'metrics', label: '指标', icon: '📊' },
   { id: 'governance', label: '治理', icon: '🛡️' },
   { id: 'dataSources', label: '数据源', icon: '🔌' },
+  { id: 'organization', label: '组织', icon: '🏢' },
 ];
 
 const MODEL_TABS = [
@@ -126,6 +130,8 @@ const MODEL_TABS = [
   { id: 'rule' as ModelType, label: '规则模型', icon: '📋' },
   { id: 'event' as ModelType, label: '事件模型', icon: '📨' },
   { id: 'epc' as ModelType, label: 'EPC事件说明书', icon: '🧭' },
+  { id: 'lifecycle' as ModelType, label: '生命周期', icon: '🔄' },
+  { id: 'semantic' as ModelType, label: 'Agent语义层', icon: '🧠' },
 ];
 
 const PROJECT_COLORS = [
@@ -1174,6 +1180,11 @@ export function ModelingWorkspace({ project }: ModelingWorkspaceProps) {
               <h2 className="text-lg font-semibold mb-4">数据源 (dataSources)</h2>
               <DataSourceEditor />
             </div>
+          ) : workspaceScope === 'organization' ? (
+            <div className="flex-1 overflow-auto p-6">
+              <h2 className="text-lg font-semibold mb-4">组织体系 (organization)</h2>
+              <OrganizationEditor />
+            </div>
           ) : selectedEntityId && relatedModels?.entity ? (
             (() => {
               const entity = relatedModels.entity;
@@ -1214,7 +1225,7 @@ export function ModelingWorkspace({ project }: ModelingWorkspaceProps) {
                             return null;
                           }
 
-                          const count = tab.id === 'data' 
+                          const count = tab.id === 'data'
                             ? entity.attributes.length
                             : tab.id === 'behavior'
                             ? relatedModels.stateMachines.length
@@ -1222,8 +1233,12 @@ export function ModelingWorkspace({ project }: ModelingWorkspaceProps) {
                             ? relatedModels.rules.length
                             : tab.id === 'event'
                             ? relatedModels.events.length
-                            : project.epcModel?.profiles.some((profile) => profile.aggregateId === entity.id)
-                            ? 1
+                            : tab.id === 'epc'
+                            ? project.epcModel?.profiles.some((profile) => profile.aggregateId === entity.id) ? 1 : 0
+                            : tab.id === 'lifecycle'
+                            ? (project.behaviorModel?.stateMachines.some((sm) => sm.entity === entity.id) ? 1 : 0)
+                            : tab.id === 'semantic'
+                            ? (project.agentSemanticLayer?.intents.filter((i) => i.targetEntityId === entity.id).length || 0)
                             : 0;
                           
                           return (
@@ -1270,6 +1285,14 @@ export function ModelingWorkspace({ project }: ModelingWorkspaceProps) {
 
                       <TabsContent value="epc" className="mt-0">
                         {selectedEntityId ? <EpcTab entityId={selectedEntityId} /> : null}
+                      </TabsContent>
+
+                      <TabsContent value="lifecycle" className="mt-0">
+                        {selectedEntityId ? <LifecycleTab entityId={selectedEntityId} /> : null}
+                      </TabsContent>
+
+                      <TabsContent value="semantic" className="mt-0">
+                        <SemanticLayerTab />
                       </TabsContent>
                     </div>
                   </Tabs>

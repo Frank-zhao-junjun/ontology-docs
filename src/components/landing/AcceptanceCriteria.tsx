@@ -52,12 +52,12 @@ const AcceptanceCriteria = () => {
     {
       icon: Package,
       title: '版本管理与审核',
-      description: '建模→发布版本→待审核→审核通过应用；支持版本回溯和差异对比',
+      description: '版本快照→待审核→审核通过应用；支持版本回溯和差异对比',
     },
     {
       icon: Brain,
       title: 'AI智能生成',
-      description: '输入实体信息→AI生成五大模型建议→一键应用到当前实体',
+      description: '输入实体信息+参考文档→AI生成12大模型建议→一键应用到当前实体',
     },
     {
       icon: Network,

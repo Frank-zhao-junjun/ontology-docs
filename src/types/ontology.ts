@@ -1249,6 +1249,8 @@ export interface EpcValidationSummary {
   score?: number;
   issues: EpcValidationIssue[];
   validatedAt?: string;
+  /** v3.1: per-model coverage breakdown */
+  modelCoverage?: EpcModelCoverage[];
 }
 
 export interface EpcAggregateProfile {
@@ -1273,6 +1275,42 @@ export interface EpcAggregateProfile {
   notes?: string;
   generatedDocument?: string;
   validationSummary?: EpcValidationSummary;
+}
+
+// ========== EPC 全域关联类型 (v3.1) ==========
+
+export type EpcModelRefModelType =
+  | 'entity' | 'attribute' | 'relation' | 'computedProperty'
+  | 'action' | 'transition' | 'stateMachine' | 'function' | 'state'
+  | 'rule'
+  | 'event' | 'subscription'
+  | 'process' | 'step'
+  | 'governanceRole' | 'fieldPermission' | 'governanceAgentPolicy'
+  | 'metric' | 'indicator'
+  | 'dataSource'
+  | 'masterData' | 'masterDataRecord'
+  | 'metadata'
+  | 'lifecycle' | 'semantic';
+
+export type EpcModelRefRole =
+  | 'core' | 'input' | 'output' | 'trigger' | 'condition' | 'permission'
+  | 'owner' | 'measure' | 'source' | 'reference' | 'template'
+  | 'guard' | 'compensate' | 'recovery' | 'intent' | 'term' | 'timeout';
+
+export interface EpcModelRef {
+  modelType: EpcModelRefModelType;
+  modelId: string;
+  modelName: string;
+  role: EpcModelRefRole;
+  description?: string;
+}
+
+/** EPC per-model coverage breakdown */
+export interface EpcModelCoverage {
+  modelType: EpcModelRefModelType;
+  totalAvailable: number;
+  totalReferenced: number;
+  coveragePercent: number;
 }
 
 export interface EpcModel {

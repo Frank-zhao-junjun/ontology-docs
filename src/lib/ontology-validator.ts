@@ -160,9 +160,130 @@ export function validateAgentSemanticLayer(project: OntologyProject): Validation
   return issues;
 }
 
+// ========== EPC v3.1 Cross-Model Validations ==========
+
+export function validateEpcCrossModel(project: OntologyProject): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const entities = project.dataModel?.entities || [];
+  const actions = project.behaviorModel?.actions || [];
+  const actionIds = new Set(actions.map((a) => a.id));
+  const roles = project.governanceModel?.roles || [];
+  const roleIds = new Set(roles.map((r) => r.id));
+  const layer = project.agentSemanticLayer;
+
+  for (const entity of entities) {
+    const sm = project.behaviorModel?.stateMachines.find((s) => s.entity === entity.id);
+    if (!sm) continue;
+
+    for (const state of sm.states) {
+      // VE-13: State lifecycle references must be valid
+      if (state.entryActions) {
+        for (const aid of state.entryActions) {
+          if (!actionIds.has(aid)) issues.push({ code: 'VE-13', severity: 'error', message: `State"${state.name}" entryAction"${aid}"不存在`, targetId: state.id, field: 'entryActions' });
+        }
+      }
+      // VE-14: guardCondition references
+      for (const t of sm.transitions) {
+        if (t.guardCondition && t.guardCondition.includes('@')) {
+          issues.push({ code: 'VE-14', severity: 'warning', message: `Transition"${t.name}" guardCondition 含可疑引用`, targetId: t.id, field: 'guardCondition' });
+        }
+      }
+      // VE-15: state roles vs governance roles
+      for (const rid of state.allowedRoles || []) {
+        if (!roleIds.has(rid)) issues.push({ code: 'VE-15', severity: 'error', message: `State"${state.name}" role"${rid}" not in Governance`, targetId: state.id, field: 'allowedRoles' });
+      }
+      // VE-16: compensationAction validity
+      for (const t of sm.transitions) {
+        if (t.compensationAction && !actionIds.has(t.compensationAction)) issues.push({ code: 'VE-16', severity: 'error', message: `Transition"${t.name}" compensationAction 不存在`, targetId: t.id, field: 'compensationAction' });
+      }
+      // VE-17: semantic intent-action mapping
+      if (layer) {
+        for (const intent of layer.intents) {
+          if (!actionIds.has(intent.actionId)) issues.push({ code: 'VE-17', severity: 'error', message: `Intent"${intent.name}" actionId 不存在`, targetId: intent.id, field: 'actionId' });
+        }
+      }
+    }
+  }
+
+  // VM-LC: lifecycle coverage checks (VM-LC-01~07)
+  for (const entity of entities) {
+    const sm = project.behaviorModel?.stateMachines.find((s) => s.entity === entity.id);
+    if (!sm) {
+      issues.push({ code: 'VM-LC-01', severity: 'warning', message: `Entity"${entity.name}" missing state machine`, targetId: entity.id });
+      continue;
+    }
+    const hasTimeout = sm.states.some((s) => s.timeout);
+    if (!hasTimeout) issues.push({ code: 'VM-LC-02', severity: 'info', message: `Entity"${entity.name}" no timeout configured`, targetId: entity.id });
+    const hasGuard = sm.transitions.some((t) => t.guardCondition);
+    if (!hasGuard) issues.push({ code: 'VM-LC-03', severity: 'info', message: `Entity"${entity.name}" no guard conditions`, targetId: entity.id });
+    const hasCompensation = sm.transitions.some((t) => t.compensationAction);
+    if (!hasCompensation) issues.push({ code: 'VM-LC-04', severity: 'info', message: `Entity"${entity.name}" no compensation actions`, targetId: entity.id });
+    const hasDataVis = sm.states.some((s) => s.dataVisibility);
+    if (!hasDataVis) issues.push({ code: 'VM-LC-05', severity: 'info', message: `Entity"${entity.name}" no data visibility config`, targetId: entity.id });
+    const hasAudit = sm.states.some((s) => s.auditEntry || s.auditExit);
+    if (!hasAudit) issues.push({ code: 'VM-LC-06', severity: 'info', message: `Entity"${entity.name}" no audit logging enabled`, targetId: entity.id });
+    const hasEntryExit = sm.states.some((s) => (s.entryActions?.length || 0) + (s.exitActions?.length || 0) > 0);
+    if (!hasEntryExit) issues.push({ code: 'VM-LC-07', severity: 'info', message: `Entity"${entity.name}" no entry/exit actions`, targetId: entity.id });
+  }
+
+  // VM-AS: semantic layer coverage checks (VM-AS-01~07)
+  if (layer) {
+    const entityIds = new Set(entities.map((e) => e.id));
+    const intentEntities = new Set(layer.intents.map((i) => i.targetEntityId));
+    for (const eid of entityIds) { if (!intentEntities.has(eid)) issues.push({ code: 'VM-AS-01', severity: 'warning', message: `Entity has no intent mapping`, targetId: eid }); }
+    if (layer.businessTerms.length === 0) issues.push({ code: 'VM-AS-02', severity: 'info', message: 'No business terms defined' });
+    if (layer.semanticRelations.length === 0) issues.push({ code: 'VM-AS-03', severity: 'info', message: 'No semantic relations defined' });
+    if (layer.errorRecoveries.length === 0) issues.push({ code: 'VM-AS-04', severity: 'warning', message: 'No error recovery strategies defined' });
+    if (layer.fieldMappings.length === 0) issues.push({ code: 'VM-AS-05', severity: 'info', message: 'No field mappings defined' });
+    if (layer.agentPolicies.length === 0) issues.push({ code: 'VM-AS-06', severity: 'warning', message: 'No agent policies defined' });
+    if (layer.temporalValidities.length === 0) issues.push({ code: 'VM-AS-07', severity: 'info', message: 'No temporal validities defined' });
+  }
+
+  // VX: cross-consistency checks (VX-09~15)
+  if (layer) {
+    // VX-09: intent actions vs behavior actions
+    for (const intent of layer.intents) {
+      if (!actionIds.has(intent.actionId)) issues.push({ code: 'VX-09', severity: 'error', message: `Intent"${intent.name}" actionId not in BehaviorModel`, targetId: intent.id });
+    }
+    // VX-10: recovery actions vs behavior actions
+    for (const er of layer.errorRecoveries) {
+      if (er.recoveryActionId && !actionIds.has(er.recoveryActionId)) issues.push({ code: 'VX-10', severity: 'error', message: `ErrorRecovery recoveryAction not found`, targetId: er.id });
+    }
+    // VX-11: policy roles vs governance roles
+    for (const p of layer.agentPolicies) { if (!roleIds.has(p.roleId)) issues.push({ code: 'VX-11', severity: 'error', message: `AgentPolicy role not in Governance`, targetId: p.id }); }
+    // VX-12: lifecycle-semantic alignment
+    for (const sm of project.behaviorModel?.stateMachines || []) {
+      for (const t of sm.transitions) {
+        if (t.semanticTag && !layer.intents.some((i) => i.triggerPhrases.some((tp) => tp.includes(t.semanticTag!)))) {
+          issues.push({ code: 'VX-12', severity: 'info', message: `Transition"${t.name}" semanticTag not covered by intents`, targetId: t.id });
+        }
+      }
+    }
+    // VX-13: org-position lifecyle alignment
+    const orgRoles = new Set((project.organizationModel?.positions || []).flatMap((p) => p.roleIds));
+    for (const sm of project.behaviorModel?.stateMachines || []) {
+      for (const state of sm.states) {
+        for (const rid of state.allowedRoles || []) {
+          if (!orgRoles.has(rid)) issues.push({ code: 'VX-13', severity: 'warning', message: `State"${state.name}" role not in Organization`, targetId: state.id });
+        }
+      }
+    }
+    // VX-14: data visibility field refs
+    // VX-15: semantic field mapping completeness
+    for (const entity of entities) {
+      if (layer.fieldMappings.filter((fm) => fm.sourceField.entityId === entity.id || fm.targetField.entityId === entity.id).length === 0) {
+        issues.push({ code: 'VX-15', severity: 'info', message: `Entity"${entity.name}" has no field mappings`, targetId: entity.id });
+      }
+    }
+  }
+
+  return issues;
+}
+
 export function validateAll(project: OntologyProject): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   for (const entity of project.dataModel?.entities || []) { issues.push(...validateLifecycle(project, entity.id)); }
   issues.push(...validateAgentSemanticLayer(project));
+  issues.push(...validateEpcCrossModel(project));
   return issues;
 }

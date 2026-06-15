@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateLifecycle, validateAgentSemanticLayer, validateAll } from '../ontology-validator';
+import { validateLifecycle, validateAgentSemanticLayer, validateAll, validateEpcCrossModel } from '../ontology-validator';
 import type { OntologyProject } from '@/types/ontology';
 
 function makeBaseProject(): OntologyProject {
@@ -168,6 +168,73 @@ describe('validateAgentSemanticLayer', () => {
     const issues = validateAll(project);
     expect(issues.length).toBeGreaterThan(0);
     expect(issues.some((i) => i.code === 'V-LC-01')).toBe(true);
+  });
+});
+
+// ========== EPC v3.1 Cross-Model Tests ==========
+
+describe('validateEpcCrossModel', () => {
+  it('VM-LC-01: warns when entity has no state machine', () => {
+    const project = makeBaseProject();
+    project.dataModel!.entities.push({
+      id: 'e2', name: '客户', nameEn: 'Customer', projectId: '', businessScenarioId: '',
+      entityRole: 'aggregate_root', attributes: [], relations: [],
+    });
+    const issues = validateEpcCrossModel(project);
+    expect(issues.some((i) => i.code === 'VM-LC-01')).toBe(true);
+  });
+
+  it('VM-AS-02: info when no business terms defined', () => {
+    const project = makeBaseProject();
+    project.agentSemanticLayer = {
+      intents: [], dialogContextTemplate: { ttl: 300, referencedEntities: [], turnCount: 0, state: 'idle' },
+      semanticRelations: [], businessTerms: [], errorRecoveries: [],
+      temporalValidities: [], fieldMappings: [], agentPolicies: [],
+      metadata: { version: '1.0', lastUpdated: '', totalIntents: 0, totalTerms: 0, totalRelations: 0, coverage: { entitiesWithIntents: 0, totalEntities: 1, actionsWithRecovery: 0, totalActions: 0 } },
+    };
+    const issues = validateEpcCrossModel(project);
+    expect(issues.some((i) => i.code === 'VM-AS-02')).toBe(true);
+  });
+
+  it('VM-AS-04: warns when no error recovery defined', () => {
+    const project = makeBaseProject();
+    project.agentSemanticLayer = {
+      intents: [], dialogContextTemplate: { ttl: 300, referencedEntities: [], turnCount: 0, state: 'idle' },
+      semanticRelations: [], businessTerms: [], errorRecoveries: [],
+      temporalValidities: [], fieldMappings: [], agentPolicies: [],
+      metadata: { version: '1.0', lastUpdated: '', totalIntents: 0, totalTerms: 0, totalRelations: 0, coverage: { entitiesWithIntents: 0, totalEntities: 1, actionsWithRecovery: 0, totalActions: 0 } },
+    };
+    const issues = validateEpcCrossModel(project);
+    expect(issues.some((i) => i.code === 'VM-AS-04')).toBe(true);
+  });
+
+  it('VM-AS-01: warns entity has no intent mapping', () => {
+    const project = makeBaseProject();
+    project.agentSemanticLayer = {
+      intents: [], dialogContextTemplate: { ttl: 300, referencedEntities: [], turnCount: 0, state: 'idle' },
+      semanticRelations: [], businessTerms: [], errorRecoveries: [],
+      temporalValidities: [], fieldMappings: [], agentPolicies: [],
+      metadata: { version: '1.0', lastUpdated: '', totalIntents: 0, totalTerms: 0, totalRelations: 0, coverage: { entitiesWithIntents: 0, totalEntities: 1, actionsWithRecovery: 0, totalActions: 0 } },
+    };
+    const issues = validateEpcCrossModel(project);
+    expect(issues.some((i) => i.code === 'VM-AS-01')).toBe(true);
+  });
+
+  it('VE-16: errors on invalid compensationAction ref', () => {
+    const project = makeBaseProject();
+    project.behaviorModel!.stateMachines[0].transitions[0].compensationAction = 'nonexistent';
+    const issues = validateEpcCrossModel(project);
+    expect(issues.some((i) => i.code === 'VE-16')).toBe(true);
+  });
+
+  it('validateAll includes EPC cross-model issues', () => {
+    const project = makeBaseProject();
+    project.dataModel!.entities.push({
+      id: 'e3', name: '供应商', nameEn: 'Supplier', projectId: '', businessScenarioId: '',
+      entityRole: 'aggregate_root', attributes: [], relations: [],
+    });
+    const issues = validateAll(project);
+    expect(issues.some((i) => i.code === 'VM-LC-01')).toBe(true);
   });
 });
 

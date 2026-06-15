@@ -45,7 +45,14 @@ ${truncatedText}
 
 只返回JSON数组，不要其他内容。`;
 
-    const result = await client.chat({ prompt, temperature: 0.3 });
+    const messages = [{ role: 'user' as const, content: prompt }];
+    const stream = client.stream(messages, { temperature: 0.3 });
+    let result = '';
+    for await (const chunk of stream) {
+      if (chunk.content) {
+        result += chunk.content.toString();
+      }
+    }
 
     let entities: ExtractedEntity[] = [];
     try {

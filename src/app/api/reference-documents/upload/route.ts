@@ -49,8 +49,8 @@ export async function POST(request: NextRequest) {
           break;
         }
         case 'pdf': {
-          const pdfParse = await import('pdf-parse');
-          const result = await pdfParse.default(buffer);
+          const pdfParse = (await import('pdf-parse')) as unknown as (buf: Buffer) => Promise<{ text: string }>;
+          const result = await pdfParse(buffer);
           extractedText = result.text;
           break;
         }

@@ -62,6 +62,8 @@ Implementation Roadmap v1.1
 | **Excel导入** | **模板下载+文件上传+数据校验+解析为模型对象+生成待审核版本+审核流程** | **✅ 新增** |
 | **EPC全域关联** | **链路建模+模型关联+流程图渲染+双向校验(40+规则)** | **✅ 新增** |
 | **组织体系建模** | **部门树+岗位+角色关联+EPC引用** | **✅ 新增** |
+| **Entity Lifecycle** | **State/Transition/Action增强+聚合视图+审计追溯+15条校验规则** | **✅ 新增** |
+| **Agent Semantic Layer** | **意图映射+槽位填充+对话上下文+语义关系+术语词典+错误恢复+Agent策略** | **✅ 新增** |
 | **AI代理框架** | **Superpowers + Gstack + Ralph Loop** | **✅ 新增** |
 2.1.1 补充约束：业务场景归属
 - 实体创建必须绑定 `businessScenarioId`，形成“项目 → 业务场景 → 实体 → 四大元模型”的固定归属链路。
@@ -89,6 +91,28 @@ Implementation Roadmap v1.1
 - 双向校验新增 VM-O(5条)：部门覆盖、组织树环路、岗位归属、角色引用、变更确认。
 - 建模工作台新增「组织」Tab，三栏布局：部门树 | 岗位列表 | 关联视图。
 - Excel导入扩展：模板新增「部门」和「岗位」2个Sheet。
+
+2.1.5 补充约束：Entity Lifecycle（实体生命周期）
+- State 增强 7 个字段：entryActions/exitActions/availableActions/constraints/allowedRoles/timeout/dataVisibility。
+- Transition 增强 4 个字段：guardCondition/compensationAction/sideEffects/auditLog。
+- Action 增强：aliases/triggerPhrases/successMessage/failureMessage/fallbackActionId/requiresConfirmation。
+- 新增 EntityLifecycle 聚合视图：actionsByState/rulesByState/eventsByState/rolesByState/auditTrail/stats。
+- 新增 LifecycleAuditEntry：记录每次状态变更的时间戳/事件类型/状态变更/操作/执行者/结果。
+- 新增校验规则 V-LC-01~15：状态可达性、引用完整性、guardCondition 语法、孤立状态检测等。
+- 建模工作台新增「生命周期」Tab：状态流转图 + 状态详情 + 审计记录。
+
+2.1.6 补充约束：Agent Semantic Layer（Agent 语义层）
+- 新增 Intent 类型：将自然语言短语映射到 Action，含 triggerPhrases/slotFilling/contextConstraints。
+- 新增 SlotFillingStrategy：定义参数追问顺序、校验规则、默认值、上下文推断。
+- 新增 DialogContext：维护聚焦实体、最近操作、指代消解、pendingIntent。
+- 新增 SemanticRelation：定义 is-a/part-of/synonym-of/causes/depends-on 等 10 种语义关系。
+- 新增 BusinessTerm：统一术语定义、同义词、歧义说明、模型引用、时效性。
+- 新增 ErrorRecovery：定义操作失败后的重试/回退/升级/补偿/询问用户策略。
+- 新增 TemporalValidity：为模型元素添加生效/失效时间、版本号、变更说明。
+- 新增 SemanticFieldMapping：自动推断跨实体字段等价关系（exact_match/derived/composed/renamed）。
+- 新增 AgentPolicy：定义 Agent 行为边界（allow/deny/confirm/escalate），支持全局/意图/实体/操作/领域多级范围。
+- 新增 API：GET /api/agent-semantic-layer 导出完整 AgentSemanticLayer JSON。
+- 新增「语义层」管理入口：意图管理/术语词典/语义关系/错误恢复/Agent策略/字段映射/时效管理/完备性仪表盘。
 
 
 

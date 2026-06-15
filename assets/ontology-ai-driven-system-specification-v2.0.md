@@ -68,6 +68,19 @@
 | | 流程图 | @xyflow/react 自定义节点渲染 |
 | **组织** | 组织模型 | Department(树形)+Position(岗位)，OrganizationModel为一级模型 |
 | | 岗位关联 | Position.roleIds→GovernanceRole，EPC OrgUnit引用Department/Position |
+| **生命周期** | State增强 | entryActions/exitActions/availableActions/constraints/allowedRoles/timeout/dataVisibility |
+| | Transition增强 | guardCondition/compensationAction/sideEffects/publishEventId/notifyRoleIds/requiresApproval/auditLog |
+| | Action增强 | aliases/triggerPhrases/successMessage/failureMessage/fallbackActionId/requiresConfirmation |
+| | 聚合视图 | EntityLifecycle一站式聚合+LifecycleAuditEntry审计追溯 |
+| | 校验规则 | V-LC-01~15 生命周期完整性与一致性校验 |
+| **语义层** | 意图映射 | Intent将自然语言短语映射到Action，含triggerPhrases/slotFilling |
+| | 槽位填充 | SlotFillingStrategy定义参数追问顺序、校验规则、默认值、上下文推断 |
+| | 对话上下文 | DialogContext维护聚焦实体、最近操作、指代消解 |
+| | 语义关系 | SemanticRelation定义is-a/part-of/synonym-of/causes等10种语义关系 |
+| | 术语词典 | BusinessTerm统一术语定义、同义词、歧义说明、模型引用 |
+| | 错误恢复 | ErrorRecovery定义操作失败后的重试/回退/升级/补偿策略 |
+| | Agent策略 | AgentPolicy定义Agent行为边界（allow/deny/confirm/escalate） |
+| | 完备性 | 10维度评估：55→81分（+26），意图映射从0→9 |
 | **导入** | Excel导入 | 模板下载+文件上传+数据校验+解析为模型对象+生成待审核版本 |
 | | 版本审核 | pending_review/rejected状态，审核通过应用Excel数据到工作区 |
 | **交互** | 布局 | 三栏式（对话/数据/上下文） |
@@ -145,6 +158,8 @@
 | 手册导出 | Markdown格式 | ✅ 保持 |
 | EPC全域关联 | 事件-流程-动作链路+模型关联+流程图 | 🆕 新增 |
 | 组织体系建模 | 部门树+岗位+角色关联 | 🆕 新增 |
+| Entity Lifecycle | State/Transition/Action增强+聚合视图+审计 | 🆕 新增 |
+| Agent Semantic Layer | 意图映射+槽位填充+语义关系+术语词典+Agent策略 | 🆕 新增 |
 | 双向校验 | EPC↔模型 40+条规则+覆盖率 | 🆕 新增 |
 | Excel导入 | 模板下载+上传校验+解析+待审核版本 | 🆕 新增 |
 | 版本审核 | pending_review/rejected+应用数据 | 🆕 新增 |
@@ -492,6 +507,223 @@ EPC 的 `EpcOrganizationalUnit` 通过 `refType/refId` 引用 Department 或 Pos
 | VM-O03 | 活跃岗位必须有部门归属 | error |
 | VM-O04 | 岗位引用的Role必须存在 | error |
 | VM-O05 | 组织变更(部门/岗位)需EPC确认 | warning |
+
+---
+
+### 3.2.6 Entity Lifecycle（实体生命周期）——详细设计
+
+> **可追溯**：与 `docs/Entity-Lifecycle-Spec.md` v1.0 对应
+
+#### 设计目标
+
+将 State 从"标签"升级为"一等公民"，让 Agent 无需跨模型拼凑即可完整理解 Entity 的生命周期。
+
+#### State 增强
+
+```typescript
+interface State {
+  // 现有字段保留...
+  /** 进入状态时自动执行的动作ID列表 */
+  entryActions?: string[];
+  /** 离开状态时自动执行的动作ID列表 */
+  exitActions?: string[];
+  /** 在此状态下可执行的动作ID列表（Agent 操作菜单） */
+  availableActions?: string[];
+  /** 在此状态下生效的规则ID列表 */
+  constraints?: string[];
+  /** 在此状态下可操作的角色ID列表 */
+  allowedRoles?: string[];
+  /** 状态超时配置 */
+  timeout?: StateTimeout;
+  /** 状态级字段可见性 */
+  dataVisibility?: StateDataVisibility;
+  /** 业务语义标签 */
+  semanticTag?: 'created' | 'pending' | 'processing' | 'reviewing' | 'approved' | 'rejected' | 'completed' | 'cancelled' | 'archived' | 'custom';
+}
+```
+
+#### Transition 增强
+
+```typescript
+interface Transition {
+  // 现有字段保留...
+  /** 守卫条件表达式 */
+  guardCondition?: string;
+  guardFailureMessage?: string;
+  /** 回滚/补偿动作ID */
+  compensationAction?: string;
+  /** 结构化的副作用 */
+  sideEffects?: SideEffect[];
+  /** 转换时发布的事件ID */
+  publishEventId?: string;
+  /** 转换时通知的角色ID列表 */
+  notifyRoleIds?: string[];
+  /** 是否需要审批 */
+  requiresApproval?: boolean;
+  approvalRoleIds?: string[];
+  /** 是否记录审计日志 */
+  auditLog?: boolean;
+  /** 语义标签 */
+  semanticTag?: 'submit' | 'approve' | 'reject' | 'cancel' | 'revise' | 'complete' | 'archive' | 'custom';
+}
+```
+
+#### Action 增强
+
+```typescript
+interface Action {
+  // 现有字段保留...
+  /** 自然语言别名（Agent 意图匹配用） */
+  aliases?: string[];
+  /** 触发短语（Agent NLU 用） */
+  triggerPhrases?: string[];
+  successMessage?: string;
+  failureMessage?: string;
+  /** 失败后的回退动作ID */
+  fallbackActionId?: string;
+  requiresConfirmation?: boolean;
+  confirmationMessage?: string;
+  idempotencyKeyTemplate?: string;
+}
+```
+
+#### 新增类型
+
+- `EntityLifecycle`：聚合视图（actionsByState/rulesByState/eventsByState/rolesByState/auditTrail/stats）
+- `LifecycleAuditEntry`：审计记录（timestamp/eventType/fromStateId/toStateId/actionId/actorRoleId/result/snapshot）
+- `StateTimeout`：超时配置（duration/unit/onTimeout/targetStateId/notifyRoleIds/escalateRoleId）
+- `StateDataVisibility`：字段可见性（visibleFields/editableFields/hiddenFields/requiredFields）
+
+#### 校验规则（15 条）
+
+| 编号 | 规则 | 级别 |
+|------|------|------|
+| V-LC-01 | 非终止状态必须有 outgoing transition | warning |
+| V-LC-02 | 非初始状态必须有 incoming transition | warning |
+| V-LC-03 | availableActions 引用完整性 | error |
+| V-LC-04 | constraints 引用完整性 | error |
+| V-LC-05 | allowedRoles 引用完整性 | error |
+| V-LC-06 | timeout.targetStateId 有效性 | error |
+| V-LC-07 | guardCondition 语法校验 | error |
+| V-LC-08 | compensationAction 引用完整性 | error |
+| V-LC-09 | dataVisibility 字段有效性 | error |
+| V-LC-10 | 孤立状态检测 | warning |
+| V-LC-11 | entryActions 引用完整性 | error |
+| V-LC-12 | exitActions 引用完整性 | error |
+| V-LC-13 | triggerableEvents 引用完整性 | error |
+| V-LC-14 | fallbackActionId 引用完整性 | error |
+| V-LC-15 | 终止状态不应有 outgoing transition | warning |
+
+#### UI
+
+- 建模工作台新增「生命周期」Tab：状态流转图（Mermaid/@xyflow）+ 状态详情 + 审计记录
+- State 编辑对话框新增「生命周期配置」折叠面板
+- Transition 编辑对话框新增「高级配置」折叠面板
+- Action 编辑对话框新增「Agent 语义」折叠面板
+
+#### API
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/entity-lifecycle?entityId=xxx` | GET | 返回完整 EntityLifecycle JSON |
+
+---
+
+### 3.2.7 Agent Semantic Layer（Agent 语义层）——详细设计
+
+> **可追溯**：与 `docs/Agent-Semantic-Layer-Spec.md` v1.0 对应
+
+#### 定位
+
+本体模型之上的第 11 个模型，专门解决"AI Agent 如何精准理解企业语义并正确执行任务"的问题。
+
+#### 核心数据结构
+
+```typescript
+interface AgentSemanticLayer {
+  intents: Intent[];                    // 意图列表
+  dialogContextTemplate: DialogContext; // 对话上下文模板
+  semanticRelations: SemanticRelation[]; // 语义关系
+  businessTerms: BusinessTerm[];       // 业务术语词典
+  errorRecoveries: ErrorRecovery[];    // 错误恢复策略
+  temporalValidities: TemporalValidity[]; // 时效性标记
+  fieldMappings: SemanticFieldMapping[];  // 跨实体字段映射
+  agentPolicies: AgentPolicy[];        // Agent 行为策略
+  metadata: { version, lastUpdated, totalIntents, totalTerms, totalRelations, coverage };
+}
+```
+
+#### 9 大子模型
+
+| 子模型 | 核心字段 | 解决的问题 |
+|--------|---------|-----------|
+| Intent | triggerPhrases/actionId/slotFilling/contextConstraints | "用户说X时我该做什么？" |
+| SlotFillingStrategy | slots/requiredSlots/fillOrder/allowBatchFill | "参数不完整时追问什么？" |
+| DialogContext | focusedEntity/lastAction/referencedEntities/pendingIntent | "用户说的'它'指什么？" |
+| SemanticRelation | type(is-a/part-of/synonym-of等)/sourceEntityId/targetEntityId | "采购订单和销售订单什么关系？" |
+| BusinessTerm | term/synonyms/definition/examples/modelRefs | "这个术语在不同上下文中的含义？" |
+| ErrorRecovery | errorType/errorPattern/strategy/recoveryActionId/agentMessage | "操作失败了怎么办？" |
+| TemporalValidity | targetType/targetId/effectiveDate/expiryDate/version | "这个规则现在生效吗？" |
+| SemanticFieldMapping | sourceField/targetField/type/transformRule | "物料.编码和订单.物料编码是同一个吗？" |
+| AgentPolicy | roleId/policyType/scope/rules/priority | "Agent能自主执行哪些操作？" |
+
+#### Agent 工作流
+
+```
+用户: "帮我创建一个采购订单，供应商华为，数量100"
+
+Step 1: 意图识别 → Intent: create_po (confidence: 0.95)
+Step 2: 槽位填充 → supplier=华为 ✅, quantity=100 ✅, deliveryDate=? ❌
+Step 3: 追问 → "好的，还需要确认交货日期，您希望什么时候交货？"
+Step 4: 确认+执行 → 调用 Action: createPurchaseOrder
+```
+
+#### 校验规则（15 条）
+
+| 编号 | 规则 | 级别 |
+|------|------|------|
+| V-AS-01 | Intent.actionId 引用完整性 | error |
+| V-AS-02 | Intent.targetEntityId 引用完整性 | error |
+| V-AS-03 | Intent.slotFilling.slots[].paramName 必须在 Action.parameters 中 | error |
+| V-AS-04 | Intent.requiredSlots 必须是 slots 的子集 | error |
+| V-AS-05 | SemanticRelation 两端实体必须存在 | error |
+| V-AS-06 | BusinessTerm.modelRefs 引用完整性 | error |
+| V-AS-07 | ErrorRecovery.actionId 引用完整性 | error |
+| V-AS-08 | ErrorRecovery.recoveryActionId 引用完整性 | error |
+| V-AS-09 | AgentPolicy.roleId 引用完整性 | error |
+| V-AS-10 | SemanticFieldMapping 两端字段必须存在 | error |
+| V-AS-11 | TemporalValidity.targetId 引用完整性 | error |
+| V-AS-12 | TemporalValidity 时间范围合法性 | error |
+| V-AS-13 | Intent.triggerPhrases 非空 | warning |
+| V-AS-14 | 同一 Action 无 ErrorRecovery | warning |
+| V-AS-15 | 同一 Role 无 AgentPolicy | warning |
+
+#### Agent 完备性评估
+
+| 维度 | 实施前 | 实施后 | 提升 |
+|------|:---:|:---:|:---:|
+| 身份识别 | 8 | 9 | +1 |
+| 可操作性 | 6 | 9 | +3 |
+| 时机判断 | 7 | 9 | +2 |
+| 约束感知 | 7 | 8 | +1 |
+| 后果预知 | 6 | 8 | +2 |
+| 归属认知 | 6 | 8 | +2 |
+| 数据溯源 | 5 | 7 | +2 |
+| 度量感知 | 5 | 5 | — |
+| 关联理解 | 5 | 9 | +4 |
+| 意图映射 | 0 | 9 | +9 |
+| **总分** | **55** | **81** | **+26** |
+
+#### UI
+
+- 新增「语义层」管理入口（与领域选择/项目管理/建模工作台/EPC/手册平级）
+- 8 个子模块：意图管理/术语词典/语义关系/错误恢复/Agent策略/字段映射/时效管理/完备性仪表盘
+
+#### API
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/agent-semantic-layer` | GET | 返回完整 AgentSemanticLayer JSON（含 coverage 统计） |
 
 ---
 

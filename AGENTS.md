@@ -96,7 +96,27 @@ src/
 - JSON 格式导出
 - 实体维度/项目维度手册
 
-### 10. Excel 导入 (Excel Import)
+### 10. Entity Lifecycle（实体生命周期）
+- **State 增强**：entryActions/exitActions/availableActions/constraints/allowedRoles/timeout/dataVisibility
+- **Transition 增强**：guardCondition/compensationAction/sideEffects/publishEventId/notifyRoleIds/requiresApproval/auditLog
+- **Action 增强**：aliases/triggerPhrases/successMessage/failureMessage/fallbackActionId/requiresConfirmation/idempotencyKeyTemplate
+- **聚合视图**：EntityLifecycle 一站式聚合 StateMachine + Action + Rule + Event 中的生命周期信息
+- **审计追溯**：LifecycleAuditEntry 记录每次状态变更的完整上下文
+- **校验规则**：V-LC-01~15 生命周期完整性与一致性校验
+
+### 11. Agent Semantic Layer（Agent 语义层）
+- **意图映射**：Intent 将自然语言短语映射到 Action，含 triggerPhrases/slotFilling/contextConstraints
+- **槽位填充**：SlotFillingStrategy 定义参数追问顺序、校验规则、默认值、上下文推断
+- **对话上下文**：DialogContext 维护聚焦实体、最近操作、指代消解
+- **语义关系**：SemanticRelation 定义 is-a/part-of/synonym-of/causes/depends-on 等 10 种语义关系
+- **业务术语词典**：BusinessTerm 统一术语定义、同义词、歧义说明、模型引用
+- **错误恢复**：ErrorRecovery 定义操作失败后的重试/回退/升级/补偿策略
+- **时效性标记**：TemporalValidity 为模型元素添加生效/失效时间
+- **字段映射**：SemanticFieldMapping 自动推断跨实体字段等价关系
+- **Agent 策略**：AgentPolicy 定义 Agent 行为边界（允许/拒绝/确认/升级）
+- **完备性仪表盘**：可视化语义层覆盖度（意图覆盖率/术语数/关系数/缺失提醒）
+
+### 12. Excel 导入 (Excel Import)
 - **模板下载**：GET /api/excel-template 生成含7个Sheet（填写说明+6数据Sheet）的 .xlsx 模板
 - **文件上传**：POST /api/excel-import 仅接受 .xlsx，5MB上限，Sheet结构校验
 - **数据校验**：必填字段、枚举值、布尔类型、跨Sheet引用完整性校验
@@ -262,6 +282,18 @@ POST /api/excel-import
 - 跨Sheet引用: 属性/关系/状态机/规则/事件中的实体英文名必须在实体Sheet中存在
 - 描述行/示例行: 以 `#DESC#`/`#EXAMPLE#` 开头的行自动跳过
 
+### Entity Lifecycle 导出
+```
+GET /api/entity-lifecycle?entityId=xxx
+```
+返回 EntityLifecycle 聚合视图（actionsByState/rulesByState/eventsByState/rolesByState/auditTrail/stats）。
+
+### Agent 语义层导出
+```
+GET /api/agent-semantic-layer
+```
+返回完整 AgentSemanticLayer JSON（intents/terms/relations/recoveries/policies/mappings + metadata.coverage 统计）。
+
 ## 类型定义
 
 所有类型定义位于 `src/types/ontology.ts`，主要包括：
@@ -278,6 +310,19 @@ POST /api/excel-import
 - `Subscription` - 事件订阅
 - `Metadata` - 元数据定义
 - `OntologyProject` - 完整项目结构
+- `Intent` - Agent 意图定义
+- `IntentSlot` / `SlotFillingStrategy` - 槽位填充
+- `DialogContext` - 对话上下文
+- `SemanticRelation` - 语义关系
+- `BusinessTerm` - 业务术语
+- `ErrorRecovery` - 错误恢复策略
+- `TemporalValidity` - 时效性标记
+- `SemanticFieldMapping` - 跨实体字段映射
+- `AgentPolicy` - Agent 行为策略
+- `AgentSemanticLayer` - Agent 语义层聚合
+- `EntityLifecycle` - 实体生命周期聚合
+- `LifecycleAuditEntry` - 生命周期审计记录
+- `StateTimeout` / `StateDataVisibility` - 状态增强
 
 ## 构建与部署
 

@@ -101,6 +101,8 @@ Ontology Modeling Tool - MVP Implementation Roadmap
 | Excel导入   | 模板下载+文件上传+数据校验+解析为模型对象+生成待审核版本+审核流程 | 新增 |
 | EPC全域关联   | 链路建模+模型关联+流程图渲染+双向校验(40+规则) | 新增 |
 | 组织体系建模   | 部门树+岗位+角色关联+EPC引用 | 新增 |
+| Entity Lifecycle | State/Transition/Action增强+聚合视图+审计追溯+15条校验规则 | 新增 |
+| Agent Semantic Layer | 意图映射+槽位填充+对话上下文+语义关系+术语词典+错误恢复+Agent策略 | 新增 |
 | 手册导出    | Markdown格式     | ✅ 保持 |
 
 2.1.1 实体聚合角色建模规范
@@ -974,3 +976,113 @@ US-ORG-5: Excel 批量导入
 | VM-O03 | 活跃岗位必须有部门归属 | error |
 | VM-O04 | 岗位引用的 Role 必须存在 | error |
 | VM-O05 | 组织变更需 EPC 确认 | warning |
+
+九、Entity Lifecycle（实体生命周期）
+
+9.1 功能概述
+
+将 State 从"标签"升级为"一等公民"，让 Agent 无需跨模型拼凑即可完整理解 Entity 的生命周期。详见 `docs/Entity-Lifecycle-Spec.md`。
+
+9.2 核心增强
+
+- State 增强 7 个字段：entryActions/exitActions/availableActions/constraints/allowedRoles/timeout/dataVisibility
+- Transition 增强 4 个字段：guardCondition/compensationAction/sideEffects/auditLog
+- Action 增强：aliases/triggerPhrases/successMessage/failureMessage/fallbackActionId/requiresConfirmation
+- 新增 EntityLifecycle 聚合视图：actionsByState/rulesByState/eventsByState/rolesByState/auditTrail/stats
+- 新增 LifecycleAuditEntry：记录每次状态变更的完整上下文
+
+9.3 User Stories
+
+US-LC-1: State 生命周期增强 — 配置 entryActions/exitActions/availableActions/constraints/allowedRoles/timeout/dataVisibility
+US-LC-2: Transition 生命周期增强 — 配置 guardCondition/compensationAction/sideEffects/publishEventId/notifyRoleIds/requiresApproval/auditLog
+US-LC-3: Action 语义增强 — 配置 aliases/triggerPhrases/successMessage/failureMessage/fallbackActionId/requiresConfirmation
+US-LC-4: EntityLifecycle 聚合视图 — 以 Entity 为中心展示完整生命周期（状态流转图+状态详情+审计记录）
+US-LC-5: 生命周期校验 — V-LC-01~15 完整性与一致性校验
+US-LC-6: 生命周期审计 — 查看 Entity 的生命周期变更历史
+US-LC-7: Agent 语义层导出 — GET /api/entity-lifecycle 返回完整 EntityLifecycle JSON
+
+9.4 校验规则（15 条）
+
+| 编号 | 规则 | 级别 |
+|------|------|------|
+| V-LC-01 | 非终止状态必须有 outgoing transition | warning |
+| V-LC-02 | 非初始状态必须有 incoming transition | warning |
+| V-LC-03 | availableActions 引用完整性 | error |
+| V-LC-04 | constraints 引用完整性 | error |
+| V-LC-05 | allowedRoles 引用完整性 | error |
+| V-LC-06 | timeout.targetStateId 有效性 | error |
+| V-LC-07 | guardCondition 语法校验 | error |
+| V-LC-08 | compensationAction 引用完整性 | error |
+| V-LC-09 | dataVisibility 字段有效性 | error |
+| V-LC-10 | 孤立状态检测 | warning |
+| V-LC-11 | entryActions 引用完整性 | error |
+| V-LC-12 | exitActions 引用完整性 | error |
+| V-LC-13 | triggerableEvents 引用完整性 | error |
+| V-LC-14 | fallbackActionId 引用完整性 | error |
+| V-LC-15 | 终止状态不应有 outgoing transition | warning |
+
+十、Agent Semantic Layer（Agent 语义层）
+
+10.1 功能概述
+
+本体模型之上的第 11 个模型，专门解决"AI Agent 如何精准理解企业语义并正确执行任务"的问题。详见 `docs/Agent-Semantic-Layer-Spec.md`。
+
+10.2 核心能力
+
+- Intent（意图映射）：将自然语言短语映射到 Action，含 triggerPhrases/slotFilling/contextConstraints
+- SlotFillingStrategy（槽位填充）：定义参数追问顺序、校验规则、默认值、上下文推断
+- DialogContext（对话上下文）：维护聚焦实体、最近操作、指代消解
+- SemanticRelation（语义关系）：定义 is-a/part-of/synonym-of/causes/depends-on 等 10 种语义关系
+- BusinessTerm（业务术语词典）：统一术语定义、同义词、歧义说明、模型引用
+- ErrorRecovery（错误恢复）：定义操作失败后的重试/回退/升级/补偿策略
+- TemporalValidity（时效性标记）：为模型元素添加生效/失效时间
+- SemanticFieldMapping（字段映射）：自动推断跨实体字段等价关系
+- AgentPolicy（Agent 策略）：定义 Agent 行为边界（允许/拒绝/确认/升级）
+
+10.3 User Stories
+
+US-AS-1: 意图管理 — 创建和管理 Intent，将自然语言短语映射到 Action
+US-AS-2: 槽位填充配置 — 为每个 Intent 配置参数槽位的填充策略
+US-AS-3: 语义关系管理 — 定义实体间的语义关系（is-a/part-of/synonym-of 等）
+US-AS-4: 业务术语词典 — 维护统一的业务术语词典
+US-AS-5: 错误恢复配置 — 为 Action 配置错误恢复策略
+US-AS-6: Agent 策略配置 — 定义 Agent 的行为边界
+US-AS-7: 跨实体字段映射 — 定义跨实体的字段等价关系
+US-AS-8: Agent 语义层导出 — GET /api/agent-semantic-layer 返回完整 JSON
+US-AS-9: 语义完备性仪表盘 — 可视化查看语义层的覆盖度
+
+10.4 校验规则（15 条）
+
+| 编号 | 规则 | 级别 |
+|------|------|------|
+| V-AS-01 | Intent.actionId 引用完整性 | error |
+| V-AS-02 | Intent.targetEntityId 引用完整性 | error |
+| V-AS-03 | Intent.slotFilling.slots[].paramName 必须在 Action.parameters 中 | error |
+| V-AS-04 | Intent.requiredSlots 必须是 slots 的子集 | error |
+| V-AS-05 | SemanticRelation 两端实体必须存在 | error |
+| V-AS-06 | BusinessTerm.modelRefs 引用完整性 | error |
+| V-AS-07 | ErrorRecovery.actionId 引用完整性 | error |
+| V-AS-08 | ErrorRecovery.recoveryActionId 引用完整性 | error |
+| V-AS-09 | AgentPolicy.roleId 引用完整性 | error |
+| V-AS-10 | SemanticFieldMapping 两端字段必须存在 | error |
+| V-AS-11 | TemporalValidity.targetId 引用完整性 | error |
+| V-AS-12 | TemporalValidity 时间范围合法性 | error |
+| V-AS-13 | Intent.triggerPhrases 非空 | warning |
+| V-AS-14 | 同一 Action 无 ErrorRecovery | warning |
+| V-AS-15 | 同一 Role 无 AgentPolicy | warning |
+
+10.5 Agent 完备性评估
+
+| 维度 | 实施前 | 实施后 | 提升 |
+|------|:---:|:---:|:---:|
+| 身份识别 | 8 | 9 | +1 |
+| 可操作性 | 6 | 9 | +3 |
+| 时机判断 | 7 | 9 | +2 |
+| 约束感知 | 7 | 8 | +1 |
+| 后果预知 | 6 | 8 | +2 |
+| 归属认知 | 6 | 8 | +2 |
+| 数据溯源 | 5 | 7 | +2 |
+| 度量感知 | 5 | 5 | — |
+| 关联理解 | 5 | 9 | +4 |
+| 意图映射 | 0 | 9 | +9 |
+| **总分** | **55** | **81** | **+26** |

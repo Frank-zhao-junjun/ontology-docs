@@ -62,6 +62,14 @@
 | **AI能力** | 语义注入 | 按需注入，混合格式，仅直接关联 |
 | | 交付加载入口 | 独立对话界面（左栏） |
 | | 自愈机制 | 最多2次重试，详细展示，返回原始错误 |
+| **EPC** | 定位 | 全域关联层，串联10大模型，非只读文档视图 |
+| | 节点类型 | Event/Function/Connector/InfoObject/OrgUnit，每节点可引用多模型元素 |
+| | 双向校验 | EPC→模型(VE×14) + 模型→EPC(VM×25) + 交叉一致性(VX×10) |
+| | 流程图 | @xyflow/react 自定义节点渲染 |
+| **组织** | 组织模型 | Department(树形)+Position(岗位)，OrganizationModel为一级模型 |
+| | 岗位关联 | Position.roleIds→GovernanceRole，EPC OrgUnit引用Department/Position |
+| **导入** | Excel导入 | 模板下载+文件上传+数据校验+解析为模型对象+生成待审核版本 |
+| | 版本审核 | pending_review/rejected状态，审核通过应用Excel数据到工作区 |
 | **交互** | 布局 | 三栏式（对话/数据/上下文） |
 | | 数据视图 | 6种模式，Flowchart默认 |
 | | 可视化 | ECharts静态展示，Table为P0 |
@@ -135,6 +143,11 @@
 | 元数据管理 | 57条标准字段+CRUD | ✅ 保持 |
 | AI辅助生成 | 豆包大模型生成建议 | ✅ 保持 |
 | 手册导出 | Markdown格式 | ✅ 保持 |
+| EPC全域关联 | 事件-流程-动作链路+模型关联+流程图 | 🆕 新增 |
+| 组织体系建模 | 部门树+岗位+角色关联 | 🆕 新增 |
+| 双向校验 | EPC↔模型 40+条规则+覆盖率 | 🆕 新增 |
+| Excel导入 | 模板下载+上传校验+解析+待审核版本 | 🆕 新增 |
+| 版本审核 | pending_review/rejected+应用数据 | 🆕 新增 |
 
 ### 3.2 新增：版本发布功能
 
@@ -156,7 +169,10 @@ interface ProjectVersion {
   };
   createdAt: string;
   publishedAt?: string;
-  status: 'draft' | 'published' | 'archived';
+  status: 'draft' | 'pending_review' | 'published' | 'archived' | 'rejected';
+  source?: 'manual' | 'excel_import';
+  reviewComment?: string;
+  parsedData?: ExcelParsedData;
 }
 
 interface PublishConfig {
@@ -254,18 +270,102 @@ interface PublishConfig {
 
 ---
 
-### 3.2.4 EPC事件说明书页签——详细设计
+### 3.2.4 EPC全域关联层——详细设计
 
-> **可追溯**：与 `REQUIREMENT.md` 中 **REQ-EPC-01～REQ-EPC-06** 对应；技能名 **`business-spec-generator`** 为规范调用名。
+> **可追溯**：与 `docs/EPC-Upgrade-Spec.md` v3.0 对应；EPC 从只读文档升级为全域关联层。
 
-| 需求编号 | 设计要点 |
-|----------|----------|
-| REQ-EPC-01 | 仅聚合根显示页签 |
-| REQ-EPC-02 | 只读自动生成，无新建/编辑/保存 |
-| REQ-EPC-03 | 基于数据/行为/规则/事件模型汇总 |
-| REQ-EPC-04 | 业务背景**仅**引用 `BusinessScenario.description` |
-| REQ-EPC-05 | 展示/导出须经 `business-spec-generator` |
-| REQ-EPC-06 | 可导出 Markdown/PDF，与页面对齐 |
+#### 核心定位
+
+EPC 不是第六个模型，而是将五大模型+五大平台模型+组织模型串联为一体的**复合关联视图**。
+
+#### EPC 链路数据结构
+
+```typescript
+interface EpcChain {
+  id: string;
+  name: string;
+  entityId: string;            // 关联的聚合根实体
+  description?: string;
+  nodes: EpcNode[];
+  edges: EpcEdge[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface EpcNode {
+  id: string;
+  type: 'event' | 'function' | 'connector' | 'infoObject' | 'orgUnit';
+  label: string;
+  refs: EpcModelRef[];         // 关联的模型元素引用
+  position?: { x: number; y: number };
+  style?: Record<string, unknown>;
+}
+
+interface EpcEdge {
+  id: string;
+  source: string;              // 源节点ID
+  target: string;              // 目标节点ID
+  label?: string;
+  type?: 'normal' | 'conditional';
+  condition?: string;          // 条件表达式
+}
+
+interface EpcModelRef {
+  modelType: 'data' | 'behavior' | 'rule' | 'event' | 'process' | 'governance' | 'metric' | 'dataSource' | 'masterData' | 'metadata' | 'organization';
+  elementId: string;
+  elementName?: string;
+  refRole: 'primary' | 'input' | 'output' | 'constraint' | 'metric' | 'source' | 'permission';
+}
+```
+
+#### 全域关联矩阵
+
+| EPC节点 | 数据模型 | 行为模型 | 规则模型 | 事件模型 | 流程模型 | 治理模型 | 指标模型 | 数据源 | 主数据 | 元数据 | 组织模型 |
+|---------|---------|---------|---------|---------|---------|---------|---------|--------|-------|-------|---------|
+| Event   | 触发实体 | 状态转换 | 触发规则 | 事件定义 | 流程步骤 | 权限角色 | 关联指标 | 数据源 | 主数据 | 元数据 | 处理岗位 |
+| Function| 输入输出实体 | 动作/转换 | 前后置规则 | 产生事件 | 流程步骤 | 执行角色 | 活动指标 | 数据源 | 主数据 | 元数据 | 责任岗位 |
+| Connector| - | - | 分支规则 | - | 决策点 | 角色权限 | - | - | - | - | - |
+| InfoObject| 实体/属性 | - | 校验规则 | 变更事件 | - | 字段权限 | 质量指标 | 数据源 | 主数据 | 元数据 | - |
+| OrgUnit | - | 行为约束 | 角色规则 | 事件处理 | 流程参与 | 角色/权限 | 考核指标 | - | - | - | 部门/岗位 |
+
+#### 双向校验体系（40+规则）
+
+| 方向 | 编号前缀 | 规则数 | 核心问题 |
+|------|---------|--------|---------|
+| EPC → 模型 | VE | 14 | EPC引用的模型元素是否真实有效、一致、合法？ |
+| 模型 → EPC | VM | 25 | 模型定义的元素是否被EPC覆盖？(8大模型+组织) |
+| 交叉一致性 | VX | 10 | EPC关联声明与模型内部定义是否矛盾？ |
+
+#### 推导生成
+
+从已有模型自动推导 EPC 链路骨架：
+1. 遍历聚合根的 DomainEvent → Event 节点
+2. Event.trigger → 关联 StateMachine.Transition → Function 节点
+3. Transition.fromState/toState → 标注状态
+4. Action → Function 节点 + OrgUnit(执行角色)
+5. Rule → Connector 条件分支
+6. Orchestration.Step → Function 序列
+7. Entity.Attribute → InfoObject 节点
+8. Metric → 关联 Function/Event KPI
+9. DataSource → 关联 InfoObject 数据来源
+10. Position/Department → OrgUnit 节点
+
+#### 流程图渲染
+
+使用 @xyflow/react 自定义5种节点形状：
+- Event: 六边形（起始）/ 椭圆（中间/终止）
+- Function: 圆角矩形
+- Connector: 菱形
+- InfoObject: 矩形
+- OrgUnit: 椭圆+阴影
+
+#### 导出增强
+
+| 格式 | 内容 |
+|------|------|
+| Markdown | 链路文档+关联模型清单+校验报告 |
+| JSON | EpcChain完整数据+关联映射 |
+| 整包 | 所有链路+关联模型快照 |
 
 #### 1. 展示与生成逻辑
 
@@ -328,7 +428,115 @@ interface PublishConfig {
 
 ---
 
-### 3.2.5 属性编辑与主数据关联——详细设计
+### 3.2.5 组织体系与岗位模型——详细设计
+
+> **可追溯**：与 `docs/Organization-Position-Spec.md` v1.0 对应
+
+#### 核心类型
+
+```typescript
+interface Department {
+  id: string;
+  name: string;
+  nameEn: string;
+  code?: string;
+  type: 'headquarters' | 'division' | 'department' | 'team' | 'group';
+  parentId?: string;           // 组织树
+  managerPositionId?: string;
+  description?: string;
+  status: 'active' | 'inactive';
+}
+
+interface Position {
+  id: string;
+  name: string;
+  nameEn: string;
+  code?: string;
+  departmentId: string;        // 归属部门
+  parentPositionId?: string;   // 汇报线
+  level?: number;
+  roleIds: string[];           // → GovernanceRole
+  headcount?: number;
+  responsibilities?: string;
+  status: 'active' | 'inactive';
+}
+
+interface OrganizationModel {
+  id: string;
+  departments: Department[];
+  positions: Position[];
+}
+```
+
+#### 关联链路
+
+```
+Department (组织树)
+  └── Position (岗位)
+        └── roleIds → GovernanceRole (权限角色)
+              └── permissions → 实体/动作/字段权限
+```
+
+EPC 的 `EpcOrganizationalUnit` 通过 `refType/refId` 引用 Department 或 Position。
+
+#### UI
+
+建模工作台新增「组织」Tab，三栏布局：部门树 | 岗位列表 | 关联视图。
+
+#### 双向校验(新增)
+
+| 编号 | 规则 | 级别 |
+|------|------|------|
+| VM-O01 | 聚合根实体关联部门至少1个 | warning |
+| VM-O02 | 部门树无环路 | error |
+| VM-O03 | 活跃岗位必须有部门归属 | error |
+| VM-O04 | 岗位引用的Role必须存在 | error |
+| VM-O05 | 组织变更(部门/岗位)需EPC确认 | warning |
+
+---
+
+### 3.2.6 Excel导入与版本审核——详细设计
+
+> **可追溯**：与 `assets/REQUIREMENT.md` 第六章对应
+
+#### API
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/excel-template` | GET | 下载含7个Sheet(填写说明+实体/属性/关系/状态机/规则/事件)的.xlsx模板 |
+| `/api/excel-import` | POST | 上传.xlsx(5MB上限)，校验+解析+生成待审核版本 |
+
+#### 校验规则
+
+- 文件格式: 仅 .xlsx，最大5MB
+- Sheet结构: 必须包含6个数据Sheet
+- 必填字段: 各Sheet(必填)标记字段
+- 枚举值: 实体角色、数据类型、关系类型、规则类型、触发时机等
+- 布尔类型: 必须为 true/false
+- 跨Sheet引用: 属性/关系/状态机/规则/事件中的实体英文名必须在实体Sheet中存在
+
+#### 版本状态扩展
+
+```typescript
+type VersionStatus = 'draft' | 'pending_review' | 'published' | 'archived' | 'rejected';
+```
+
+#### 流程
+
+1. 下载模板 → 填写数据 → 上传文件
+2. 后端校验(格式/大小/Sheet结构/必填/枚举/引用完整性) + 解析为模型对象
+3. 生成 `pending_review` 版本(数据来自Excel而非工作区快照)
+4. 审核通过 → 应用Excel数据到工作区；驳回 → 填写原因
+
+#### Store方法
+
+- `createVersionFromParsedData({ parsedData })` — 从Excel解析数据创建版本
+- `approveVersion(versionId)` — 审核通过，应用parsedData到工作区
+- `rejectVersion(versionId, reason)` — 驳回版本
+
+---
+
+### 3.2.7 属性编辑与主数据关联——详细设计
 
 > **可追溯**：与 `REQUIREMENT.md` 中 **REQ-ATTR-MD-01～REQ-ATTR-MD-05** 对应。
 
@@ -1178,6 +1386,11 @@ Week 23-24: 订阅幂等+集成
 | **自愈机制** | 在交付加载中输入"查寻合同"（错别字）→AI首次SQL失败→自动修正"查询"→成功执行→对话显示完整修正过程 |
 | **版本切换** | 交付加载界面切换至v1.0.0→数据模型回退→操作旧版本数据 |
 | **事件订阅幂等** | 同一事件被订阅者处理两次→第二次检测到已处理ID→跳过不重复执行 |
+| **EPC全域关联** | 聚合根实体创建EPC链路→添加Event/Function/OrgUnit节点→关联已有模型元素→流程图正确渲染 |
+| **EPC双向校验** | EPC引用不存在的模型元素→VE报error；模型Action未被EPC覆盖→VM报warning；EPC声明与模型定义矛盾→VX报error |
+| **组织体系建模** | 创建部门树+岗位→岗位关联GovernanceRole→EPC OrgUnit引用Department/Position |
+| **Excel导入** | 下载模板→填写数据→上传→校验通过→生成pending_review版本→审核通过→数据应用到工作区 |
+| **版本审核** | 上传Excel→生成待审核版本→审核通过→工作区数据更新；驳回→版本状态rejected+原因记录 |
 
 ---
 
@@ -1364,7 +1577,132 @@ interface ProjectVersion {
   };
   createdAt: string;
   publishedAt?: string;
-  status: 'draft' | 'published' | 'archived';
+  status: 'draft' | 'pending_review' | 'published' | 'archived' | 'rejected';
+  source?: 'manual' | 'excel_import';
+  reviewComment?: string;
+  parsedData?: ExcelParsedData;
+}
+
+// ==================== EPC全域关联类型 ====================
+
+interface EpcChain {
+  id: string;
+  name: string;
+  entityId: string;            // 关联的聚合根实体
+  description?: string;
+  nodes: EpcNode[];
+  edges: EpcEdge[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface EpcNode {
+  id: string;
+  type: 'event' | 'function' | 'connector' | 'infoObject' | 'orgUnit';
+  label: string;
+  refs: EpcModelRef[];         // 关联的模型元素引用
+  position?: { x: number; y: number };
+  style?: Record<string, unknown>;
+}
+
+interface EpcEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+  type?: 'normal' | 'conditional';
+  condition?: string;
+}
+
+interface EpcModelRef {
+  modelType: 'data' | 'behavior' | 'rule' | 'event' | 'process' | 'governance' | 'metric' | 'dataSource' | 'masterData' | 'metadata' | 'organization';
+  elementId: string;
+  elementName?: string;
+  refRole: 'primary' | 'input' | 'output' | 'constraint' | 'metric' | 'source' | 'permission';
+}
+
+// ==================== 组织体系类型 ====================
+
+interface Department {
+  id: string;
+  name: string;
+  nameEn: string;
+  code?: string;
+  type: 'headquarters' | 'division' | 'department' | 'team' | 'group';
+  parentId?: string;
+  managerPositionId?: string;
+  description?: string;
+  status: 'active' | 'inactive';
+}
+
+interface Position {
+  id: string;
+  name: string;
+  nameEn: string;
+  code?: string;
+  departmentId: string;
+  parentPositionId?: string;
+  level?: number;
+  roleIds: string[];           // → GovernanceRole
+  headcount?: number;
+  responsibilities?: string;
+  status: 'active' | 'inactive';
+}
+
+interface OrganizationModel {
+  id: string;
+  departments: Department[];
+  positions: Position[];
+}
+
+// ==================== Excel导入类型 ====================
+
+interface ExcelImportValidation {
+  totalRows: number;
+  validRows: number;
+  errorCount: number;
+  errors: ExcelImportError[];
+}
+
+interface ExcelImportError {
+  sheet: string;
+  row: number;
+  column: string;
+  value: string;
+  errorType: 'missing_required' | 'invalid_enum' | 'invalid_type' | 'ref_not_found';
+  message: string;
+}
+
+interface ExcelParsedData {
+  entities: Record<string, unknown>[];
+  attributes: Record<string, unknown>[];
+  relations: Record<string, unknown>[];
+  stateMachines: Record<string, unknown>[];
+  rules: Record<string, unknown>[];
+  eventDefinitions: Record<string, unknown>[];
+}
+
+// ==================== 双向校验类型 ====================
+
+interface EpcValidationResult {
+  ve: EpcValidationItem[];     // EPC→模型
+  vm: EpcValidationItem[];     // 模型→EPC
+  vx: EpcValidationItem[];     // 交叉一致性
+  coverage: EpcCoverageReport;
+}
+
+interface EpcValidationItem {
+  code: string;                // VE-01, VM-D01, VX-01 等
+  level: 'error' | 'warning' | 'info';
+  message: string;
+  elementId?: string;
+  elementName?: string;
+  epcChainId?: string;
+}
+
+interface EpcCoverageReport {
+  overall: number;             // 0-100%
+  byModel: Record<string, { total: number; covered: number; rate: number }>;
 }
 
 interface AIAction {

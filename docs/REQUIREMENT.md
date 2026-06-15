@@ -60,6 +60,8 @@ Implementation Roadmap v1.1
 | AI辅助生成  | 豆包大模型生成建议      | ✅ 保持 |
 | 手册导出    | Markdown格式     | ✅ 保持 |
 | **Excel导入** | **模板下载+文件上传+数据校验+解析为模型对象+生成待审核版本+审核流程** | **✅ 新增** |
+| **EPC全域关联** | **链路建模+模型关联+流程图渲染+双向校验(40+规则)** | **✅ 新增** |
+| **组织体系建模** | **部门树+岗位+角色关联+EPC引用** | **✅ 新增** |
 | **AI代理框架** | **Superpowers + Gstack + Ralph Loop** | **✅ 新增** |
 2.1.1 补充约束：业务场景归属
 - 实体创建必须绑定 `businessScenarioId`，形成“项目 → 业务场景 → 实体 → 四大元模型”的固定归属链路。
@@ -79,6 +81,16 @@ Implementation Roadmap v1.1
 - 当 `dataType = 'reference'` 且引用实体时，必须填写 `referencedEntityId`。
 - 当 `isMasterDataRef = true` 时，系统必须同时满足：`dataType = 'reference'`、`referenceKind = 'masterData'`、`masterDataType` 必填，`masterDataField` 可选。
 - `referencedEntityId` 与 `masterDataType` 互斥，同一属性不允许同时有效绑定实体引用和主数据引用。
+2.1.4 补充约束：组织体系与岗位模型
+- 新增 OrganizationModel 为一级模型，包含 Department(树形) + Position(岗位)。
+- Department 支持5种类型(集团/事业部/部门/团队/班组)，通过 parentId 构建组织树。
+- Position 归属部门(departmentId)，关联治理角色(roleIds → GovernanceRole)，含汇报线/编制/任职要求。
+- EPC 的 EpcOrganizationalUnit 通过 refType/refId 引用 Department 或 Position。
+- 双向校验新增 VM-O(5条)：部门覆盖、组织树环路、岗位归属、角色引用、变更确认。
+- 建模工作台新增「组织」Tab，三栏布局：部门树 | 岗位列表 | 关联视图。
+- Excel导入扩展：模板新增「部门」和「岗位」2个Sheet。
+
+
 
 2.2 新增功能：版本发布
 2.2.1 版本管理功能
@@ -681,3 +693,92 @@ pending_review → rejected  (审核驳回)
 - approveVersion(versionId) — 审核通过，将 parsedData 应用到工作区
 - rejectVersion(versionId, reason) — 审核驳回
 
+七、EPC 全域关联层
+
+7.1 功能概述
+
+EPC 从只读文档升级为全域关联层，是串联 10 大模型+组织模型的复合关联视图。详见 `docs/EPC-Upgrade-Spec.md` v3.0。
+
+7.2 核心数据结构
+
+- EpcChain：链路（节点+边），关联聚合根实体
+- EpcNode：5 种类型(event/function/connector/infoObject/orgUnit)，每节点通过 refs 引用多模型元素
+- EpcEdge：节点间连线，支持条件分支
+- EpcModelRef：统一关联接口，modelType×refRole 标明引用的模型和角色
+
+7.3 全域关联矩阵
+
+| EPC 节点 | 可关联的模型 |
+|---------|----------|
+| Event | 事件定义+触发实体+状态转换+触发规则+订阅+权限角色+指标+数据源+主数据+元数据+处理岗位 |
+| Function | 动作/转换+输入输出实体+前后置规则+产生事件+流程步骤+执行角色+指标+数据源+主数据+元数据+责任岗位 |
+| Connector | 分支规则+角色权限 |
+| InfoObject | 实体/属性+校验规则+变更事件+字段权限+质量指标+数据源+主数据+元数据 |
+| OrgUnit | 治理角色+权限+行为约束+部门+岗位 |
+
+7.4 双向校验体系（40+规则）
+
+| 方向 | 编号前缀 | 规则数 | 核心问题 |
+|------|---------|--------|---------|
+| EPC → 模型 | VE | 14 | EPC 引用的模型元素是否真实有效、一致、合法？ |
+| 模型 → EPC | VM | 25 | 模型定义的元素是否被 EPC 覆盖？(8 大模型+组织) |
+| 交叉一致性 | VX | 10 | EPC 关联声明与模型内部定义是否矛盾？ |
+
+7.5 User Stories
+
+US-EPC-1: 创建/编辑 EPC 链路 — 聚合根实体下创建链路，添加节点和边
+US-EPC-2: 全域关联选择器 — 节点关联时展示所有模型可选元素
+US-EPC-3: 推导生成 — 从已有模型自动推导 EPC 链路骨架
+US-EPC-4: 全域关联视图 — 以节点为中心展示所有关联的模型元素
+US-EPC-5: 反向引用 — 各模型编辑器显示"出现在哪些 EPC 中"
+US-EPC-6: 流程图渲染 — @xyflow/react 自定义 5 种节点形状
+US-EPC-7: 关联图谱 — 全局视图展示所有 EPC 链路的关联网络
+US-EPC-8: EPC→模型校验 — VE-01~14 规则
+US-EPC-9: 模型→EPC 校验 — VM-D/B/R/E/P/G/M/S/O 规则(25 条)
+US-EPC-10: 交叉一致性校验 — VX-01~10 规则
+
+7.6 技术选型
+
+@xyflow/react — 流程图渲染，自定义节点组件
+
+八、组织体系与岗位模型
+
+8.1 功能概述
+
+新增 OrganizationModel 为一级模型，包含 Department(树形部门结构) + Position(岗位定义)。详见 `docs/Organization-Position-Spec.md`。
+
+8.2 核心数据结构
+
+- Department：5 种类型(集团/事业部/部门/团队/班组)，parentId 构建组织树
+- Position：归属部门(departmentId)，关联治理角色(roleIds → GovernanceRole)，含汇报线/编制/任职要求
+
+8.3 关联链路
+
+```
+Department (组织树)
+  └── Position (岗位)
+        └── roleIds → GovernanceRole (权限角色)
+              └── permissions → 实体/动作/字段权限
+```
+
+8.4 EPC 关联
+
+EpcOrganizationalUnit 通过 refType/refId 引用 Department 或 Position。
+
+8.5 User Stories
+
+US-ORG-1: 创建/编辑部门树 — 树形结构 CRUD，支持 5 种部门类型
+US-ORG-2: 创建/编辑岗位 — 归属部门+关联角色+汇报线+编制
+US-ORG-3: 岗位角色关联 — Position.roleIds 多选 GovernanceRole
+US-ORG-4: EPC 引用组织 — OrgUnit 节点引用 Department/Position
+US-ORG-5: Excel 批量导入 — 模板新增「部门」和「岗位」Sheet
+
+8.6 双向校验(新增)
+
+| 编号 | 规则 | 级别 |
+|------|------|------|
+| VM-O01 | 聚合根实体关联部门至少 1 个 | warning |
+| VM-O02 | 部门树无环路 | error |
+| VM-O03 | 活跃岗位必须有部门归属 | error |
+| VM-O04 | 岗位引用的 Role 必须存在 | error |
+| VM-O05 | 组织变更需 EPC 确认 | warning |

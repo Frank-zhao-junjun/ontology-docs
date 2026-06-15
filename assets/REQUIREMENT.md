@@ -103,6 +103,7 @@ Ontology Modeling Tool - MVP Implementation Roadmap
 | 组织体系建模   | 部门树+结构化岗位职责+HR系统定时同步+EPC引用 | 新增 |
 | Entity Lifecycle | State/Transition/Action增强+聚合视图+审计追溯+15条校验规则 | 新增 |
 | Agent Semantic Layer | 意图映射+槽位填充+对话上下文+语义关系+术语词典+错误恢复+Agent策略 | 新增 |
+| 参考文档上传 | Word/PDF/Excel/TXT/MD/CSV上传+自动解析+AI注入+实体提取 | 新增 |
 | 手册导出    | Markdown格式     | ✅ 保持 |
 
 2.1.1 实体聚合角色建模规范

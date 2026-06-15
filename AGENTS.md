@@ -128,13 +128,23 @@ src/
 - **完备性仪表盘**：可视化语义层覆盖度（意图覆盖率/术语数/关系数/缺失提醒）
 
 ### 12. Excel 导入 (Excel Import)
-- **模板下载**：GET /api/excel-template 生成含7个Sheet（填写说明+6数据Sheet）的 .xlsx 模板
+- **模板下载**：GET /api/excel-template 生成含8个Sheet（填写说明+7数据Sheet，含部门+岗位）的 .xlsx 模板
 - **文件上传**：POST /api/excel-import 仅接受 .xlsx，5MB上限，Sheet结构校验
 - **数据校验**：必填字段、枚举值、布尔类型、跨Sheet引用完整性校验
 - **数据解析**：校验通过后解析为 Entity/Attribute/Relation/StateMachine/Rule/Event 对象（parsedData）
 - **版本生成**：基于 parsedData 生成 pending_review 状态版本（非工作区快照）
 - **版本审核**：审核通过将 parsedData 应用到工作区（替换当前数据），驳回需填写原因
 - **Store 方法**：`createVersionFromParsedData({ parsedData })` 创建版本，`approveVersion` 应用解析数据
+
+### 13. 参考文档上传辅助 AI 建模 (Reference Document Upload)
+- **文档上传**：支持 Word(.docx)/PDF(.xlsx)/Excel(.xlsx)/TXT/Markdown/CSV 格式，10MB/文件
+- **文档解析**：mammoth(docx)/pdf-parse(pdf)/xlsx(excel) 自动提取纯文本+表格
+- **AI 注入**：generate-model API 自动将参考文档内容注入 Prompt，AI 基于文档生成更精准建议
+- **实体提取**：AI 从文档中自动提取实体候选（含属性、置信度、来源定位）
+- **项目级管理**：ReferenceDocument 存储于项目数据，最多 10 份/项目
+- **文本截断**：智能截断策略，AI 注入文本 ≤ 10000 字符/次
+- **API**：POST /api/reference-documents/upload + DELETE + POST extract-entities
+- **安全**：文档仅存浏览器 localStorage，不上传云端
 
 ## 开发命令
 

@@ -3,11 +3,16 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { 
   CheckCircle2, 
-  Code2, 
-  Brain, 
-  Layout,
-  Wrench,
-  Calendar
+  Database,
+  Workflow,
+  ShieldCheck,
+  Zap,
+  GitBranch,
+  Brain,
+  Network,
+  Building2,
+  RefreshCw,
+  FileSpreadsheet
 } from 'lucide-react';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -19,24 +24,14 @@ const Roadmap = () => {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Title animation
       gsap.fromTo(
         titleRef.current,
         { y: 30, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.6,
-          ease: 'expo.out',
-          scrollTrigger: {
-            trigger: titleRef.current,
-            start: 'top 80%',
-            toggleActions: 'play none none reverse',
-          },
+        { y: 0, opacity: 1, duration: 0.6, ease: 'expo.out',
+          scrollTrigger: { trigger: titleRef.current, start: 'top 80%', toggleActions: 'play none none reverse' },
         }
       );
 
-      // Timeline animation
       const milestones = timelineRef.current?.querySelectorAll('.milestone');
       if (milestones) {
         milestones.forEach((milestone, index) => {
@@ -44,37 +39,20 @@ const Roadmap = () => {
           gsap.fromTo(
             milestone,
             { x: isLeft ? -50 : 50, opacity: 0 },
-            {
-              x: 0,
-              opacity: 1,
-              duration: 0.5,
-              ease: 'expo.out',
-              scrollTrigger: {
-                trigger: milestone,
-                start: 'top 80%',
-                toggleActions: 'play none none reverse',
-              },
+            { x: 0, opacity: 1, duration: 0.5, ease: 'expo.out',
+              scrollTrigger: { trigger: milestone, start: 'top 80%', toggleActions: 'play none none reverse' },
             }
           );
         });
       }
 
-      // Node animation
       const nodes = timelineRef.current?.querySelectorAll('.milestone-node');
       if (nodes) {
         gsap.fromTo(
           nodes,
           { scale: 0 },
-          {
-            scale: 1,
-            duration: 0.4,
-            ease: 'elastic.out(1, 0.5)',
-            stagger: 0.15,
-            scrollTrigger: {
-              trigger: timelineRef.current,
-              start: 'top 75%',
-              toggleActions: 'play none none reverse',
-            },
+          { scale: 1, duration: 0.4, ease: 'elastic.out(1, 0.5)', stagger: 0.15,
+            scrollTrigger: { trigger: timelineRef.current, start: 'top 75%', toggleActions: 'play none none reverse' },
           }
         );
       }
@@ -85,57 +63,57 @@ const Roadmap = () => {
 
   const milestones = [
     {
-      phase: 'M1',
-      weeks: 'Week 1-4',
-      title: '建模工具增强',
-      description: '版本管理功能、发布对话框、聚合根标记',
-      icon: Code2,
-      deliverables: ['版本管理功能', '发布对话框', '聚合根标记'],
+      phase: 'P1',
+      weeks: 'Phase 1',
+      title: '核心元模型',
+      description: '数据、行为、规则、事件、流程五大核心模型',
+      icon: Database,
+      deliverables: ['数据模型', '行为模型', '规则模型', '事件模型', '流程模型'],
       status: 'completed',
     },
     {
-      phase: 'M2',
-      weeks: 'Week 5-8',
-      title: '代码生成器',
-      description: '后端生成器（Flask模型/API）、前端生成器（React组件）',
-      icon: Code2,
-      deliverables: ['后端生成器', '前端生成器', 'Docker配置'],
-      status: 'in-progress',
+      phase: 'P2',
+      weeks: 'Phase 2',
+      title: '治理与协作',
+      description: '治理模型、版本管理、AI辅助建模、元数据',
+      icon: ShieldCheck,
+      deliverables: ['治理角色', '版本管理', 'AI生成', '57条元数据'],
+      status: 'completed',
     },
     {
-      phase: 'M3',
-      weeks: 'Week 9-12',
-      title: 'AI编排器核心',
-      description: '意图识别、按需注入、混合格式Prompt、工具执行',
+      phase: 'P3',
+      weeks: 'Phase 3',
+      title: 'EPC全域关联',
+      description: 'EPC流程图、12模型关联、71条双向校验规则',
+      icon: Network,
+      deliverables: ['EPC流程图', '全域关联矩阵', '71条校验规则', '覆盖率报告'],
+      status: 'completed',
+    },
+    {
+      phase: 'P4',
+      weeks: 'Phase 4',
+      title: '组织与Excel',
+      description: '部门岗位模型、结构化职责、HR同步、Excel导入',
+      icon: Building2,
+      deliverables: ['组织模型', '岗位职责', 'HR同步', '8 Sheet导入'],
+      status: 'completed',
+    },
+    {
+      phase: 'P5',
+      weeks: 'Phase 5',
+      title: '生命周期与语义',
+      description: 'Entity Lifecycle增强、Agent语义层、建模手册',
       icon: Brain,
-      deliverables: ['意图识别', '按需注入', '工具执行'],
-      status: 'pending',
+      deliverables: ['State增强', '意图映射', '术语词典', 'Agent策略'],
+      status: 'completed',
     },
     {
-      phase: 'M4',
-      weeks: 'Week 13-16',
-      title: '交付加载能力',
-      description: '发布物校验、配置检查、演示视图与回归验证',
-      icon: Layout,
-      deliverables: ['发布物校验', '配置检查', '回归验证'],
-      status: 'pending',
-    },
-    {
-      phase: 'M5',
-      weeks: 'Week 17-20',
-      title: '自愈机制+可视化',
-      description: '错误修正循环、ECharts/Mermaid渲染、详细展示',
-      icon: Wrench,
-      deliverables: ['自愈机制', '可视化渲染', '详细展示'],
-      status: 'pending',
-    },
-    {
-      phase: 'M6',
-      weeks: 'Week 21-24',
-      title: 'DDD事件增强',
-      description: '聚合根约束、事务边界、精简模式、幂等性',
-      icon: Calendar,
-      deliverables: ['聚合根约束', '事务边界', '幂等性'],
+      phase: 'P6',
+      weeks: 'Phase 6',
+      title: '持续增强',
+      description: '指标体系增强、多领域模板、协作与导出',
+      icon: GitBranch,
+      deliverables: ['指标增强', '领域模板', '协作功能', '导出优化'],
       status: 'pending',
     },
   ];
@@ -153,7 +131,6 @@ const Roadmap = () => {
           className="heading-2 text-center text-[#171717] mb-16"
         >
           实施路线<span className="text-[#ff6e00]">图</span>
-          <span className="block text-lg font-normal text-[#b7b7b7] mt-2">(16-24周)</span>
         </h2>
 
         {/* Timeline */}
@@ -177,7 +154,9 @@ const Roadmap = () => {
                     <div className="bg-white rounded-xl p-5 shadow-lg card-hover">
                       {/* Header */}
                       <div className={`flex items-center gap-3 mb-3 ${isLeft ? 'justify-end' : 'justify-start'}`}>
-                        <span className="px-3 py-1 text-xs font-bold rounded-full bg-[#ff6e00] text-white">
+                        <span className={`px-3 py-1 text-xs font-bold rounded-full text-white ${
+                          milestone.status === 'completed' ? 'bg-[#ff6e00]' : 'bg-[#cfcfcf]'
+                        }`}>
                           {milestone.phase}
                         </span>
                         <span className="text-sm text-[#b7b7b7]">{milestone.weeks}</span>
@@ -206,22 +185,16 @@ const Roadmap = () => {
                   {/* Center Node */}
                   <div className="absolute left-1/2 transform -translate-x-1/2 z-10">
                     <div 
-                      className={`milestone-node w-12 h-12 rounded-full flex items-center justify-center shadow-lg animate-node-pulse ${
+                      className={`milestone-node w-12 h-12 rounded-full flex items-center justify-center shadow-lg ${
                         milestone.status === 'completed'
                           ? 'bg-[#ff6e00]'
-                          : milestone.status === 'in-progress'
-                          ? 'bg-[#171717]'
                           : 'bg-white border-2 border-[#cfcfcf]'
                       }`}
                     >
                       {milestone.status === 'completed' ? (
                         <CheckCircle2 className="w-6 h-6 text-white" />
                       ) : (
-                        <milestone.icon 
-                          className={`w-5 h-5 ${
-                            milestone.status === 'in-progress' ? 'text-white' : 'text-[#b7b7b7]'
-                          }`} 
-                        />
+                        <milestone.icon className="w-5 h-5 text-[#b7b7b7]" />
                       )}
                     </div>
                   </div>

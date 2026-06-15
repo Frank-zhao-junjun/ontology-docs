@@ -1532,6 +1532,13 @@ export interface OrganizationModel {
   lastSyncResult?: HRSyncResult;       // 最近一次同步结果
 }
 
+/** 部门树节点 */
+export interface DepartmentTreeNode {
+  department: Department;
+  children: DepartmentTreeNode[];
+  positions: Position[];
+}
+
 // ========== 数据源层（Manifest spec.dataSources）==========
 export type DataSourceType = 'api' | 'database' | 'file';
 

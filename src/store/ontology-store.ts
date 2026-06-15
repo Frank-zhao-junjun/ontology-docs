@@ -14,13 +14,13 @@ import {
   ensureDataSourcesModel,
   ensureGovernanceModel,
 } from '@/lib/ontology-layer-defaults';
-import type { 
-  OntologyProject, 
-  Domain, 
-  DataModel, 
-  BehaviorModel, 
-  RuleModel, 
-  ProcessModel, 
+import type {
+  OntologyProject,
+  Domain,
+  DataModel,
+  BehaviorModel,
+  RuleModel,
+  ProcessModel,
   EventModel,
   Entity,
   EntityProject,
@@ -54,6 +54,25 @@ import type {
   AttributeDataType,
   Relation,
   Transition,
+  // Entity Lifecycle
+  EntityLifecycle,
+  LifecycleAuditEntry,
+  // Agent Semantic Layer
+  AgentSemanticLayer,
+  Intent,
+  BusinessTerm,
+  SemanticRelation,
+  ErrorRecovery,
+  SemanticFieldMapping,
+  AgentPolicy,
+  // Organization
+  Department,
+  Position,
+  PositionResponsibility,
+  OrganizationModel,
+  HRSyncConfig,
+  HRSyncResult,
+  DepartmentTreeNode,
 } from '@/types/ontology';
 
 interface OntologyState {
@@ -203,9 +222,56 @@ interface OntologyState {
   approveVersion: (versionId: string) => void;
   rejectVersion: (versionId: string, reason: string) => void;
 
+  // Entity Lifecycle 审计
+  auditTrail: LifecycleAuditEntry[];
+  getEntityLifecycle: (entityId: string) => EntityLifecycle | null;
+  addLifecycleAuditEntry: (entry: Omit<LifecycleAuditEntry, 'id'>) => void;
+  getAuditTrail: (entityId: string) => LifecycleAuditEntry[];
+  clearAuditTrail: (entityId: string) => void;
+
+  // Agent Semantic Layer 操作
+  setAgentSemanticLayer: (layer: AgentSemanticLayer) => void;
+  addIntent: (intent: Intent) => void;
+  updateIntent: (intentId: string, intent: Intent) => void;
+  deleteIntent: (intentId: string) => void;
+  addBusinessTerm: (term: BusinessTerm) => void;
+  updateBusinessTerm: (termId: string, term: BusinessTerm) => void;
+  deleteBusinessTerm: (termId: string) => void;
+  addSemanticRelation: (relation: SemanticRelation) => void;
+  updateSemanticRelation: (relationId: string, relation: SemanticRelation) => void;
+  deleteSemanticRelation: (relationId: string) => void;
+  addErrorRecovery: (recovery: ErrorRecovery) => void;
+  updateErrorRecovery: (recoveryId: string, recovery: ErrorRecovery) => void;
+  deleteErrorRecovery: (recoveryId: string) => void;
+  addASAgentPolicy: (policy: AgentPolicy) => void;
+  updateASAgentPolicy: (policyId: string, policy: AgentPolicy) => void;
+  deleteASAgentPolicy: (policyId: string) => void;
+  addFieldMapping: (mapping: SemanticFieldMapping) => void;
+  updateFieldMapping: (mappingId: string, mapping: SemanticFieldMapping) => void;
+  deleteFieldMapping: (mappingId: string) => void;
+  getSemanticCoverage: () => AgentSemanticLayer['metadata']['coverage'] | null;
+
+  // 组织体系操作
+  setOrganizationModel: (model: OrganizationModel) => void;
+  addDepartment: (department: Omit<Department, 'id'>) => Department;
+  updateDepartment: (deptId: string, department: Partial<Department>) => void;
+  deleteDepartment: (deptId: string) => void;
+  addPosition: (position: Omit<Position, 'id'>) => Position;
+  updatePosition: (positionId: string, position: Partial<Position>) => void;
+  deletePosition: (positionId: string) => void;
+  addPositionResponsibility: (positionId: string, resp: Omit<PositionResponsibility, 'id'>) => void;
+  updatePositionResponsibility: (positionId: string, respId: string, resp: Partial<PositionResponsibility>) => void;
+  deletePositionResponsibility: (positionId: string, respId: string) => void;
+  detectResponsibilityOverlap: (positionId1: string, positionId2: string) => { field: string; value1: string; value2: string }[];
+  updateHRSyncConfig: (config: HRSyncConfig) => void;
+  setLastSyncResult: (result: HRSyncResult) => void;
+  getDepartmentTree: () => DepartmentTreeNode[];
+  getPositionsByDepartment: (deptId: string) => Position[];
+  getPositionsByRole: (roleId: string) => Position[];
+
   // UI状态
   setActiveModelType: (type: 'data' | 'behavior' | 'rule' | 'process' | 'event' | null) => void;
-  
+
   // 重置
   resetProject: () => void;
   clearAllModels: () => void;
@@ -628,6 +694,7 @@ export const useOntologyStore = create<OntologyState>()(
       versions: [],
       activeModelType: null,
       metricsModel: null,
+      auditTrail: [],
       
       createProject: (name, domain, description) => {
         const now = new Date().toISOString();
@@ -2135,6 +2202,801 @@ export const useOntologyStore = create<OntologyState>()(
         }));
       },
       
+      // ========== Entity Lifecycle ==========
+
+      getEntityLifecycle: (entityId) => {
+        const { project } = get();
+        if (!project) return null;
+
+        const entity = project.dataModel?.entities.find((e) => e.id === entityId);
+        if (!entity) return null;
+
+        const stateMachine = project.behaviorModel?.stateMachines.find((sm) => sm.entity === entityId);
+        if (!stateMachine) return null;
+
+        const allActions = project.behaviorModel?.actions || [];
+        const allRules = project.ruleModel?.rules || [];
+        const allEvents = project.eventModel?.events || [];
+        const allRoles = project.governanceModel?.roles || [];
+        const { auditTrail } = get();
+
+        const actionsByState: Record<string, Action[]> = {};
+        const rulesByState: Record<string, Rule[]> = {};
+        const eventsByState: Record<string, EventDefinition[]> = {};
+        const rolesByState: Record<string, GovernanceRole[]> = {};
+
+        for (const state of stateMachine.states) {
+          actionsByState[state.id] = (state.availableActions || [])
+            .map((aid) => allActions.find((a) => a.id === aid))
+            .filter(Boolean) as Action[];
+
+          rulesByState[state.id] = (state.constraints || [])
+            .map((rid) => allRules.find((r) => r.id === rid))
+            .filter(Boolean) as Rule[];
+
+          eventsByState[state.id] = (state.triggerableEvents || [])
+            .map((eid) => allEvents.find((e) => e.id === eid))
+            .filter(Boolean) as EventDefinition[];
+
+          rolesByState[state.id] = (state.allowedRoles || [])
+            .map((rid) => allRoles.find((r) => r.id === rid))
+            .filter(Boolean) as GovernanceRole[];
+        }
+
+        const entityAuditTrail = auditTrail.filter((entry) => entry.entityId === entityId);
+
+        const bottleneckStates = stateMachine.states
+          .filter((s) => s.timeout)
+          .map((s) => s.id);
+
+        return {
+          entityId: entity.id,
+          entityName: entity.name,
+          entityNameEn: entity.nameEn,
+          statusField: stateMachine.statusField,
+          stateMachine: {
+            id: stateMachine.id,
+            name: stateMachine.name,
+            states: stateMachine.states,
+            transitions: stateMachine.transitions,
+          },
+          actionsByState,
+          rulesByState,
+          eventsByState,
+          rolesByState,
+          auditTrail: entityAuditTrail,
+          stats: {
+            totalStates: stateMachine.states.length,
+            totalTransitions: stateMachine.transitions.length,
+            totalActions: allActions.filter((a) => a.targetEntityId === entityId).length,
+            bottleneckStates: bottleneckStates.length > 0 ? bottleneckStates : undefined,
+          },
+        };
+      },
+
+      addLifecycleAuditEntry: (entry) => {
+        const newEntry: LifecycleAuditEntry = {
+          ...entry,
+          id: generateId(),
+        };
+        set((state) => ({
+          auditTrail: [...state.auditTrail, newEntry],
+        }));
+      },
+
+      getAuditTrail: (entityId) => {
+        const { auditTrail } = get();
+        return auditTrail.filter((entry) => entry.entityId === entityId);
+      },
+
+      clearAuditTrail: (entityId) => {
+        set((state) => ({
+          auditTrail: state.auditTrail.filter((entry) => entry.entityId !== entityId),
+        }));
+      },
+
+      // ========== Agent Semantic Layer ==========
+
+      setAgentSemanticLayer: (layer) => {
+        set((state) => ({
+          project: state.project
+            ? { ...state.project, agentSemanticLayer: layer, updatedAt: new Date().toISOString() }
+            : null,
+        }));
+      },
+
+      addIntent: (intent) => {
+        set((state) => {
+          if (!state.project) return state;
+          const now = new Date().toISOString();
+          const current = state.project.agentSemanticLayer || {
+            intents: [],
+            dialogContextTemplate: { ttl: 300, referencedEntities: [], turnCount: 0, state: 'idle' },
+            semanticRelations: [],
+            businessTerms: [],
+            errorRecoveries: [],
+            temporalValidities: [],
+            fieldMappings: [],
+            agentPolicies: [],
+            metadata: { version: '1.0.0', lastUpdated: now, totalIntents: 0, totalTerms: 0, totalRelations: 0, coverage: { entitiesWithIntents: 0, totalEntities: 0, actionsWithRecovery: 0, totalActions: 0 } },
+          };
+          return {
+            project: {
+              ...state.project,
+              agentSemanticLayer: {
+                ...current,
+                intents: [...current.intents, intent],
+                metadata: { ...current.metadata, totalIntents: current.intents.length + 1, lastUpdated: now },
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      updateIntent: (intentId, intent) => {
+        set((state) => {
+          if (!state.project?.agentSemanticLayer) return state;
+          const now = new Date().toISOString();
+          const layer = state.project.agentSemanticLayer;
+          return {
+            project: {
+              ...state.project,
+              agentSemanticLayer: {
+                ...layer,
+                intents: layer.intents.map((i) => (i.id === intentId ? intent : i)),
+                metadata: { ...layer.metadata, lastUpdated: now },
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      deleteIntent: (intentId) => {
+        set((state) => {
+          if (!state.project?.agentSemanticLayer) return state;
+          const now = new Date().toISOString();
+          const layer = state.project.agentSemanticLayer;
+          const nextIntents = layer.intents.filter((i) => i.id !== intentId);
+          return {
+            project: {
+              ...state.project,
+              agentSemanticLayer: {
+                ...layer,
+                intents: nextIntents,
+                metadata: { ...layer.metadata, totalIntents: nextIntents.length, lastUpdated: now },
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      addBusinessTerm: (term) => {
+        set((state) => {
+          if (!state.project) return state;
+          const now = new Date().toISOString();
+          const current = state.project.agentSemanticLayer;
+          if (!current) return state;
+          return {
+            project: {
+              ...state.project,
+              agentSemanticLayer: {
+                ...current,
+                businessTerms: [...current.businessTerms, term],
+                metadata: { ...current.metadata, totalTerms: current.businessTerms.length + 1, lastUpdated: now },
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      updateBusinessTerm: (termId, term) => {
+        set((state) => {
+          if (!state.project?.agentSemanticLayer) return state;
+          const now = new Date().toISOString();
+          const layer = state.project.agentSemanticLayer;
+          return {
+            project: {
+              ...state.project,
+              agentSemanticLayer: {
+                ...layer,
+                businessTerms: layer.businessTerms.map((t) => (t.id === termId ? term : t)),
+                metadata: { ...layer.metadata, lastUpdated: now },
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      deleteBusinessTerm: (termId) => {
+        set((state) => {
+          if (!state.project?.agentSemanticLayer) return state;
+          const now = new Date().toISOString();
+          const layer = state.project.agentSemanticLayer;
+          const nextTerms = layer.businessTerms.filter((t) => t.id !== termId);
+          return {
+            project: {
+              ...state.project,
+              agentSemanticLayer: {
+                ...layer,
+                businessTerms: nextTerms,
+                metadata: { ...layer.metadata, totalTerms: nextTerms.length, lastUpdated: now },
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      addSemanticRelation: (relation) => {
+        set((state) => {
+          if (!state.project?.agentSemanticLayer) return state;
+          const now = new Date().toISOString();
+          const layer = state.project.agentSemanticLayer;
+          return {
+            project: {
+              ...state.project,
+              agentSemanticLayer: {
+                ...layer,
+                semanticRelations: [...layer.semanticRelations, relation],
+                metadata: { ...layer.metadata, totalRelations: layer.semanticRelations.length + 1, lastUpdated: now },
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      updateSemanticRelation: (relationId, relation) => {
+        set((state) => {
+          if (!state.project?.agentSemanticLayer) return state;
+          const now = new Date().toISOString();
+          const layer = state.project.agentSemanticLayer;
+          return {
+            project: {
+              ...state.project,
+              agentSemanticLayer: {
+                ...layer,
+                semanticRelations: layer.semanticRelations.map((r) => (r.id === relationId ? relation : r)),
+                metadata: { ...layer.metadata, lastUpdated: now },
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      deleteSemanticRelation: (relationId) => {
+        set((state) => {
+          if (!state.project?.agentSemanticLayer) return state;
+          const now = new Date().toISOString();
+          const layer = state.project.agentSemanticLayer;
+          const nextRelations = layer.semanticRelations.filter((r) => r.id !== relationId);
+          return {
+            project: {
+              ...state.project,
+              agentSemanticLayer: {
+                ...layer,
+                semanticRelations: nextRelations,
+                metadata: { ...layer.metadata, totalRelations: nextRelations.length, lastUpdated: now },
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      addErrorRecovery: (recovery) => {
+        set((state) => {
+          if (!state.project?.agentSemanticLayer) return state;
+          const now = new Date().toISOString();
+          const layer = state.project.agentSemanticLayer;
+          return {
+            project: {
+              ...state.project,
+              agentSemanticLayer: {
+                ...layer,
+                errorRecoveries: [...layer.errorRecoveries, recovery],
+                metadata: { ...layer.metadata, lastUpdated: now },
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      updateErrorRecovery: (recoveryId, recovery) => {
+        set((state) => {
+          if (!state.project?.agentSemanticLayer) return state;
+          const now = new Date().toISOString();
+          const layer = state.project.agentSemanticLayer;
+          return {
+            project: {
+              ...state.project,
+              agentSemanticLayer: {
+                ...layer,
+                errorRecoveries: layer.errorRecoveries.map((er) => (er.id === recoveryId ? recovery : er)),
+                metadata: { ...layer.metadata, lastUpdated: now },
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      deleteErrorRecovery: (recoveryId) => {
+        set((state) => {
+          if (!state.project?.agentSemanticLayer) return state;
+          const now = new Date().toISOString();
+          const layer = state.project.agentSemanticLayer;
+          return {
+            project: {
+              ...state.project,
+              agentSemanticLayer: {
+                ...layer,
+                errorRecoveries: layer.errorRecoveries.filter((er) => er.id !== recoveryId),
+                metadata: { ...layer.metadata, lastUpdated: now },
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      addASAgentPolicy: (policy) => {
+        set((state) => {
+          if (!state.project?.agentSemanticLayer) return state;
+          const now = new Date().toISOString();
+          const layer = state.project.agentSemanticLayer;
+          return {
+            project: {
+              ...state.project,
+              agentSemanticLayer: {
+                ...layer,
+                agentPolicies: [...layer.agentPolicies, policy],
+                metadata: { ...layer.metadata, lastUpdated: now },
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      updateASAgentPolicy: (policyId, policy) => {
+        set((state) => {
+          if (!state.project?.agentSemanticLayer) return state;
+          const now = new Date().toISOString();
+          const layer = state.project.agentSemanticLayer;
+          return {
+            project: {
+              ...state.project,
+              agentSemanticLayer: {
+                ...layer,
+                agentPolicies: layer.agentPolicies.map((p) => (p.id === policyId ? policy : p)),
+                metadata: { ...layer.metadata, lastUpdated: now },
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      deleteASAgentPolicy: (policyId) => {
+        set((state) => {
+          if (!state.project?.agentSemanticLayer) return state;
+          const now = new Date().toISOString();
+          const layer = state.project.agentSemanticLayer;
+          return {
+            project: {
+              ...state.project,
+              agentSemanticLayer: {
+                ...layer,
+                agentPolicies: layer.agentPolicies.filter((p) => p.id !== policyId),
+                metadata: { ...layer.metadata, lastUpdated: now },
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      addFieldMapping: (mapping) => {
+        set((state) => {
+          if (!state.project?.agentSemanticLayer) return state;
+          const now = new Date().toISOString();
+          const layer = state.project.agentSemanticLayer;
+          return {
+            project: {
+              ...state.project,
+              agentSemanticLayer: {
+                ...layer,
+                fieldMappings: [...layer.fieldMappings, mapping],
+                metadata: { ...layer.metadata, lastUpdated: now },
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      updateFieldMapping: (mappingId, mapping) => {
+        set((state) => {
+          if (!state.project?.agentSemanticLayer) return state;
+          const now = new Date().toISOString();
+          const layer = state.project.agentSemanticLayer;
+          return {
+            project: {
+              ...state.project,
+              agentSemanticLayer: {
+                ...layer,
+                fieldMappings: layer.fieldMappings.map((fm) => (fm.id === mappingId ? mapping : fm)),
+                metadata: { ...layer.metadata, lastUpdated: now },
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      deleteFieldMapping: (mappingId) => {
+        set((state) => {
+          if (!state.project?.agentSemanticLayer) return state;
+          const now = new Date().toISOString();
+          const layer = state.project.agentSemanticLayer;
+          return {
+            project: {
+              ...state.project,
+              agentSemanticLayer: {
+                ...layer,
+                fieldMappings: layer.fieldMappings.filter((fm) => fm.id !== mappingId),
+                metadata: { ...layer.metadata, lastUpdated: now },
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      getSemanticCoverage: () => {
+        const { project } = get();
+        if (!project?.agentSemanticLayer) return null;
+        const layer = project.agentSemanticLayer;
+        const totalEntities = project.dataModel?.entities.length || 0;
+        const totalActions = project.behaviorModel?.actions?.length || 0;
+        const entitiesWithIntents = new Set(layer.intents.map((i) => i.targetEntityId)).size;
+        const actionsWithRecovery = new Set(layer.errorRecoveries.map((er) => er.actionId)).size;
+        return {
+          entitiesWithIntents,
+          totalEntities,
+          actionsWithRecovery,
+          totalActions,
+        };
+      },
+
+      // ========== 组织体系 ==========
+
+      setOrganizationModel: (model) => {
+        set((state) => ({
+          project: state.project
+            ? { ...state.project, organizationModel: model, updatedAt: new Date().toISOString() }
+            : null,
+        }));
+      },
+
+      addDepartment: (department) => {
+        const newDept: Department = { ...department, id: generateId() };
+        set((state) => {
+          if (!state.project) return state;
+          const now = new Date().toISOString();
+          const current = state.project.organizationModel || {
+            id: generateId(),
+            departments: [],
+            positions: [],
+            createdAt: now,
+            updatedAt: now,
+          };
+          return {
+            project: {
+              ...state.project,
+              organizationModel: {
+                ...current,
+                departments: [...current.departments, newDept],
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+        return newDept;
+      },
+
+      updateDepartment: (deptId, department) => {
+        set((state) => {
+          if (!state.project?.organizationModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              organizationModel: {
+                ...state.project.organizationModel,
+                departments: state.project.organizationModel.departments.map((d) =>
+                  d.id === deptId ? { ...d, ...department } : d
+                ),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      deleteDepartment: (deptId) => {
+        set((state) => {
+          if (!state.project?.organizationModel) return state;
+          const now = new Date().toISOString();
+          const org = state.project.organizationModel;
+          // Also delete positions under this department
+          return {
+            project: {
+              ...state.project,
+              organizationModel: {
+                ...org,
+                departments: org.departments.filter((d) => d.id !== deptId),
+                positions: org.positions.filter((p) => p.departmentId !== deptId),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      addPosition: (position) => {
+        const newPos: Position = { ...position, id: generateId() };
+        set((state) => {
+          if (!state.project) return state;
+          const now = new Date().toISOString();
+          const current = state.project.organizationModel || {
+            id: generateId(),
+            departments: [],
+            positions: [],
+            createdAt: now,
+            updatedAt: now,
+          };
+          return {
+            project: {
+              ...state.project,
+              organizationModel: {
+                ...current,
+                positions: [...current.positions, newPos],
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+        return newPos;
+      },
+
+      updatePosition: (positionId, position) => {
+        set((state) => {
+          if (!state.project?.organizationModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              organizationModel: {
+                ...state.project.organizationModel,
+                positions: state.project.organizationModel.positions.map((p) =>
+                  p.id === positionId ? { ...p, ...position } : p
+                ),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      deletePosition: (positionId) => {
+        set((state) => {
+          if (!state.project?.organizationModel) return state;
+          const now = new Date().toISOString();
+          const org = state.project.organizationModel;
+          return {
+            project: {
+              ...state.project,
+              organizationModel: {
+                ...org,
+                positions: org.positions.filter((p) => p.id !== positionId),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      addPositionResponsibility: (positionId, resp) => {
+        const newResp: PositionResponsibility = { ...resp, id: generateId() };
+        set((state) => {
+          if (!state.project?.organizationModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              organizationModel: {
+                ...state.project.organizationModel,
+                positions: state.project.organizationModel.positions.map((p) =>
+                  p.id === positionId
+                    ? { ...p, responsibilities: [...p.responsibilities, newResp] }
+                    : p
+                ),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      updatePositionResponsibility: (positionId, respId, resp) => {
+        set((state) => {
+          if (!state.project?.organizationModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              organizationModel: {
+                ...state.project.organizationModel,
+                positions: state.project.organizationModel.positions.map((p) =>
+                  p.id === positionId
+                    ? {
+                        ...p,
+                        responsibilities: p.responsibilities.map((r) =>
+                          r.id === respId ? { ...r, ...resp } : r
+                        ),
+                      }
+                    : p
+                ),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      deletePositionResponsibility: (positionId, respId) => {
+        set((state) => {
+          if (!state.project?.organizationModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              organizationModel: {
+                ...state.project.organizationModel,
+                positions: state.project.organizationModel.positions.map((p) =>
+                  p.id === positionId
+                    ? { ...p, responsibilities: p.responsibilities.filter((r) => r.id !== respId) }
+                    : p
+                ),
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      detectResponsibilityOverlap: (positionId1, positionId2) => {
+        const { project } = get();
+        if (!project?.organizationModel) return [];
+        const pos1 = project.organizationModel.positions.find((p) => p.id === positionId1);
+        const pos2 = project.organizationModel.positions.find((p) => p.id === positionId2);
+        if (!pos1 || !pos2) return [];
+
+        const overlaps: { field: string; value1: string; value2: string }[] = [];
+
+        // Check scopeRefs overlap
+        const scope1 = new Set(pos1.responsibilities.flatMap((r) => r.scopeRefs));
+        const scope2 = new Set(pos2.responsibilities.flatMap((r) => r.scopeRefs));
+        for (const ref of scope1) {
+          if (scope2.has(ref)) {
+            overlaps.push({ field: 'scopeRefs', value1: ref, value2: ref });
+          }
+        }
+
+        // Check actions overlap
+        const actions1 = new Set(pos1.responsibilities.flatMap((r) => r.actions));
+        const actions2 = new Set(pos2.responsibilities.flatMap((r) => r.actions));
+        for (const action of actions1) {
+          if (actions2.has(action)) {
+            overlaps.push({ field: 'actions', value1: action, value2: action });
+          }
+        }
+
+        return overlaps;
+      },
+
+      updateHRSyncConfig: (config) => {
+        set((state) => {
+          if (!state.project) return state;
+          const now = new Date().toISOString();
+          const current = state.project.organizationModel || {
+            id: generateId(),
+            departments: [],
+            positions: [],
+            createdAt: now,
+            updatedAt: now,
+          };
+          return {
+            project: {
+              ...state.project,
+              organizationModel: {
+                ...current,
+                syncConfig: config,
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      setLastSyncResult: (result) => {
+        set((state) => {
+          if (!state.project?.organizationModel) return state;
+          const now = new Date().toISOString();
+          return {
+            project: {
+              ...state.project,
+              organizationModel: {
+                ...state.project.organizationModel,
+                lastSyncResult: result,
+                updatedAt: now,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      getDepartmentTree: () => {
+        const { project } = get();
+        if (!project?.organizationModel) return [];
+        const { departments, positions } = project.organizationModel;
+
+        const buildTree = (parentId?: string): DepartmentTreeNode[] => {
+          return departments
+            .filter((d) => d.parentId === parentId)
+            .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+            .map((d) => ({
+              department: d,
+              children: buildTree(d.id),
+              positions: positions.filter((p) => p.departmentId === d.id),
+            }));
+        };
+
+        return buildTree(undefined);
+      },
+
+      getPositionsByDepartment: (deptId) => {
+        const { project } = get();
+        if (!project?.organizationModel) return [];
+        return project.organizationModel.positions.filter((p) => p.departmentId === deptId);
+      },
+
+      getPositionsByRole: (roleId) => {
+        const { project } = get();
+        if (!project?.organizationModel) return [];
+        return project.organizationModel.positions.filter((p) => p.roleIds.includes(roleId));
+      },
+
       // UI状态
       setActiveModelType: (type) => {
         set({ activeModelType: type });
@@ -2166,6 +3028,8 @@ export const useOntologyStore = create<OntologyState>()(
               epcModel: null,
               governanceModel: createEmptyGovernanceModel(),
               dataSourcesModel: createEmptyDataSourcesModel(),
+              organizationModel: null,
+              agentSemanticLayer: null,
               updatedAt: now,
             },
             activeModelType: null,

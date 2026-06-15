@@ -62,9 +62,9 @@
 | **AI能力** | 语义注入 | 按需注入，混合格式，仅直接关联 |
 | | 交付加载入口 | 独立对话界面（左栏） |
 | | 自愈机制 | 最多2次重试，详细展示，返回原始错误 |
-| **EPC** | 定位 | 全域关联层，串联10大模型，非只读文档视图 |
+| **EPC** | 定位 | 全域关联层，串联12大模型（含Lifecycle+Semantic），非只读文档视图 |
 | | 节点类型 | Event/Function/Connector/InfoObject/OrgUnit，每节点可引用多模型元素 |
-| | 双向校验 | EPC→模型(VE×14) + 模型→EPC(VM×25) + 交叉一致性(VX×10) |
+| | 双向校验 | EPC→模型(VE×17) + 模型→EPC(VM×39) + 交叉一致性(VX×15) = 71条规则 |
 | | 流程图 | @xyflow/react 自定义节点渲染 |
 | **组织** | 组织模型 | Department(树形)+Position(岗位)，OrganizationModel为一级模型 |
 | | 岗位关联 | Position.roleIds→GovernanceRole，EPC OrgUnit引用Department/Position |
@@ -156,11 +156,11 @@
 | 元数据管理 | 57条标准字段+CRUD | ✅ 保持 |
 | AI辅助生成 | 豆包大模型生成建议 | ✅ 保持 |
 | 手册导出 | Markdown格式 | ✅ 保持 |
-| EPC全域关联 | 事件-流程-动作链路+模型关联+流程图 | 🆕 新增 |
+| EPC全域关联 | 事件-流程-动作链路+12大模型关联+流程图 | 🆕 新增 |
 | 组织体系建模 | 部门树+岗位+角色关联 | 🆕 新增 |
 | Entity Lifecycle | State/Transition/Action增强+聚合视图+审计 | 🆕 新增 |
 | Agent Semantic Layer | 意图映射+槽位填充+语义关系+术语词典+Agent策略 | 🆕 新增 |
-| 双向校验 | EPC↔模型 40+条规则+覆盖率 | 🆕 新增 |
+| 双向校验 | EPC↔模型 71条规则(VE×17+VM×39+VX×15)+覆盖率 | 🆕 新增 |
 | Excel导入 | 模板下载+上传校验+解析+待审核版本 | 🆕 新增 |
 | 版本审核 | pending_review/rejected+应用数据 | 🆕 新增 |
 
@@ -287,11 +287,11 @@ interface PublishConfig {
 
 ### 3.2.4 EPC全域关联层——详细设计
 
-> **可追溯**：与 `docs/EPC-Upgrade-Spec.md` v3.0 对应；EPC 从只读文档升级为全域关联层。
+> **可追溯**：与 `docs/EPC-Upgrade-Spec.md` v3.1 对应；EPC 从只读文档升级为全域关联层。
 
 #### 核心定位
 
-EPC 不是第六个模型，而是将五大模型+五大平台模型+组织模型串联为一体的**复合关联视图**。
+EPC 不是第六个模型，而是将五大核心模型+五大平台模型+组织模型+Entity Lifecycle+Agent Semantic Layer 串联为一体的**复合关联视图**。
 
 #### EPC 链路数据结构
 
@@ -329,27 +329,28 @@ interface EpcModelRef {
   modelType: 'data' | 'behavior' | 'rule' | 'event' | 'process' | 'governance' | 'metric' | 'dataSource' | 'masterData' | 'metadata' | 'organization';
   elementId: string;
   elementName?: string;
-  refRole: 'primary' | 'input' | 'output' | 'constraint' | 'metric' | 'source' | 'permission';
+  refRole: 'primary' | 'input' | 'output' | 'constraint' | 'metric' | 'source' | 'permission'
+         | 'guard' | 'compensate' | 'recovery' | 'intent' | 'term' | 'timeout';  // v3.1 新增
 }
 ```
 
-#### 全域关联矩阵
+#### 全域关联矩阵 (v3.1)
 
-| EPC节点 | 数据模型 | 行为模型 | 规则模型 | 事件模型 | 流程模型 | 治理模型 | 指标模型 | 数据源 | 主数据 | 元数据 | 组织模型 |
-|---------|---------|---------|---------|---------|---------|---------|---------|--------|-------|-------|---------|
-| Event   | 触发实体 | 状态转换 | 触发规则 | 事件定义 | 流程步骤 | 权限角色 | 关联指标 | 数据源 | 主数据 | 元数据 | 处理岗位 |
-| Function| 输入输出实体 | 动作/转换 | 前后置规则 | 产生事件 | 流程步骤 | 执行角色 | 活动指标 | 数据源 | 主数据 | 元数据 | 责任岗位 |
-| Connector| - | - | 分支规则 | - | 决策点 | 角色权限 | - | - | - | - | - |
-| InfoObject| 实体/属性 | - | 校验规则 | 变更事件 | - | 字段权限 | 质量指标 | 数据源 | 主数据 | 元数据 | - |
-| OrgUnit | - | 行为约束 | 角色规则 | 事件处理 | 流程参与 | 角色/权限 | 考核指标 | - | - | - | 部门/岗位 |
+| EPC节点 | 数据模型 | 行为模型 | 规则模型 | 事件模型 | 流程模型 | 治理模型 | 指标模型 | 数据源 | 主数据 | 元数据 | 组织模型 | **Lifecycle** | **Semantic** |
+|---------|---------|---------|---------|---------|---------|---------|---------|--------|-------|-------|---------|:---:|:---:|
+| Event   | 触发实体 | 状态转换 | 触发规则 | 事件定义 | 流程步骤 | 权限角色 | 关联指标 | 数据源 | 主数据 | 元数据 | 处理岗位 | State.entry/exitActions | Intent(触发类), BusinessTerm |
+| Function| 输入输出实体 | 动作/转换 | 前后置规则 | 产生事件 | 流程步骤 | 执行角色 | 活动指标 | 数据源 | 主数据 | 元数据 | 责任岗位 | availableActions, guardCondition | Intent(操作类), ErrorRecovery |
+| Connector| - | - | 分支规则 | - | 决策点 | 角色权限 | - | - | - | - | - | guardCondition | contextConstraints |
+| InfoObject| 实体/属性 | - | 校验规则 | 变更事件 | - | 字段权限 | 质量指标 | 数据源 | 主数据 | 元数据 | - | dataVisibility | SemanticFieldMapping, BusinessTerm |
+| OrgUnit | - | 行为约束 | 角色规则 | 事件处理 | 流程参与 | 角色/权限 | 考核指标 | - | - | - | 部门/岗位 | allowedRoles, notifyRoleIds | AgentPolicy |
 
-#### 双向校验体系（40+规则）
+#### 双向校验体系（71 条规则）
 
 | 方向 | 编号前缀 | 规则数 | 核心问题 |
 |------|---------|--------|---------|
-| EPC → 模型 | VE | 14 | EPC引用的模型元素是否真实有效、一致、合法？ |
-| 模型 → EPC | VM | 25 | 模型定义的元素是否被EPC覆盖？(8大模型+组织) |
-| 交叉一致性 | VX | 10 | EPC关联声明与模型内部定义是否矛盾？ |
+| EPC → 模型 | VE | 17 | EPC引用的模型元素是否真实有效、一致、合法？ |
+| 模型 → EPC | VM | 39 | 模型定义的元素是否被EPC覆盖？(10大模型+组织+Lifecycle+Semantic) |
+| 交叉一致性 | VX | 15 | EPC关联声明与模型内部定义是否矛盾？ |
 
 #### 推导生成
 
@@ -361,6 +362,11 @@ interface EpcModelRef {
 5. Rule → Connector 条件分支
 6. Orchestration.Step → Function 序列
 7. Entity.Attribute → InfoObject 节点
+8. State.availableActions → Function 节点关联的 State 上下文 (v3.1)
+9. Transition.guardCondition → Connector 分支条件 (v3.1)
+10. Transition.compensationAction → 回滚 Function 节点 (v3.1)
+11. Intent → Function/Event 节点的语义关联 (v3.1)
+12. AgentPolicy → OrgUnit 节点的策略关联 (v3.1)
 8. Metric → 关联 Function/Event KPI
 9. DataSource → 关联 InfoObject 数据来源
 10. Position/Department → OrgUnit 节点
@@ -1618,8 +1624,8 @@ Week 23-24: 订阅幂等+集成
 | **自愈机制** | 在交付加载中输入"查寻合同"（错别字）→AI首次SQL失败→自动修正"查询"→成功执行→对话显示完整修正过程 |
 | **版本切换** | 交付加载界面切换至v1.0.0→数据模型回退→操作旧版本数据 |
 | **事件订阅幂等** | 同一事件被订阅者处理两次→第二次检测到已处理ID→跳过不重复执行 |
-| **EPC全域关联** | 聚合根实体创建EPC链路→添加Event/Function/OrgUnit节点→关联已有模型元素→流程图正确渲染 |
-| **EPC双向校验** | EPC引用不存在的模型元素→VE报error；模型Action未被EPC覆盖→VM报warning；EPC声明与模型定义矛盾→VX报error |
+| **EPC全域关联** | 聚合根实体创建EPC链路→添加Event/Function/OrgUnit节点→关联已有模型元素(含Lifecycle+Semantic)→流程图正确渲染 |
+| **EPC双向校验** | EPC引用不存在的模型元素→VE报error；模型Action未被EPC覆盖→VM报warning；EPC声明与模型定义矛盾→VX报error；71条规则全覆盖 |
 | **组织体系建模** | 创建部门树+岗位→岗位关联GovernanceRole→EPC OrgUnit引用Department/Position |
 | **Excel导入** | 下载模板→填写数据→上传→校验通过→生成pending_review版本→审核通过→数据应用到工作区 |
 | **版本审核** | 上传Excel→生成待审核版本→审核通过→工作区数据更新；驳回→版本状态rejected+原因记录 |

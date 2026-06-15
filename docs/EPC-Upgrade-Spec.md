@@ -1,7 +1,7 @@
 # EPC 全域关联升级规格
 
-> 版本: 2.0 | 状态: Draft  
-> 核心定位: EPC 是本体模型的**全域关联层**——不是第六个模型，而是将五大模型+五大平台模型串联为一体的复合视图
+> 版本: 3.1 | 状态: Draft  
+> 核心定位: EPC 是本体模型的**全域关联层**——不是第六个模型，而是将五大核心模型+五大平台模型+Entity Lifecycle+Agent Semantic Layer 串联为一体的复合视图
 
 ---
 
@@ -19,32 +19,39 @@
 ### 1.2 核心定位
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                        EPC 全域关联层                         │
-│                                                              │
-│   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐       │
-│   │ 数据模型 │  │ 行为模型 │  │ 规则模型 │  │ 事件模型 │       │
-│   │ Entity  │  │ Action  │  │  Rule   │  │  Event  │       │
-│   │  Attr   │  │  SM     │  │ Cond.   │  │  Sub.   │       │
-│   └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘       │
-│        │            │            │            │              │
-│        ▼            ▼            ▼            ▼              │
-│   ┌─────────────────────────────────────────────────┐       │
-│   │              EPC Chain (链路)                     │       │
-│   │  Event → Function → [Connector] → Function →    │       │
-│   │  Event                                            │       │
-│   │                                                   │       │
-│   │  每个节点关联: 数据+行为+规则+事件+治理+指标+数据源 │       │
-│   └─────────────────────────────────────────────────┘       │
-│        ▲            ▲            ▲            ▲              │
-│   ┌────┴────┐  ┌────┴────┐  ┌────┴────┐  ┌────┴────┐       │
-│   │ 治理模型 │  │ 指标模型 │  │数据源模型│  │主数据模型│       │
-│   │  Role   │  │ Metric  │  │  DS     │  │  MD     │       │
-│   │FieldPerm│  │ Formula │  │ API/DB  │  │ Record  │       │
-│   └─────────┘  └─────────┘  └─────────┘  └─────────┘       │
-│                                                              │
-│   元数据模板 (Metadata) — 贯穿所有属性的语义标准化            │
-└──────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                          EPC 全域关联层 (v3.1)                        │
+│                                                                      │
+│   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐  │
+│   │ 数据模型 │  │ 行为模型 │  │ 规则模型 │  │ 事件模型 │  │ 流程模型 │  │
+│   │ Entity  │  │ Action  │  │  Rule   │  │  Event  │  │Process  │  │
+│   │  Attr   │  │  SM     │  │ Cond.   │  │  Sub.   │  │  Step   │  │
+│   └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘  │
+│        │            │            │            │            │         │
+│        ▼            ▼            ▼            ▼            ▼         │
+│   ┌──────────────────────────────────────────────────────────┐      │
+│   │                   EPC Chain (链路)                        │      │
+│   │  Event → Function → [Connector] → Function → Event       │      │
+│   │                                                          │      │
+│   │  每个节点关联: 数据+行为+规则+事件+治理+指标+数据源       │      │
+│   │              +生命周期+语义层                             │      │
+│   └──────────────────────────────────────────────────────────┘      │
+│        ▲            ▲            ▲            ▲            ▲         │
+│   ┌────┴────┐  ┌────┴────┐  ┌────┴────┐  ┌────┴────┐  ┌────┴────┐  │
+│   │ 治理模型 │  │ 指标模型 │  │数据源模型│  │主数据模型│  │ 元数据   │  │
+│   │  Role   │  │ Metric  │  │  DS     │  │  MD     │  │Metadata │  │
+│   │FieldPerm│  │ Formula │  │ API/DB  │  │ Record  │  │Template │  │
+│   └─────────┘  └─────────┘  └─────────┘  └─────────┘  └─────────┘  │
+│                                                                      │
+│   ┌──────────────────────────┐  ┌──────────────────────────┐        │
+│   │   Entity Lifecycle 层    │  │  Agent Semantic Layer    │        │
+│   │  State.availableActions  │  │  Intent → Action 映射    │        │
+│   │  Transition.guardCond.   │  │  BusinessTerm 术语词典   │        │
+│   │  Action.fallbackAction   │  │  ErrorRecovery 恢复路径  │        │
+│   │  State.dataVisibility    │  │  SemanticRelation 关系   │        │
+│   │  LifecycleAuditEntry     │  │  AgentPolicy 行为边界    │        │
+│   └──────────────────────────┘  └──────────────────────────┘        │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 **EPC 不是"流程图工具"，而是"全域关联可视化工具"**：
@@ -56,15 +63,15 @@
 
 ## 二、EPC 全域关联矩阵
 
-### 2.1 EPC 节点 × 本体模型 完整关联表
+### 2.1 EPC 节点 × 本体模型 完整关联表 (v3.1)
 
-| EPC 节点 | 数据模型 | 行为模型 | 规则模型 | 事件模型 | 流程模型 | 治理模型 | 指标模型 | 数据源 | 主数据 | 元数据 |
-|---------|---------|---------|---------|---------|---------|---------|---------|-------|-------|-------|
-| **Event** | 触发的实体/属性 | 触发的状态转换 | 满足的规则条件 | EventDefinition 本体 | — | 触发权限检查 | 触发时记录的KPI | 事件来源系统 | 引用的主数据 | 属性的元数据模板 |
-| **Function** | 输入/输出实体+属性 | Action/Transition | 前置/后置规则 | 产生的事件 | Orchestration.Step | 执行角色 | 度量的指标 | 调用的数据源 | 引用的主数据 | 属性的元数据模板 |
-| **Connector** | — | — | 分支条件→Rule | — | — | 角色可见的分支 | — | — | — | — |
-| **Info Object** | Entity/Attribute | — | 校验规则 | — | — | 字段权限 | — | 数据来源 | 主数据记录 | 元数据模板 |
-| **Org Unit** | — | — | — | — | — | Role+权限 | — | — | — | — |
+| EPC 节点 | 数据模型 | 行为模型 | 规则模型 | 事件模型 | 流程模型 | 治理模型 | 指标模型 | 数据源 | 主数据 | 元数据 | **Lifecycle** | **Semantic** |
+|---------|---------|---------|---------|---------|---------|---------|---------|-------|-------|-------|:---:|:---:|
+| **Event** | 触发的实体/属性 | 触发的状态转换 | 满足的规则条件 | EventDefinition 本体 | — | 触发权限检查 | 触发时记录的KPI | 事件来源系统 | 引用的主数据 | 属性的元数据模板 | State.entry/exitActions, Transition.publishEventId | Intent(触发类), BusinessTerm, TemporalValidity |
+| **Function** | 输入/输出实体+属性 | Action/Transition | 前置/后置规则 | 产生的事件 | Orchestration.Step | 执行角色 | 度量的指标 | 调用的数据源 | 引用的主数据 | 属性的元数据模板 | State.availableActions, guardCondition, compensationAction, fallbackActionId | Intent(操作类), SlotFillingStrategy, ErrorRecovery, AgentPolicy, BusinessTerm |
+| **Connector** | — | — | 分支条件→Rule | — | — | 角色可见的分支 | — | — | — | — | Transition.guardCondition | Intent.contextConstraints |
+| **Info Object** | Entity/Attribute | — | 校验规则 | — | — | 字段权限 | — | 数据来源 | 主数据记录 | 元数据模板 | State.dataVisibility | SemanticFieldMapping, BusinessTerm, TemporalValidity |
+| **Org Unit** | — | — | — | — | — | Role+权限 | — | — | — | — | State.allowedRoles, notifyRoleIds, approvalRoleIds | AgentPolicy |
 
 ### 2.2 关联详细说明
 
@@ -231,6 +238,93 @@ OrgUnit节点:
   行为模型:
     - refConstraintIds: 角色相关的行为约束
     - refActionIds: 角色可执行的动作
+  
+  Lifecycle:
+    - stateAllowedRoleIds: 在哪些 State 下此角色可操作
+    - notifyRoleIds: 状态转换时需通知的角色
+    - approvalRoleIds: 状态转换时需审批的角色
+  
+  Semantic:
+    - refAgentPolicyIds: Agent 行为策略
+    - policyActions: 策略定义的行为边界(allow/deny/confirm/escalate)
+```
+
+### 2.2.1 Lifecycle 层关联详情 (v3.1 新增)
+
+```yaml
+# EPC 节点与 Entity Lifecycle 的关联
+
+Event ↔ Lifecycle:
+  - State.entryActions: Event 触发后执行的入口动作列表
+  - State.exitActions: Event 触发前执行的出口动作列表
+  - Transition.publishEventId: 状态转换发布的事件（EPC Event 节点可反向校验）
+  - State.triggerableEvents: 此 State 下可触发的事件列表
+
+Function ↔ Lifecycle:
+  - State.availableActions: 此 Function 在哪些 State 下可用
+  - Transition.guardCondition: 执行前的守卫条件（EPC Connector 的分支依据）
+  - Transition.compensationAction: 失败时的补偿/回滚动作
+  - Transition.sideEffects: 结构化的副作用（日志/通知/审计）
+  - Action.fallbackActionId: 错误恢复链
+  - Action.requiresConfirmation: 是否需要人工确认
+  - Action.idempotencyKeyTemplate: 幂等性保证
+
+Connector ↔ Lifecycle:
+  - Transition.guardCondition: 守卫条件是天然的分支条件
+  - guardCondition.expression: 条件表达式
+  - guardCondition.refRuleIds: 关联的规则
+
+InfoObject ↔ Lifecycle:
+  - State.dataVisibility: 不同 State 下字段的可见性
+  - dataVisibility.visibleFields: 可见字段列表
+  - dataVisibility.readonlyFields: 只读字段列表
+  - dataVisibility.hiddenFields: 隐藏字段列表
+
+OrgUnit ↔ Lifecycle:
+  - State.allowedRoles: 此 State 下允许操作的角色
+  - Transition.notifyRoleIds: 转换时通知的角色
+  - Transition.requiresApproval: 是否需要审批
+  - Transition.approvalRoleIds: 审批角色列表
+  - State.timeout: 超时配置（duration + escalationAction）
+```
+
+### 2.2.2 Semantic Layer 关联详情 (v3.1 新增)
+
+```yaml
+# EPC 节点与 Agent Semantic Layer 的关联
+
+Event ↔ Semantic:
+  - Intent(触发事件类): "当订单创建时" → 映射到此 Event
+  - Intent.triggerPhrases: 自然语言触发短语
+  - BusinessTerm: 事件相关的业务术语定义
+  - TemporalValidity: 事件定义的生效/失效时间
+  - SemanticRelation: 事件与其他模型元素的语义关系
+
+Function ↔ Semantic:
+  - Intent(操作类): "帮我创建一个采购订单" → 映射到此 Function 的 Action
+  - Intent.triggerPhrases: 自然语言触发短语列表
+  - SlotFillingStrategy: 参数槽位填充顺序与校验
+  - ErrorRecovery: 操作失败后的重试/回退/升级/补偿策略
+  - AgentPolicy: 此操作的 Agent 行为边界
+  - BusinessTerm: 操作相关的术语
+  - TemporalValidity: 操作的时效性
+
+Connector ↔ Semantic:
+  - Intent.contextConstraints: 上下文约束（如"仅在草稿状态下可选此分支"）
+  - SlotFillingStrategy: 分支选择时的参数补充策略
+
+InfoObject ↔ Semantic:
+  - SemanticFieldMapping: 跨实体字段等价关系（如"物料.编码" = "订单.物料编码"）
+  - BusinessTerm: 实体/属性的术语定义
+  - TemporalValidity: 实体/属性的时效性
+  - SemanticRelation: is-a/part-of/synonym-of 等语义关系
+
+OrgUnit ↔ Semantic:
+  - AgentPolicy: Agent 行为策略
+  - AgentPolicy.allowedIntents: 允许处理的意图列表
+  - AgentPolicy.deniedIntents: 禁止处理的意图列表
+  - AgentPolicy.confirmIntents: 需人工确认的意图列表
+  - AgentPolicy.escalateIntents: 需升级的意图列表
 ```
 
 ### 2.3 EPC 附加元素关联
@@ -289,10 +383,12 @@ export type EpcNodeType =
 /** 全域关联引用 — 一个节点可同时引用多个模型的元素 */
 export interface EpcModelRef {
   modelType: 'data' | 'behavior' | 'rule' | 'event' | 'process' 
-           | 'governance' | 'metrics' | 'datasource' | 'masterdata' | 'metadata';
+           | 'governance' | 'metrics' | 'datasource' | 'masterdata' | 'metadata'
+           | 'lifecycle' | 'semantic';  // v3.1 新增
   elementId: string;        // 模型元素 ID
   elementName: string;      // 冗余存名称，用于展示
-  refRole: string;          // 关联角色：如 'primary' | 'input' | 'output' | 'constraint' | 'metric' | 'source' | 'permission'
+  refRole: string;          // 关联角色：'primary' | 'input' | 'output' | 'constraint' | 'metric' | 'source' | 'permission'
+                            //          | 'guard' | 'compensate' | 'recovery' | 'intent' | 'term' | 'timeout' (v3.1 新增)
 }
 
 export interface EpcNode {
@@ -813,7 +909,7 @@ src/components/ontology/epc/
 ### Phase 3: 全域关联 + 双向校验 + 跳转
 - 全域关联选择器 (epc-ref-panel.tsx)
 - 推导生成算法 (10步)
-- 双向校验引擎: VE(12条) + VM(20条) + VX(8条) = 40条规则
+- 双向校验引擎: VE(17条) + VM(39条) + VX(15条) = 71条规则
 - 覆盖率仪表盘 (EpcCoverageReport)
 - 各模型编辑器反向跳转 + EPC 覆盖 Badge
 - 校验三栏面板 (epc-validation-panel.tsx)
@@ -836,11 +932,11 @@ src/components/ontology/epc/
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│                     双向校验体系                               │
+│                     双向校验体系 (v3.1)                        │
 │                                                               │
 │  方向 A: EPC → 本体模型                方向 B: 本体模型 → EPC  │
 │  ┌─────────────────┐                  ┌─────────────────┐     │
-│  │ VE-01~12        │                  │ VM-D01~VM-S02   │     │
+│  │ VE-01~17        │                  │ VM-D01~VM-AS07  │     │
 │  │                 │                  │                 │     │
 │  │ EPC 引用的模型  │                  │ 模型定义的元素  │     │
 │  │ 元素是否有效？  │                  │ 是否被EPC覆盖？ │     │
@@ -848,10 +944,12 @@ src/components/ontology/epc/
 │           │                                    │              │
 │           ▼                                    ▼              │
 │  ┌─────────────────────────────────────────────────┐         │
-│  │            VX-01~08 交叉一致性校验               │         │
+│  │            VX-01~15 交叉一致性校验               │         │
 │  │                                                   │         │
 │  │  EPC 关联声明 ↔ 模型内部定义 是否一致？            │         │
 │  └─────────────────────────────────────────────────┘         │
+│                                                               │
+│  规则总计: VE(17) + VM(39) + VX(15) = 71 条                   │
 └───────────────────────────────────────────────────────────────┘
 ```
 
@@ -873,6 +971,11 @@ src/components/ontology/epc/
 | VE-10 | 链路起止 | error | 链路必须以 Event 开始和结束 |
 | VE-11 | 交替约束 | warning | Event/Function 应严格交替 |
 | VE-12 | Connector 分支 | error | XOR ≥2 分支，AND 必须汇合 |
+| VE-13 | Lifecycle 引用存在性 | error | `refs[].modelType='lifecycle'` 的 elementId 必须存在 | (v3.1) |
+| VE-14 | Semantic 引用存在性 | error | `refs[].modelType='semantic'` 的 elementId 必须存在 | (v3.1) |
+| VE-15 | State-Action 一致性 | warning | EPC Function 引用了 Action，但该 Action 不在当前 State 的 availableActions 中 | (v3.1) |
+| VE-16 | Transition-Event 一致性 | warning | EPC Event 节点引用了 EventDefinition，但无 Transition 声明 publishEventId 指向它 | (v3.1) |
+| VE-17 | GuardCondition 可执行性 | warning | EPC Connector 的分支条件应关联到 Transition.guardCondition 或 Rule | (v3.1) |
 
 ### 8.3 方向 B: 本体模型 → EPC (VM 系列)
 
@@ -938,6 +1041,30 @@ src/components/ontology/epc/
 | VM-S01 | DataSource 覆盖 | info | DataSource 应被 EPC Function/InfoObject 引用 |
 | VM-S02 | DataSource 绑定 | warning | 被 EPC 引用的 DataSource 应有 boundObjectTypeId |
 
+#### Lifecycle 模型 (VM-LC) — v3.1 新增
+
+| 编号 | 规则 | 严重程度 | 检查内容 |
+|------|------|---------|---------|
+| VM-LC01 | State 覆盖 | warning | 非初始/终止 State 应出现在 EPC 链路中（作为 Function 的上下文） |
+| VM-LC02 | Transition 覆盖 | info | 关键 Transition（含 guardCondition/compensationAction）应被 EPC 引用 |
+| VM-LC03 | GuardCondition 覆盖 | info | 有 guardCondition 的 Transition 应在 EPC Connector 中体现 |
+| VM-LC04 | CompensationAction 覆盖 | warning | 有 compensationAction 的 Transition 应在 EPC 中展示回滚路径 |
+| VM-LC05 | StateTimeout 覆盖 | warning | 有 timeout 配置的 State 应在 EPC 中标注超时风险 |
+| VM-LC06 | AvailableActions 覆盖 | warning | State.availableActions 中的 Action 应被 EPC Function 引用 |
+| VM-LC07 | DataVisibility 覆盖 | info | State.dataVisibility 定义的字段可见性应在 EPC InfoObject 中体现 |
+
+#### Agent Semantic Layer 模型 (VM-AS) — v3.1 新增
+
+| 编号 | 规则 | 严重程度 | 检查内容 |
+|------|------|---------|---------|
+| VM-AS01 | Intent 覆盖 | warning | 已定义的 Intent 应被 EPC Function 节点引用 |
+| VM-AS02 | ErrorRecovery 覆盖 | warning | 有 ErrorRecovery 的 Action 应在 EPC 中展示恢复路径 |
+| VM-AS03 | SemanticRelation 覆盖 | info | 语义关系应在 EPC 链路中体现（如 is-a 关系关联的实体应出现在同一链路） |
+| VM-AS04 | BusinessTerm 覆盖 | info | 被多个模型引用的核心术语应出现在 EPC InfoObject 中 |
+| VM-AS05 | AgentPolicy 覆盖 | warning | AgentPolicy 应在 EPC OrgUnit 节点中体现 |
+| VM-AS06 | TemporalValidity 覆盖 | info | 有时效性标记的模型元素应在 EPC 中标注有效期 |
+| VM-AS07 | SemanticFieldMapping 覆盖 | info | 跨实体字段映射应在 EPC 链路中体现数据流向 |
+
 ### 8.4 交叉一致性 (VX 系列)
 
 > "EPC 声明关联了 A→B，但模型内部 A 和 B 真的有关系吗？"
@@ -952,6 +1079,13 @@ src/components/ontology/epc/
 | VX-06 | Role-Permission 一致 | info | EPC OrgUnit 引用的 Role，其权限应覆盖链路涉及的实体 |
 | VX-07 | 连线因果一致性 | warning | EpcEdge 连接的 source Function 产生的事件 = target Event 引用的 EventDefinition |
 | VX-08 | 分支-规则一致性 | info | Connector 分支 ruleId 对应的 Rule 应为决策类规则 |
+| VX-09 | Intent-Action 一致 | error | EPC Function 引用了 Action，但无 Intent 指向该 Action | (v3.1) |
+| VX-10 | State-Intent 一致 | warning | Intent 的 contextConstraints 要求特定 State，但 EPC 链路中 Function 所处上下文 State 不匹配 | (v3.1) |
+| VX-11 | ErrorRecovery-Action 一致 | warning | EPC Function 引用了 Action，该 Action 有 ErrorRecovery 但 EPC 未展示恢复路径 | (v3.1) |
+| VX-12 | AgentPolicy-Role 一致 | warning | EPC OrgUnit 引用了 Role，该 Role 有 AgentPolicy 但 EPC 未关联 | (v3.1) |
+| VX-13 | SemanticRelation-EPC 一致 | info | SemanticRelation 关联了两个实体，但 EPC 链路中两个实体未同时出现 | (v3.1) |
+| VX-14 | TemporalValidity 冲突 | warning | EPC 链路引用的模型元素已过期（expiryDate < now） | (v3.1) |
+| VX-15 | GuardCondition-Connector 一致 | warning | Transition.guardCondition 与 EPC Connector 分支条件逻辑矛盾 | (v3.1) |
 
 ### 8.5 校验结果数据结构
 
@@ -987,6 +1121,8 @@ export interface EpcCoverageReport {
     governance: { total: number; covered: number; percent: number };
     metrics:    { total: number; covered: number; percent: number };
     datasource: { total: number; covered: number; percent: number };
+    lifecycle:  { total: number; covered: number; percent: number };  // v3.1
+    semantic:   { total: number; covered: number; percent: number };  // v3.1
   };
   uncovered: EpcValidationIssue[];  // VM-* 未覆盖的元素列表
 }

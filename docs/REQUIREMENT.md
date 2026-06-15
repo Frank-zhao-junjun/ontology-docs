@@ -698,7 +698,7 @@ Response:
 
 6.3 User Stories
 
-US-1: 下载 Excel 导入模板 — 生成含 6 个数据 Sheet + 填写说明的 .xlsx 模板
+US-1: 下载 Excel 导入模板 — 生成含 8 个数据 Sheet (实体/属性/关系/状态机/规则/事件/部门/岗位) + 填写说明的 .xlsx 模板
 US-2: 上传 Excel 文件 — 仅接受 .xlsx，5MB 上限，Sheet 结构校验
 US-3: 数据解析与校验 — 逐行校验+解析，返回校验结果和 parsedData
 US-4: 生成待审核版本 — status=pending_review，版本号按日期自动递增

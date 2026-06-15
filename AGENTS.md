@@ -255,7 +255,7 @@ POST /api/generate-model
 ```
 GET /api/excel-template
 ```
-生成含填写说明+6个数据Sheet的 .xlsx 导入模板。
+生成含填写说明+8个数据Sheet的 .xlsx 导入模板。
 
 **返回**: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet 二进制文件
 
@@ -280,17 +280,20 @@ POST /api/excel-import
     "relations": [...],
     "stateMachines": [...],
     "rules": [...],
-    "eventDefinitions": [...]
+    "eventDefinitions": [...],
+    "departments": [{ "name": "生产管理部", "nameEn": "ProductionMgmt", "type": "department", ... }],
+    "positions": [{ "name": "生产主管", "nameEn": "ProductionSupervisor", "responsibilities": [...], ... }]
   }
 }
 ```
 
 **校验规则**:
 - 文件格式: 仅 .xlsx，最大5MB
-- Sheet结构: 必须包含实体/属性/关系/状态机/规则/事件 6个Sheet
+- Sheet结构: 至少包含实体/属性/关系/状态机/规则/事件/部门/岗位中1个Sheet
 - 必填字段: 各Sheet的(必填)标记字段
 - 枚举值: 实体角色、数据类型、关系类型、规则类型、触发时机等
-- 跨Sheet引用: 属性/关系/状态机/规则/事件中的实体英文名必须在实体Sheet中存在
+- 跨Sheet引用: 属性/关系/状态机/规则/事件中的实体英文名必须在实体Sheet中存在；岗位.所属部门编码必须在部门Sheet中存在
+- 组织校验: 部门树环检测、职责列对齐、角色引用完整性等 23 条规则 (V-XL-O01~O23)
 - 描述行/示例行: 以 `#DESC#`/`#EXAMPLE#` 开头的行自动跳过
 
 ### Entity Lifecycle 导出

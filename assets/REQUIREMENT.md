@@ -766,7 +766,7 @@ export interface ProjectVersion {
 US-1: 下载 Excel 导入模板
 
 - 角色：业务架构师 / 系统设计师
-- 需求：下载标准 .xlsx 模板，包含 6 个数据 Sheet（实体/属性/关系/状态机/规则/事件）和 1 个填写说明 Sheet
+- 需求：下载标准 .xlsx 模板，包含 8 个数据 Sheet（实体/属性/关系/状态机/规则/事件/部门/岗位）和 1 个填写说明 Sheet
 - 验收标准：
   - GET /api/excel-template 返回 application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
   - 每个 Sheet 包含表头行（含"(必填)"标记）、描述行和示例行

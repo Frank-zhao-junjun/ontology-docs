@@ -647,18 +647,438 @@ export interface Metric {
 
 ## 九、Excel 导入扩展
 
-### 9.1 新增 Sheet
+### 9.1 概述
 
-| Sheet名 | 必填列 | 说明 |
-|---------|--------|------|
-| 部门 | 部门名称(必填), 英文名称(必填), 部门类型, 上级部门编码, 部门编码, 描述 | 部门定义 |
-| 岗位 | 岗位名称(必填), 英文名称(必填), 所属部门编码(必填), 关联角色, 岗位层级, 编制人数, 职责描述 | 岗位定义 |
+在现有 Excel 导入功能（6 个 Sheet: 实体/属性/关系/状态机/规则/事件）基础上，新增 **2 个 Sheet**（部门/岗位），使模板包含 8 个数据 Sheet + 1 个填写说明 Sheet。
 
-### 9.2 Store 新增解析
+**导入策略**：
+- 组织数据（部门+岗位）与核心模型数据可**同一次导入**或**单独导入**
+- 单独导入时只需上传包含部门/岗位 Sheet 的文件，其余 Sheet 可省略
+- 同一次导入时，岗位的 `所属部门编码` 必须引用同一文件中部门 Sheet 的 `部门编码`
 
-`createVersionFromParsedData` 增加：
-- `departments` → `OrganizationModel.departments`
-- `positions` → `OrganizationModel.positions`
+### 9.2 新增 Sheet 定义
+
+#### 部门 Sheet
+
+| 列名 | 必填 | 类型 | 说明 | 示例 |
+|------|:---:|------|------|------|
+| 部门编码 | 否 | string | 唯一编码，用于跨Sheet引用；不填则自动生成 | DEPT-PROD |
+| 部门名称 | **是** | string | 中文名称 | 生产管理部 |
+| 英文名称 | **是** | string | 英文名称，用于跨系统引用 | ProductionMgmt |
+| 部门类型 | 否 | enum | group/business_unit/department/team/group，默认 department | department |
+| 上级部门编码 | 否 | string | 引用部门编码，空表示顶级部门 | DEPT-MFG |
+| 描述 | 否 | string | 部门描述 | 负责生产计划与车间调度 |
+| 编制人数 | 否 | integer | 部门总编制 | 50 |
+| 排序号 | 否 | integer | 同级排序，默认 0 | 1 |
+
+**说明行**: `#DESC#部门编码: 唯一标识，用于岗位Sheet引用; 部门类型: group/business_unit/department/team/group`
+
+**示例行**: `DEPT-PROD, 生产管理部, ProductionMgmt, department, DEPT-MFG, 负责生产计划与车间调度, 50, 1`
+
+#### 岗位 Sheet
+
+| 列名 | 必填 | 类型 | 说明 | 示例 |
+|------|:---:|------|------|------|
+| 岗位编码 | 否 | string | 唯一编码；不填则自动生成 | POS-PM-01 |
+| 岗位名称 | **是** | string | 中文名称 | 生产主管 |
+| 英文名称 | **是** | string | 英文名称 | ProductionSupervisor |
+| 所属部门编码 | **是** | string | 引用部门Sheet的部门编码 | DEPT-PROD |
+| 上级岗位编码 | 否 | string | 引用岗位编码（汇报线） | POS-MFG-01 |
+| 岗位层级 | 否 | integer | 层级，默认 1 | 3 |
+| 编制人数 | 否 | integer | 该岗位编制 | 2 |
+| 关联角色 | 否 | string | GovernanceRole 名称，多个用分号分隔 | 生产经理;调度员 |
+| 职责-范围 | 否 | string | 职责范围描述，多职责用分号分隔 | 物料;质检流程 |
+| 职责-范围类型 | 否 | string | 对应scope，多个用分号分隔；默认 entity | entity;process |
+| 职责-操作 | 否 | string | 对应actions，多个职责间用分号分隔，每个职责内用逗号分隔 | 采购审批,质量审核;质检确认 |
+| 职责-决策权限 | 否 | string | 对应decisionAuthority，多个用分号分隔；默认 recommend | approve;veto |
+| 职责-委托岗位 | 否 | string | 对应delegateToPositionIds，多个用分号分隔 | POS-PM-02 |
+| 任职要求 | 否 | string | requiredCompetencies，多个用分号分隔 | 5年生产管理经验;熟悉ERP |
+| 状态 | 否 | enum | active/inactive，默认 active | active |
+
+**说明行**: `#DESC#所属部门编码: 引用部门Sheet的编码; 关联角色: GovernanceRole名称，分号分隔; 职责列: 多职责用分号分隔，同一职责内操作用逗号分隔`
+
+**示例行**: `POS-PM-01, 生产主管, ProductionSupervisor, DEPT-PROD, POS-MFG-01, 3, 2, 生产经理;调度员, 物料;质检流程, entity;process, 采购审批,质量审核;质检确认, approve;veto, , 5年生产管理经验, active`
+
+### 9.3 校验规则
+
+#### 部门 Sheet 校验
+
+| 规则ID | 严重级别 | 规则 | 说明 |
+|--------|---------|------|------|
+| V-XL-O01 | error | 部门名称必填 | 部门名称不能为空 |
+| V-XL-O02 | error | 英文名称必填 | 英文名称不能为空 |
+| V-XL-O03 | error | 英文名称唯一 | 同一Sheet内英文名称不能重复 |
+| V-XL-O04 | error | 部门编码唯一 | 部门编码有值时不能重复 |
+| V-XL-O05 | error | 上级部门引用存在 | 上级部门编码必须在同Sheet中存在 |
+| V-XL-O06 | error | 部门类型枚举 | 部门类型必须是 group/business_unit/department/team/group 之一 |
+| V-XL-O07 | error | 无环依赖 | 上级部门关系不能形成环 |
+| V-XL-O08 | warning | 编制人数非负 | 编制人数应为非负整数 |
+
+#### 岗位 Sheet 校验
+
+| 规则ID | 严重级别 | 规则 | 说明 |
+|--------|---------|------|------|
+| V-XL-O09 | error | 岗位名称必填 | 岗位名称不能为空 |
+| V-XL-O10 | error | 英文名称必填 | 英文名称不能为空 |
+| V-XL-O11 | error | 英文名称唯一 | 同一Sheet内英文名称不能重复 |
+| V-XL-O12 | error | 岗位编码唯一 | 岗位编码有值时不能重复 |
+| V-XL-O13 | error | 所属部门引用存在 | 所属部门编码必须在部门Sheet中存在 |
+| V-XL-O14 | error | 上级岗位引用存在 | 上级岗位编码必须在同Sheet中存在 |
+| V-XL-O15 | error | 关联角色存在 | 关联角色名称必须在当前项目的 GovernanceRole 中存在 |
+| V-XL-O16 | error | 职责列对齐 | 职责-范围/范围类型/操作/决策权限/委托岗位 列的分号分隔数量必须一致 |
+| V-XL-O17 | error | 决策权限枚举 | decisionAuthority 必须是 none/recommend/approve/veto 之一 |
+| V-XL-O18 | error | 状态枚举 | 状态必须是 active/inactive 之一 |
+| V-XL-O19 | warning | 委托岗位引用存在 | 委托岗位编码应在岗位Sheet中存在 |
+| V-XL-O20 | warning | 层级非负 | 岗位层级应为正整数 |
+
+#### 跨Sheet 校验
+
+| 规则ID | 严重级别 | 规则 | 说明 |
+|--------|---------|------|------|
+| V-XL-O21 | error | 岗位→部门引用 | 岗位.所属部门编码 必须在部门Sheet中存在 |
+| V-XL-O22 | error | 岗位→上级岗位引用 | 岗位.上级岗位编码 必须在岗位Sheet中存在 |
+| V-XL-O23 | warning | 委托岗位→岗位引用 | 职责.委托岗位编码 应在岗位Sheet中存在 |
+
+### 9.4 解析逻辑
+
+```typescript
+/** Excel 导入解析结果扩展 */
+export interface ExcelParsedData {
+  // ... 现有字段
+  departments?: Department[];
+  positions?: Position[];
+}
+
+/** 解析部门Sheet */
+function parseDepartmentsSheet(rows: any[]): {
+  departments: Department[];
+  errors: ExcelImportError[];
+} {
+  const departments: Department[] = [];
+  const errors: ExcelImportError[] = [];
+  const codeMap = new Map<string, Department>(); // 编码→部门，用于构建树
+
+  for (const row of rows) {
+    // 1. 跳过描述行和示例行
+    if (isDescriptionRow(row) || isExampleRow(row)) continue;
+
+    // 2. 必填校验
+    if (!row['部门名称']) { errors.push(...); continue; }
+    if (!row['英文名称']) { errors.push(...); continue; }
+
+    // 3. 唯一性校验
+    if (codeMap.has(row['部门编码'])) { errors.push(...); continue; }
+
+    // 4. 枚举校验
+    const deptType = row['部门类型'] || 'department';
+    if (!['group','business_unit','department','team','group'].includes(deptType)) {
+      errors.push(...); continue;
+    }
+
+    // 5. 构建 Department
+    const dept: Department = {
+      id: generateId(),
+      name: row['部门名称'],
+      nameEn: row['英文名称'],
+      code: row['部门编码'] || autoGenerateCode('DEPT'),
+      type: deptType as DepartmentType,
+      parentId: undefined, // 第二轮填充
+      description: row['描述'],
+      headcount: row['编制人数'] ? parseInt(row['编制人数']) : undefined,
+      sortOrder: row['排序号'] ? parseInt(row['排序号']) : 0,
+      status: 'active',
+    };
+
+    codeMap.set(dept.code!, dept);
+    departments.push(dept);
+  }
+
+  // 第二轮：填充 parentId（上级部门编码→部门ID）
+  for (const row of rows) {
+    if (isDescriptionRow(row) || isExampleRow(row)) continue;
+    const code = row['部门编码'];
+    const parentCode = row['上级部门编码'];
+    if (code && parentCode) {
+      const dept = codeMap.get(code);
+      const parent = codeMap.get(parentCode);
+      if (dept && parent) {
+        dept.parentId = parent.id;
+      } else if (!parent) {
+        errors.push({ sheet: '部门', row, field: '上级部门编码',
+          message: `上级部门编码 "${parentCode}" 不存在` });
+      }
+    }
+  }
+
+  // 第三轮：环检测
+  detectCycles(departments, errors);
+
+  return { departments, errors };
+}
+
+/** 解析岗位Sheet */
+function parsePositionsSheet(
+  rows: any[],
+  departmentCodeMap: Map<string, string>,  // 编码→ID
+  positionCodeMap: Map<string, string>,    // 编码→ID (两轮解析)
+  existingRoles: GovernanceRole[],         // 当前项目的角色列表
+): {
+  positions: Position[];
+  errors: ExcelImportError[];
+} {
+  const positions: Position[] = [];
+  const errors: ExcelImportError[] = [];
+
+  for (const row of rows) {
+    if (isDescriptionRow(row) || isExampleRow(row)) continue;
+
+    // 1. 必填校验
+    if (!row['岗位名称'] || !row['英文名称'] || !row['所属部门编码']) {
+      errors.push(...); continue;
+    }
+
+    // 2. 部门引用校验
+    const deptId = departmentCodeMap.get(row['所属部门编码']);
+    if (!deptId) {
+      errors.push({ sheet: '岗位', row, field: '所属部门编码',
+        message: `部门编码 "${row['所属部门编码']}" 在部门Sheet中不存在` });
+      continue;
+    }
+
+    // 3. 关联角色解析
+    const roleNames = (row['关联角色'] || '').split(';').map(s => s.trim()).filter(Boolean);
+    const roleIds: string[] = [];
+    for (const rn of roleNames) {
+      const role = existingRoles.find(r => r.name === rn);
+      if (role) { roleIds.push(role.id); }
+      else { errors.push({ sheet: '岗位', field: '关联角色',
+        message: `角色 "${rn}" 不存在于当前项目` }); }
+    }
+
+    // 4. 结构化职责解析（分号分隔多职责）
+    const responsibilities = parseResponsibilities(row, positionCodeMap, errors);
+
+    // 5. 构建 Position
+    const position: Position = {
+      id: generateId(),
+      name: row['岗位名称'],
+      nameEn: row['英文名称'],
+      code: row['岗位编码'] || autoGenerateCode('POS'),
+      departmentId: deptId,
+      parentPositionId: undefined, // 第二轮填充
+      level: row['岗位层级'] ? parseInt(row['岗位层级']) : 1,
+      headcount: row['编制人数'] ? parseInt(row['编制人数']) : undefined,
+      roleIds,
+      responsibilities,
+      requiredCompetencies: row['任职要求']
+        ? row['任职要求'].split(';').map(s => s.trim()).filter(Boolean)
+        : [],
+      status: row['状态'] === 'inactive' ? 'inactive' : 'active',
+    };
+
+    positions.push(position);
+  }
+
+  // 第二轮：填充 parentPositionId
+  for (const row of rows) {
+    if (isDescriptionRow(row) || isExampleRow(row)) continue;
+    const code = row['岗位编码'];
+    const parentCode = row['上级岗位编码'];
+    if (code && parentCode) {
+      const posId = positionCodeMap.get(code);
+      const parentId = positionCodeMap.get(parentCode);
+      if (posId && parentId) {
+        const pos = positions.find(p => p.id === posId);
+        if (pos) pos.parentPositionId = parentId;
+      }
+    }
+  }
+
+  return { positions, errors };
+}
+
+/** 解析结构化职责（分号分隔多职责） */
+function parseResponsibilities(
+  row: any,
+  positionCodeMap: Map<string, string>,
+  errors: ExcelImportError[],
+): PositionResponsibility[] {
+  const scopes = (row['职责-范围'] || '').split(';').map(s => s.trim());
+  const scopeTypes = (row['职责-范围类型'] || '').split(';').map(s => s.trim());
+  const actions = (row['职责-操作'] || '').split(';').map(s => s.trim());
+  const authorities = (row['职责-决策权限'] || '').split(';').map(s => s.trim());
+  const delegates = (row['职责-委托岗位'] || '').split(';').map(s => s.trim());
+
+  // 对齐校验
+  const count = scopes.length;
+  if (scopeTypes.length !== count || actions.length !== count || authorities.length !== count) {
+    errors.push({ sheet: '岗位', field: '职责列',
+      message: `职责各列的分号分隔数量不一致(范围=${count}, 类型=${scopeTypes.length}, 操作=${actions.length}, 权限=${authorities.length})` });
+    return [];
+  }
+
+  const responsibilities: PositionResponsibility[] = [];
+  for (let i = 0; i < count; i++) {
+    if (!scopes[i]) continue;
+    responsibilities.push({
+      id: generateId(),
+      name: scopes[i],
+      scope: (scopeTypes[i] || 'entity') as PositionResponsibility['scope'],
+      scopeRefs: [], // 需要在实体/流程创建后手动关联
+      actions: actions[i] ? actions[i].split(',').map(s => s.trim()) : [],
+      decisionAuthority: (authorities[i] || 'recommend') as PositionResponsibility['decisionAuthority'],
+      delegateToPositionIds: delegates[i]
+        ? delegates[i].split(',').map(code => positionCodeMap.get(code) || code).filter(Boolean)
+        : [],
+      isActive: true,
+    });
+  }
+
+  return responsibilities;
+}
+```
+
+### 9.5 模板 API 变更
+
+#### GET /api/excel-template
+
+**变更**: `TEMPLATE_SHEETS` 数组新增 2 个 Sheet 定义。
+
+```typescript
+// 新增到 TEMPLATE_SHEETS
+{
+  name: '部门',
+  nameEn: 'Department',
+  headers: [
+    { key: 'code', label: '部门编码', required: false, description: '唯一编码，用于岗位Sheet引用' },
+    { key: 'name', label: '部门名称', required: true, description: '中文名称' },
+    { key: 'nameEn', label: '英文名称', required: true, description: '英文名称' },
+    { key: 'type', label: '部门类型', required: false, description: 'group/business_unit/department/team/group' },
+    { key: 'parentCode', label: '上级部门编码', required: false, description: '引用部门编码，空表示顶级' },
+    { key: 'description', label: '描述', required: false, description: '部门描述' },
+    { key: 'headcount', label: '编制人数', required: false, description: '部门总编制' },
+    { key: 'sortOrder', label: '排序号', required: false, description: '同级排序，默认0' },
+  ],
+},
+{
+  name: '岗位',
+  nameEn: 'Position',
+  headers: [
+    { key: 'code', label: '岗位编码', required: false, description: '唯一编码' },
+    { key: 'name', label: '岗位名称', required: true, description: '中文名称' },
+    { key: 'nameEn', label: '英文名称', required: true, description: '英文名称' },
+    { key: 'departmentCode', label: '所属部门编码', required: true, description: '引用部门Sheet的编码' },
+    { key: 'parentPositionCode', label: '上级岗位编码', required: false, description: '汇报线' },
+    { key: 'level', label: '岗位层级', required: false, description: '层级' },
+    { key: 'headcount', label: '编制人数', required: false, description: '该岗位编制' },
+    { key: 'roleNames', label: '关联角色', required: false, description: 'GovernanceRole名称，分号分隔' },
+    { key: 'respScope', label: '职责-范围', required: false, description: '职责范围描述，分号分隔多职责' },
+    { key: 'respScopeType', label: '职责-范围类型', required: false, description: 'entity/process/domain/custom，分号分隔' },
+    { key: 'respActions', label: '职责-操作', required: false, description: '每职责内逗号分隔，多职责间分号分隔' },
+    { key: 'respAuthority', label: '职责-决策权限', required: false, description: 'none/recommend/approve/veto，分号分隔' },
+    { key: 'respDelegate', label: '职责-委托岗位', required: false, description: '岗位编码，分号分隔' },
+    { key: 'competencies', label: '任职要求', required: false, description: '分号分隔' },
+    { key: 'status', label: '状态', required: false, description: 'active/inactive，默认active' },
+  ],
+},
+```
+
+**填写说明 Sheet 更新**: 新增 `7. 部门Sheet：定义组织架构树形结构` 和 `8. 岗位Sheet：定义岗位及结构化职责`。
+
+### 9.6 导入 API 变更
+
+#### POST /api/excel-import
+
+**变更**: 
+1. Sheet 结构校验从"必须包含 6 个 Sheet"调整为"至少包含 1 个数据 Sheet"
+2. 新增部门/岗位 Sheet 的解析和校验
+3. `ExcelParsedData` 新增 `departments` 和 `positions` 字段
+4. 版本审核通过后，组织数据写入 `OrganizationModel`
+
+```typescript
+// parseExcelToModels() 新增逻辑
+const departmentCodeMap = new Map<string, string>(); // 编码→部门ID
+const positionCodeMap = new Map<string, string>();   // 编码→岗位ID
+
+if (wb.SheetNames.includes('部门')) {
+  const { departments, errors } = parseDepartmentsSheet(deptRows);
+  parsedData.departments = departments;
+  validation.errors.push(...errors);
+  // 构建编码映射
+  departments.forEach(d => { if (d.code) departmentCodeMap.set(d.code, d.id); });
+}
+
+if (wb.SheetNames.includes('岗位')) {
+  if (!departmentCodeMap.size && !wb.SheetNames.includes('部门')) {
+    validation.errors.push({
+      sheet: '岗位', row: 0, field: '所属部门编码',
+      message: '岗位Sheet引用部门编码，但未找到部门Sheet',
+    });
+  }
+  const { positions, errors } = parsePositionsSheet(
+    posRows, departmentCodeMap, positionCodeMap, existingRoles
+  );
+  parsedData.positions = positions;
+  validation.errors.push(...errors);
+}
+```
+
+### 9.7 Store 变更
+
+`createVersionFromParsedData` 和 `approveVersion` 扩展：
+
+```typescript
+// createVersionFromParsedData 中
+if (parsedData.departments?.length || parsedData.positions?.length) {
+  version.organizationModel = {
+    id: generateId(),
+    name: '组织架构',
+    departments: parsedData.departments || [],
+    positions: parsedData.positions || [],
+    syncConfig: undefined,
+    lastSyncResult: undefined,
+  };
+}
+
+// approveVersion 中应用组织数据
+if (parsedData.departments?.length || parsedData.positions?.length) {
+  // 合并策略：替换现有组织数据
+  state.project.organizationModel = {
+    id: generateId(),
+    name: '组织架构',
+    departments: parsedData.departments || [],
+    positions: parsedData.positions || [],
+    syncConfig: state.project.organizationModel?.syncConfig, // 保留同步配置
+    lastSyncResult: state.project.organizationModel?.lastSyncResult,
+  };
+}
+```
+
+### 9.8 ExcelTemplateSheet 类型扩展
+
+```typescript
+// 在 ExcelTemplateSheet 的 nameEn 中新增
+type ExcelTemplateSheetNameEn = 
+  | 'Entity' | 'Attribute' | 'Relation' | 'StateMachine' | 'Rule' | 'Event'
+  | 'Department' | 'Position';  // 新增
+```
+
+### 9.9 单独导入组织数据
+
+用户可以上传**仅包含部门和岗位 Sheet** 的 Excel 文件：
+
+- 文件格式仍为 `.xlsx`
+- Sheet 结构校验：至少包含部门或岗位中的一个
+- 其他 Sheet（实体/属性等）可以省略
+- 导入时，现有核心模型数据**不受影响**
+- 解析结果只包含 `departments` 和/或 `positions`
+
+**导入对话框提示变更**：
+```
+上传 Excel 文件(.xlsx)导入数据
+支持: 实体/属性/关系/状态机/规则/事件/部门/岗位
+至少包含一个数据Sheet即可
+```
 
 ---
 
@@ -675,6 +1095,9 @@ export interface Metric {
 | US-O-7 | 建模师 | 我要在 EPC 中引用真实部门和岗位 | EPC 组织节点可从组织模型选择 |
 | US-O-8 | Agent | 我要根据岗位职责判断决策权限 | PositionResponsibility.decisionAuthority 可被 Agent 读取 |
 | US-O-9 | 建模师 | 岗位可委托职责给其他岗位 | delegateToPositionIds 支持请假/离职场景 |
+| US-O-10 | 建模师 | 我要通过Excel批量导入部门和岗位 | 下载含部门+岗位Sheet的模板，填写后上传自动解析校验 |
+| US-O-11 | 建模师 | 我要单独导入组织数据而不影响现有模型 | 上传只含部门/岗位Sheet的Excel，现有实体/规则等不受影响 |
+| US-O-12 | 建模师 | 导入的岗位职责要结构化 | Excel中职责列按分号/逗号规则解析为PositionResponsibility |
 
 ---
 

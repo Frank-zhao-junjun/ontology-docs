@@ -526,28 +526,75 @@ epcRefs?: string[];   // 出现在哪些 EpcChain.id 中
 - [ ] 可按模型类型过滤显示
 - [ ] 点击元素跳转到对应编辑器
 
-### US-EPC-8: EPC 完整性校验
+### US-EPC-8: 双向校验 — 从 EPC 校验本体模型
 
 **作为**业务架构师  
-**我希望**对 EPC 链路进行全域完整性校验  
-**以便**发现模型覆盖的缺口
+**我希望**校验 EPC 链路中引用的本体模型元素是否有效、一致、完整  
+**以便**确保 EPC 不是空洞的流程图，而是有实际模型支撑的关联视图
 
 **验收标准**:
-- [ ] V-EPC-01: 链路起止节点必须是 Event
-- [ ] V-EPC-02: Event/Function 严格交替
-- [ ] V-EPC-03: Function 应至少关联一个行为模型元素 (Action/Transition)
-- [ ] V-EPC-04: Function 应至少关联一个数据模型元素 (InfoObject)
-- [ ] V-EPC-05: XOR Connector 至少 2 个分支
-- [ ] V-EPC-06: AND Connector 分支必须汇合
-- [ ] V-EPC-07: 引用的模型元素(refId)必须仍然存在
-- [ ] V-EPC-08: **未覆盖模型检测**：行为模型中有 Action 但未出现在任何 EPC Function → warning
-- [ ] V-EPC-09: **未覆盖模型检测**：事件模型中有 EventDefinition 但未出现在任何 EPC Event → warning
-- [ ] V-EPC-10: **未覆盖模型检测**：规则模型中有 Rule 但未出现在任何 EPC → warning
-- [ ] V-EPC-11: **数据源覆盖检测**：Function 关联了外部系统但无 DataSource 配置 → info
-- [ ] V-EPC-12: **治理覆盖检测**：Function 无执行角色 → info
-- [ ] 校验结果面板，按严重程度分组，点击定位
+- [ ] VE-01: 引用存在性 — EPC 节点的 `refs[].elementId` 在对应模型中必须存在
+- [ ] VE-02: 引用一致性 — EPC 节点 `refs[].elementName` 与实际模型元素名称一致（检测重命名不同步）
+- [ ] VE-03: 引用类型合法性 — Event 节点不应引用 `refRole='primary'` 的 Action，Function 不应引用 `refRole='primary'` 的 EventDefinition
+- [ ] VE-04: 连线事件存在性 — EpcEdge 的 `refEventId` 对应的 EventDefinition 必须存在
+- [ ] VE-05: 分支规则存在性 — Connector 的 `branches[].ruleId` 对应的 Rule 必须存在
+- [ ] VE-06: Function 关联密度 — Function 节点应至少关联 1 个行为模型元素(Action/Transition)，否则为空壳节点 → warning
+- [ ] VE-07: Function 数据依赖 — Function 节点应至少关联 1 个数据模型元素(InfoObject/Attribute)，否则无法确定操作对象 → warning
+- [ ] VE-08: Info Object 实体绑定 — Info Object 节点应关联一个 Entity，否则为游离数据 → warning
+- [ ] VE-09: Org Unit 角色绑定 — Org Unit 节点应关联一个 GovernanceRole，否则为匿名角色 → warning
+- [ ] VE-10: 链路结构 — 链路必须以 Event 节点开始和结束
+- [ ] VE-11: 交替约束 — Event/Function 应严格交替（Connector 除外）
+- [ ] VE-12: XOR 至少 2 分支，AND 分支必须汇合
+- [ ] 校验结果面板按「引用完整性/结构合规/关联密度」分组，点击定位到节点
 
-### US-EPC-9: EPC 导出增强
+### US-EPC-9: 双向校验 — 从本体模型校验 EPC
+
+**作为**业务架构师  
+**我希望**从每个模型视角检查其元素是否被 EPC 链路覆盖  
+**以便**发现建模但未纳入业务流程的"孤儿元素"
+
+**验收标准**:
+- [ ] VM-D01: 实体覆盖 — aggregate_root 实体应至少出现在 1 条 EPC 链路的 InfoObject 中
+- [ ] VM-D02: 属性覆盖 — 关键属性(required+unique)应被 EPC 节点的 refs 引用
+- [ ] VM-D03: 关系覆盖 — Entity 间 Relation 应在 EPC 的 Function 关联中体现（至少一条链路涉及此关系）
+- [ ] VM-B01: Action 覆盖 — 已定义的 Action 应出现在至少 1 个 EPC Function 节点的 refs 中
+- [ ] VM-B02: StateMachine 覆盖 — 已定义的 StateMachine 应有至少 1 条 EPC 链路展示其生命周期
+- [ ] VM-B03: Transition 覆盖 — 状态转换应被 EPC Function 或 Event 节点引用
+- [ ] VM-B04: Indicator 覆盖 — 行为指标(Indicator)应被 EPC 的 KPI 元素或 Function refs 引用
+- [ ] VM-B05: Constraint 覆盖 — 行为约束(Constraint)应被 EPC Function refs 引用
+- [ ] VM-R01: Rule 覆盖 — 已定义的 Rule 应被至少 1 个 EPC 节点(Function/Connector)引用
+- [ ] VM-R02: Rule 可执行性 — 被 EPC 引用的 Rule 应绑定到具体实体和字段，否则为空规则 → warning
+- [ ] VM-E01: EventDefinition 覆盖 — 已定义的领域事件应出现在至少 1 个 EPC Event 节点的 refs 中
+- [ ] VM-E02: Subscription 覆盖 — 事件订阅应被 EPC 连线或 Function refs 体现
+- [ ] VM-P01: Orchestration 覆盖 — 已定义的流程编排应有对应的 EPC 链路
+- [ ] VM-P02: Step 覆盖 — 流程步骤应被 EPC Function 节点引用
+- [ ] VM-G01: Role 覆盖 — GovernanceRole 应被至少 1 个 EPC OrgUnit 节点引用
+- [ ] VM-G02: FieldPermission 覆盖 — 字段权限定义应与 EPC InfoObject 节点关联
+- [ ] VM-M01: Metric 覆盖 — BusinessMetric 应被至少 1 个 EPC Function/KPI 元素引用
+- [ ] VM-M02: Metric 绑定 — 被 EPC 引用的 Metric 应有 boundActionId，否则为游离指标 → warning
+- [ ] VM-S01: DataSource 覆盖 — DataSourceDefinition 应被至少 1 个 EPC Function/InfoObject 引用
+- [ ] VM-S02: DataSource 绑定 — 被 EPC 引用的 DataSource 应有 boundObjectTypeId → warning
+- [ ] 校验结果面板按模型分组（数据/行为/规则/事件/流程/治理/指标/数据源），每组显示覆盖率百分比
+- [ ] 未覆盖元素列表可点击跳转到对应模型编辑器
+- [ ] 总覆盖率仪表盘：`已覆盖元素数 / 总元素数` 按模型分别展示
+
+### US-EPC-10: 双向校验 — 交叉一致性
+
+**作为**业务架构师  
+**我希望**校验 EPC 关联与模型内部定义之间的一致性  
+**以便**发现 EPC 说"关联了"但模型实际不支持的矛盾
+
+**验收标准**:
+- [ ] VX-01: Action-Transition 一致 — EPC Function 引用了 Action，但 Action 不属于该实体的 StateMachine → warning
+- [ ] VX-02: Event-Entity 一致 — EPC Event 引用了 EventDefinition，但 EventDefinition 不属于该实体(aggregateId) → error
+- [ ] VX-03: Rule-Entity 一致 — EPC Function 引用了 Rule，但 Rule 不属于该实体 → warning
+- [ ] VX-04: Metric-Action 一致 — EPC Function 引用了 Metric，但 Metric.boundActionId 与 Function 引用的 Action 不匹配 → warning
+- [ ] VX-05: DataSource-Entity 一致 — EPC 引用了 DataSource，但 DataSource.boundObjectTypeId 与链路的 aggregateId 不匹配 → warning
+- [ ] VX-06: Role-Permission 一致 — EPC OrgUnit 引用了 Role，但 Role 的 objectType 权限不覆盖该链路涉及的实体 → info
+- [ ] VX-07: 连线因果一致性 — EpcEdge 连接的两个节点，source Function 产生的事件 ≠ target Event 引用的 EventDefinition → warning
+- [ ] VX-08: 分支-规则一致性 — Connector 的每个分支 ruleId 对应的 Rule 类型应为 cross_field_validation 或 temporal_rule（决策类规则）→ info
+
+### US-EPC-11: EPC 导出增强
 
 **作为**业务架构师  
 **我希望**导出 EPC 全域关联结果  
@@ -763,33 +810,215 @@ src/components/ontology/epc/
 - 覆盖率报告面板
 - 各模型编辑器的 EPC 引用 Badge
 
-### Phase 3: 可视化流程图
+### Phase 3: 全域关联 + 双向校验 + 跳转
+- 全域关联选择器 (epc-ref-panel.tsx)
+- 推导生成算法 (10步)
+- 双向校验引擎: VE(12条) + VM(20条) + VX(8条) = 40条规则
+- 覆盖率仪表盘 (EpcCoverageReport)
+- 各模型编辑器反向跳转 + EPC 覆盖 Badge
+- 校验三栏面板 (epc-validation-panel.tsx)
+
+### Phase 4: 可视化流程图 + 导出增强
 - 引入 @xyflow/react
 - 自定义节点渲染（五种形状 + 关联Badge）
 - 拖拽连线
-- 全域关联面板 (epc-ref-panel.tsx)
-
-### Phase 4: 关联图谱 + 导出增强
 - 关联图谱视图
 - Mermaid 导出
-- Markdown 增强（含全域关联矩阵）
-- 关联报告导出
+- Markdown 增强（含全域关联矩阵 + 校验报告）
 
 ---
 
-## 八、校验规则汇总
+## 八、双向校验规则体系
 
-| 编号 | 规则 | 严重程度 | 说明 |
-|------|------|---------|------|
-| V-EPC-01 | 链路起止节点 | error | 必须以 Event 开始和结束 |
-| V-EPC-02 | 交替约束 | warning | Event/Function 应交替 |
-| V-EPC-03 | 功能行为关联 | warning | Function 应关联行为模型元素 |
-| V-EPC-04 | 功能数据关联 | warning | Function 应关联数据模型元素 |
-| V-EPC-05 | XOR 分支数 | error | XOR 至少 2 分支 |
-| V-EPC-06 | AND 汇合 | error | AND 分支必须汇合 |
-| V-EPC-07 | 引用完整性 | warning | ref 元素应存在 |
-| V-EPC-08 | 行为覆盖 | warning | Action 未被 EPC 覆盖 |
-| V-EPC-09 | 事件覆盖 | warning | EventDefinition 未被 EPC 覆盖 |
-| V-EPC-10 | 规则覆盖 | warning | Rule 未被 EPC 覆盖 |
-| V-EPC-11 | 数据源配置 | info | Function 关联外部系统但无 DataSource |
-| V-EPC-12 | 治理配置 | info | Function 无执行角色 |
+> 核心原则：EPC 与本体模型互为镜像，双向校验确保关联无遗漏、无矛盾
+
+### 8.1 校验方向总览
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│                     双向校验体系                               │
+│                                                               │
+│  方向 A: EPC → 本体模型                方向 B: 本体模型 → EPC  │
+│  ┌─────────────────┐                  ┌─────────────────┐     │
+│  │ VE-01~12        │                  │ VM-D01~VM-S02   │     │
+│  │                 │                  │                 │     │
+│  │ EPC 引用的模型  │                  │ 模型定义的元素  │     │
+│  │ 元素是否有效？  │                  │ 是否被EPC覆盖？ │     │
+│  └────────┬────────┘                  └────────┬────────┘     │
+│           │                                    │              │
+│           ▼                                    ▼              │
+│  ┌─────────────────────────────────────────────────┐         │
+│  │            VX-01~08 交叉一致性校验               │         │
+│  │                                                   │         │
+│  │  EPC 关联声明 ↔ 模型内部定义 是否一致？            │         │
+│  └─────────────────────────────────────────────────┘         │
+└───────────────────────────────────────────────────────────────┘
+```
+
+### 8.2 方向 A: EPC → 本体模型 (VE 系列)
+
+> "EPC 说的关联是否真实存在？"
+
+| 编号 | 规则 | 严重程度 | 检查内容 |
+|------|------|---------|---------|
+| VE-01 | 引用存在性 | error | `refs[].elementId` 在对应模型中必须存在 |
+| VE-02 | 引用一致性 | warning | `refs[].elementName` 与实际模型元素名称匹配 |
+| VE-03 | 引用类型合法性 | error | Event 节点 primary→EventDefinition，Function 节点 primary→Action/Transition |
+| VE-04 | 连线事件存在性 | warning | `EpcEdge.refEventId` 对应的 EventDefinition 存在 |
+| VE-05 | 分支规则存在性 | warning | `branches[].ruleId` 对应的 Rule 存在 |
+| VE-06 | Function 关联密度 | warning | Function 应至少关联 1 个行为模型元素 |
+| VE-07 | Function 数据依赖 | warning | Function 应至少关联 1 个数据模型元素 |
+| VE-08 | InfoObject 实体绑定 | warning | InfoObject 应关联 Entity |
+| VE-09 | OrgUnit 角色绑定 | warning | OrgUnit 应关联 GovernanceRole |
+| VE-10 | 链路起止 | error | 链路必须以 Event 开始和结束 |
+| VE-11 | 交替约束 | warning | Event/Function 应严格交替 |
+| VE-12 | Connector 分支 | error | XOR ≥2 分支，AND 必须汇合 |
+
+### 8.3 方向 B: 本体模型 → EPC (VM 系列)
+
+> "模型定义的元素是否都被 EPC 流程覆盖？"
+
+#### 数据模型 (VM-D)
+
+| 编号 | 规则 | 严重程度 | 检查内容 |
+|------|------|---------|---------|
+| VM-D01 | 实体覆盖 | warning | aggregate_root 应出现在 EPC InfoObject 中 |
+| VM-D02 | 关键属性覆盖 | info | required+unique 属性应被 EPC refs 引用 |
+| VM-D03 | 关系覆盖 | info | Relation 应在 EPC Function 关联中体现 |
+
+#### 行为模型 (VM-B)
+
+| 编号 | 规则 | 严重程度 | 检查内容 |
+|------|------|---------|---------|
+| VM-B01 | Action 覆盖 | warning | Action 应出现在 EPC Function refs 中 |
+| VM-B02 | 状态机覆盖 | warning | StateMachine 应有 EPC 链路展示生命周期 |
+| VM-B03 | 转换覆盖 | info | Transition 应被 EPC Function/Event 引用 |
+| VM-B04 | 指标覆盖 | info | Indicator 应被 EPC KPI 或 Function refs 引用 |
+| VM-B05 | 约束覆盖 | info | Constraint 应被 EPC Function refs 引用 |
+
+#### 规则模型 (VM-R)
+
+| 编号 | 规则 | 严重程度 | 检查内容 |
+|------|------|---------|---------|
+| VM-R01 | Rule 覆盖 | warning | Rule 应被 EPC Function/Connector 引用 |
+| VM-R02 | Rule 可执行性 | warning | 被 EPC 引用的 Rule 应绑定实体+字段 |
+
+#### 事件模型 (VM-E)
+
+| 编号 | 规则 | 严重程度 | 检查内容 |
+|------|------|---------|---------|
+| VM-E01 | 事件覆盖 | warning | EventDefinition 应出现在 EPC Event refs 中 |
+| VM-E02 | 订阅覆盖 | info | Subscription 应在 EPC 连线或 Function 中体现 |
+
+#### 流程模型 (VM-P)
+
+| 编号 | 规则 | 严重程度 | 检查内容 |
+|------|------|---------|---------|
+| VM-P01 | 编排覆盖 | warning | Orchestration 应有对应 EPC 链路 |
+| VM-P02 | 步骤覆盖 | info | Step 应被 EPC Function 引用 |
+
+#### 治理模型 (VM-G)
+
+| 编号 | 规则 | 严重程度 | 检查内容 |
+|------|------|---------|---------|
+| VM-G01 | 角色覆盖 | warning | Role 应被 EPC OrgUnit 引用 |
+| VM-G02 | 字段权限覆盖 | info | FieldPermission 应与 EPC InfoObject 关联 |
+
+#### 指标模型 (VM-M)
+
+| 编号 | 规则 | 严重程度 | 检查内容 |
+|------|------|---------|---------|
+| VM-M01 | Metric 覆盖 | warning | BusinessMetric 应被 EPC Function/KPI 引用 |
+| VM-M02 | Metric 绑定 | warning | 被 EPC 引用的 Metric 应有 boundActionId |
+
+#### 数据源模型 (VM-S)
+
+| 编号 | 规则 | 严重程度 | 检查内容 |
+|------|------|---------|---------|
+| VM-S01 | DataSource 覆盖 | info | DataSource 应被 EPC Function/InfoObject 引用 |
+| VM-S02 | DataSource 绑定 | warning | 被 EPC 引用的 DataSource 应有 boundObjectTypeId |
+
+### 8.4 交叉一致性 (VX 系列)
+
+> "EPC 声明关联了 A→B，但模型内部 A 和 B 真的有关系吗？"
+
+| 编号 | 规则 | 严重程度 | 检查内容 |
+|------|------|---------|---------|
+| VX-01 | Action-Transition 一致 | warning | EPC Function 引用的 Action 应属于该实体的 StateMachine |
+| VX-02 | Event-Entity 一致 | error | EPC Event 引用的 EventDefinition 应属于该实体 |
+| VX-03 | Rule-Entity 一致 | warning | EPC Function 引用的 Rule 应属于该实体 |
+| VX-04 | Metric-Action 一致 | warning | EPC Function 引用的 Metric，其 boundActionId 应与 Function 的 Action 匹配 |
+| VX-05 | DataSource-Entity 一致 | warning | EPC 引用的 DataSource，其 boundObjectTypeId 应与链路 aggregateId 匹配 |
+| VX-06 | Role-Permission 一致 | info | EPC OrgUnit 引用的 Role，其权限应覆盖链路涉及的实体 |
+| VX-07 | 连线因果一致性 | warning | EpcEdge 连接的 source Function 产生的事件 = target Event 引用的 EventDefinition |
+| VX-08 | 分支-规则一致性 | info | Connector 分支 ruleId 对应的 Rule 应为决策类规则 |
+
+### 8.5 校验结果数据结构
+
+```typescript
+export type ValidationDirection = 'epc_to_model' | 'model_to_epc' | 'cross_consistency';
+export type ValidationSeverity = 'error' | 'warning' | 'info';
+
+export interface EpcValidationIssue {
+  code: string;                    // VE-01 / VM-B01 / VX-07 等
+  direction: ValidationDirection;
+  severity: ValidationSeverity;
+  message: string;
+  chainId?: string;
+  nodeId?: string;
+  edgeId?: string;
+  modelType?: string;              // data/behavior/rule/event/process/governance/metrics/datasource
+  elementId?: string;              // 模型元素 ID
+  elementName?: string;
+}
+
+export interface EpcCoverageReport {
+  aggregateId: string;
+  direction: 'model_to_epc';
+  totalElements: number;
+  coveredElements: number;
+  coveragePercent: number;
+  byModel: {
+    data:       { total: number; covered: number; percent: number };
+    behavior:   { total: number; covered: number; percent: number };
+    rule:       { total: number; covered: number; percent: number };
+    event:      { total: number; covered: number; percent: number };
+    process:    { total: number; covered: number; percent: number };
+    governance: { total: number; covered: number; percent: number };
+    metrics:    { total: number; covered: number; percent: number };
+    datasource: { total: number; covered: number; percent: number };
+  };
+  uncovered: EpcValidationIssue[];  // VM-* 未覆盖的元素列表
+}
+
+export interface EpcFullValidationResult {
+  aggregateId: string;
+  timestamp: string;
+  epcToModel: EpcValidationIssue[];       // VE-* 规则
+  modelToEpc: EpcCoverageReport;           // VM-* 规则 + 覆盖率
+  crossConsistency: EpcValidationIssue[];  // VX-* 规则
+  summary: {
+    errors: number;
+    warnings: number;
+    infos: number;
+    totalCoverage: number;  // 总覆盖率百分比
+  };
+}
+```
+
+### 8.6 校验入口与展示
+
+```typescript
+// Store 方法
+validateEpcToModel(aggregateId: string): EpcValidationIssue[];       // VE-*
+validateModelToEpc(aggregateId: string): EpcCoverageReport;          // VM-*
+validateCrossConsistency(aggregateId: string): EpcValidationIssue[]; // VX-*
+validateEpcFull(aggregateId: string): EpcFullValidationResult;       // 三合一
+```
+
+**展示方式**：
+- EPC Tab 内置「校验」按钮 → 弹出三栏面板
+  - 左栏: EPC→模型 (VE) — "EPC 引用了不存在的元素"
+  - 中栏: 模型→EPC (VM) — "以下模型元素未被 EPC 覆盖" + 覆盖率仪表盘
+  - 右栏: 交叉一致性 (VX) — "EPC 关联与模型定义矛盾"
+- 各模型编辑器内置「EPC 覆盖」Badge — 显示该元素是否被 EPC 覆盖

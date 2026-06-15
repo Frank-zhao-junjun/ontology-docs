@@ -59,6 +59,7 @@ Implementation Roadmap v1.1
 | 元数据管理   | 57条标准字段+CRUD   | ✅ 保持 |
 | AI辅助生成  | 豆包大模型生成建议      | ✅ 保持 |
 | 手册导出    | Markdown格式     | ✅ 保持 |
+| **Excel导入** | **模板下载+文件上传+数据校验+解析为模型对象+生成待审核版本+审核流程** | **✅ 新增** |
 | **AI代理框架** | **Superpowers + Gstack + Ralph Loop** | **✅ 新增** |
 2.1.1 补充约束：业务场景归属
 - 实体创建必须绑定 `businessScenarioId`，形成“项目 → 业务场景 → 实体 → 四大元模型”的固定归属链路。
@@ -97,7 +98,7 @@ interface ProjectVersion {
   };
   createdAt: string;
   publishedAt?: string;  // 发布时间
-  status: 'draft' | 'published' | 'archived';
+  status: 'draft' | 'published' | 'archived' | 'pending_review' | 'rejected';
 }
 
 interface PublishConfig {
@@ -604,4 +605,79 @@ Response: {
   healingLog?: HealingLog[];  // 如有自愈过程
 }
 
+六、Excel 导入与版本审核
+
+6.1 功能概述
+
+支持通过 Excel 文件批量导入本体模型数据，生成待审核版本，审核通过后应用到工作区。适用于项目初始化、跨团队协作和批量数据迁移场景。
+
+6.2 API 接口
+
+6.2.1 模板下载
+
+GET /api/excel-template
+
+返回含 7 个 Sheet（填写说明 + 实体/属性/关系/状态机/规则/事件）的 .xlsx 导入模板。
+
+Response: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet 二进制文件
+
+6.2.2 文件上传与解析
+
+POST /api/excel-import
+
+Request: multipart/form-data, field: file（仅 .xlsx，最大 5MB）
+
+Response:
+```json
+{
+  "success": true,
+  "validation": {
+    "totalRows": 8,
+    "validRows": 8,
+    "errorCount": 0,
+    "errors": []
+  },
+  "versionId": "v-xxx",
+  "versionName": "v2026-06-13",
+  "parsedData": {
+    "entities": [{ "name": "物料", "nameEn": "Material", "role": "aggregate_root", ... }],
+    "attributes": [{ "entityNameEn": "Material", "name": "编码", "dataType": "string", ... }],
+    "relations": [...],
+    "stateMachines": [...],
+    "rules": [...],
+    "eventDefinitions": [...]
+  }
+}
+```
+
+校验规则：
+- 文件格式：仅 .xlsx，最大 5MB
+- Sheet 结构：必须包含实体/属性/关系/状态机/规则/事件 6 个 Sheet
+- 必填字段：各 Sheet 的(必填)标记字段
+- 枚举值：实体角色、数据类型、关系类型、规则类型、触发时机等
+- 跨 Sheet 引用：属性/关系/状态机/规则/事件中的实体英文名必须在实体 Sheet 中存在
+- 描述行/示例行：以 #DESC# / #EXAMPLE# 开头的行自动跳过
+
+6.3 User Stories
+
+US-1: 下载 Excel 导入模板 — 生成含 6 个数据 Sheet + 填写说明的 .xlsx 模板
+US-2: 上传 Excel 文件 — 仅接受 .xlsx，5MB 上限，Sheet 结构校验
+US-3: 数据解析与校验 — 逐行校验+解析，返回校验结果和 parsedData
+US-4: 生成待审核版本 — status=pending_review，版本号按日期自动递增
+US-5: 版本审核流程 — approveVersion(应用到工作区) / rejectVersion(驳回+原因)
+
+6.4 版本状态流转
+
+```text
+draft → published → archived
+              ↑
+pending_review → published (审核通过)
+pending_review → rejected  (审核驳回)
+```
+
+6.5 Store 方法
+
+- createVersionFromParsedData({ parsedData }) — 从 Excel 解析数据创建 pending_review 版本
+- approveVersion(versionId) — 审核通过，将 parsedData 应用到工作区
+- rejectVersion(versionId, reason) — 审核驳回
 

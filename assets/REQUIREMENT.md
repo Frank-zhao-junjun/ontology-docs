@@ -98,6 +98,7 @@ Ontology Modeling Tool - MVP Implementation Roadmap
 | 主数据管理   | 核心业务实体记录（按领域分类）+CRUD+状态管理（确保业务数据的唯一性和稳定性）   | 新增 |
 | 元数据管理   | 字段模板定义+CRUD（定义标准字段属性，确保数据结构一致性）   | ✅ 保持 |
 | AI辅助生成  | 豆包大模型生成建议（优先匹配元数据模板确保数据标准一致性，参考主数据记录确保业务相关性）      | ✅ 保持 |
+| Excel导入   | 模板下载+文件上传+数据校验+解析为模型对象+生成待审核版本+审核流程 | 新增 |
 | 手册导出    | Markdown格式     | ✅ 保持 |
 
 2.1.1 实体聚合角色建模规范
@@ -137,7 +138,7 @@ interface ProjectVersion {
     events: EventModel;
   };
   createdAt: string;
-  status: 'draft' | 'published';
+  status: 'draft' | 'published' | 'pending_review' | 'rejected';
 }
 
 interface ExportConfig {
@@ -749,4 +750,82 @@ export interface ProjectVersion {
 9.7 下一步
 
 完成 Week 1 后，进入 Week 2，优先实现代码生成器基础能力，包括 SQLite DDL 生成与 Flask 模型生成。
+
+六、Excel 导入与版本审核
+
+6.1 功能概述
+
+支持通过 Excel 文件批量导入本体模型数据，生成待审核版本，审核通过后应用到工作区。适用于项目初始化、跨团队协作和批量数据迁移场景。
+
+6.2 User Stories
+
+US-1: 下载 Excel 导入模板
+
+- 角色：业务架构师 / 系统设计师
+- 需求：下载标准 .xlsx 模板，包含 6 个数据 Sheet（实体/属性/关系/状态机/规则/事件）和 1 个填写说明 Sheet
+- 验收标准：
+  - GET /api/excel-template 返回 application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+  - 每个 Sheet 包含表头行（含"(必填)"标记）、描述行和示例行
+  - 描述行和示例行在校验时自动跳过（以 #DESC# / #EXAMPLE# 开头或与描述/示例关键词匹配）
+
+US-2: 上传 Excel 文件与格式校验
+
+- 角色：业务架构师 / 系统设计师
+- 需求：上传 .xlsx 文件，系统自动校验格式、大小和 Sheet 结构
+- 验收标准：
+  - POST /api/excel-import 仅接受 .xlsx 格式，5MB 上限
+  - 缺少必需 Sheet（实体/属性/关系/状态机/规则/事件）时返回具体错误
+  - 非 .xlsx 文件或超限文件返回 400 错误
+
+US-3: Excel 数据解析与校验
+
+- 角色：业务架构师 / 系统设计师
+- 需求：逐行校验和解析 Excel 数据，返回行级校验结果和解析后的模型对象
+- 验收标准：
+  - 必填字段缺失 → missing_required 错误
+  - 枚举值不在允许范围 → invalid_enum 错误
+  - 布尔字段非 true/false → invalid_type 错误
+  - 跨 Sheet 引用不存在（如属性引用的实体不存在）→ ref_not_found 错误
+  - 校验通过的数据行被解析为 Entity/Attribute/Relation/StateMachine/Rule/EventDefinition 模型对象
+  - 返回 parsedData 包含 6 种模型数组
+
+US-4: 生成待审核版本
+
+- 角色：业务架构师 / 系统设计师
+- 需求：基于解析数据生成 pending_review 状态版本，版本号自动递增
+- 验收标准：
+  - 版本状态为 pending_review
+  - 版本内容来自 parsedData（非当前工作区快照）
+  - 版本号格式为 vYYYY-MM-DD，同日自动追加序号
+  - 返回 versionId 和 versionName
+
+US-5: 版本审核流程
+
+- 角色：技术负责人 / 交付工程师
+- 需求：审核待审核版本，通过则应用到工作区，驳回需填写原因
+- 验收标准：
+  - approveVersion：将版本 parsedData 替换当前工作区数据，版本状态变为 published
+  - rejectVersion：填写驳回原因，版本状态变为 rejected
+  - 发布对话框中 pending_review 版本显示审核按钮
+  - rejected 版本显示驳回原因
+
+6.3 Excel 模板 Sheet 结构
+
+| Sheet | 必填字段 | 说明 |
+|-------|---------|------|
+| 实体 | 实体名称、英文名称 | 支持聚合根/子实体角色 |
+| 属性 | 实体英文名称、属性名称、英文名称、数据类型 | 9 种数据类型，支持引用和枚举 |
+| 关系 | 源实体英文名称、关系名称、关系类型、目标实体英文名称 | one_to_one/one_to_many/many_to_many |
+| 状态机 | 实体英文名称、状态机名称、状态名称 | 支持初始/终止状态和转换定义 |
+| 规则 | 实体英文名称、规则名称、规则类型、错误消息 | 5 种规则类型 |
+| 事件 | 实体英文名称、事件名称、触发时机 | 支持 create/update/delete/status_change/custom |
+
+6.4 版本状态流转
+
+```text
+draft → published → archived
+              ↑
+pending_review → published (审核通过)
+pending_review → rejected  (审核驳回)
+```
 

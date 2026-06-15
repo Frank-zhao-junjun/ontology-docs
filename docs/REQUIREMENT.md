@@ -61,7 +61,7 @@ Implementation Roadmap v1.1
 | 手册导出    | Markdown格式     | ✅ 保持 |
 | **Excel导入** | **模板下载+文件上传+数据校验+解析为模型对象+生成待审核版本+审核流程** | **✅ 新增** |
 | **EPC全域关联** | **链路建模+模型关联+流程图渲染+双向校验(71条规则: VE×17+VM×39+VX×15)** | **✅ 新增** |
-| **组织体系建模** | **部门树+岗位+角色关联+EPC引用** | **✅ 新增** |
+| **组织体系建模** | **部门树+结构化岗位职责+HR系统定时同步+EPC引用** | **✅ 新增** |
 | **Entity Lifecycle** | **State/Transition/Action增强+聚合视图+审计追溯+15条校验规则** | **✅ 新增** |
 | **Agent Semantic Layer** | **意图映射+槽位填充+对话上下文+语义关系+术语词典+错误恢复+Agent策略** | **✅ 新增** |
 | **AI代理框架** | **Superpowers + Gstack + Ralph Loop** | **✅ 新增** |
@@ -87,9 +87,11 @@ Implementation Roadmap v1.1
 - 新增 OrganizationModel 为一级模型，包含 Department(树形) + Position(岗位)。
 - Department 支持5种类型(集团/事业部/部门/团队/班组)，通过 parentId 构建组织树。
 - Position 归属部门(departmentId)，关联治理角色(roleIds → GovernanceRole)，含汇报线/编制/任职要求。
+- **结构化职责**：PositionResponsibility 定义职责项(scope/actions/decisionAuthority/delegateToPositionIds)，替代原有 responsibilities:string。
+- **HR 系统同步**：支持飞书/钉钉/企微/SAP/Workday/自定义API定时同步，含字段映射(HRFieldMapping)、冲突策略(4种)、同步范围、同步历史。
 - EPC 的 EpcOrganizationalUnit 通过 refType/refId 引用 Department 或 Position。
-- 双向校验新增 VM-O(5条)：部门覆盖、组织树环路、岗位归属、角色引用、变更确认。
-- 建模工作台新增「组织」Tab，三栏布局：部门树 | 岗位列表 | 关联视图。
+- 双向校验新增 VM-O(8条)+VM-HR(4条)+VE-O(2条)+VX-O(4条)。
+- 建模工作台新增「组织」Tab，含 HR 同步配置面板。
 - Excel导入扩展：模板新增「部门」和「岗位」2个Sheet。
 
 2.1.5 补充约束：Entity Lifecycle（实体生命周期）
@@ -769,30 +771,58 @@ US-EPC-10: 交叉一致性校验 — VX-01~15 规则
 
 8.1 功能概述
 
-新增 OrganizationModel 为一级模型，包含 Department(树形部门结构) + Position(岗位定义)。详见 `docs/Organization-Position-Spec.md`。
+新增 OrganizationModel 为一级模型，包含 Department(树形部门结构) + Position(岗位定义) + HR同步能力。详见 `docs/Organization-Position-Spec.md`。
 
 8.2 核心数据结构
 
-- Department：5 种类型(集团/事业部/部门/团队/班组)，parentId 构建组织树
+- Department：5 种类型(集团/事业部/部门/团队/班组)，parentId 构建组织树，含 HR 同步字段(syncSource/syncExternalId/syncUpdatedAt)
 - Position：归属部门(departmentId)，关联治理角色(roleIds → GovernanceRole)，含汇报线/编制/任职要求
+- PositionResponsibility：结构化职责(scope+actions+decisionAuthority+delegateToPositionIds)，替代原 responsibilities:string
+- HRSyncConfig：同步配置(source/interval/fieldMapping/conflictStrategy/syncScope)
+- HRSyncResult：同步结果(变更统计+冲突列表+错误列表)
 
 8.3 关联链路
 
 ```
 Department (组织树)
   └── Position (岗位)
-        └── roleIds → GovernanceRole (权限角色)
-              └── permissions → 实体/动作/字段权限
+        ├── roleIds → GovernanceRole (权限角色)
+        │     └── permissions → 实体/动作/字段权限
+        └── responsibilities[] → PositionResponsibility
+              ├── scopeRefs → Entity / Process / Domain
+              ├── actions → Action
+              └── delegateToPositionIds → Position (委托链)
 ```
 
 8.4 EPC 关联
 
 EpcOrganizationalUnit 通过 refType/refId 引用 Department 或 Position。
 
-8.5 User Stories
+8.5 HR 系统同步
+
+- 支持 6 种 HR 数据源：飞书/钉钉/企微/SAP/Workday/自定义API
+- 同步频率：实时(Webhook)/每小时/每天/每周/手动
+- 字段映射：HRFieldMapping 定义 HR 字段 → 本体模型字段路径
+- 冲突策略：HR优先/本地优先/合并/人工审核
+- 差异比对：3-way diff，自动识别新增/更新/停用
+- 安全：API凭证存后端环境变量，同步日志脱敏
+
+8.6 双向校验
+
+- VM-O(8条)：部门覆盖、岗位覆盖、角色关联、组织树环路、岗位归属、职责冲突、职责覆盖、委托链环路
+- VM-HR(4条)：同步引用完整性、同步时效、孤儿记录、配置完整性
+- VE-O(2条)：组织引用存在性、组织引用类型匹配
+- VX-O(4条)：岗位角色一致性、指标对齐、职责-Lifecycle一致、职责-EPC覆盖
+
+8.7 User Stories
 
 US-ORG-1: 创建/编辑部门树 — 树形结构 CRUD，支持 5 种部门类型
-US-ORG-2: 创建/编辑岗位 — 归属部门+关联角色+汇报线+编制
+US-ORG-2: 创建/编辑岗位 — 归属部门+关联角色+汇报线+编制+结构化职责
+US-ORG-3: 职责重叠检测 — 自动检测两个岗位的职责冲突
+US-ORG-4: HR系统同步 — 配置数据源后一键同步部门和岗位
+US-ORG-5: 定时同步 — 配置同步频率后系统自动按计划同步
+US-ORG-6: 同步冲突处理 — 冲突列表可逐条或批量处理
+US-ORG-7: 岗位职责委托 — 支持请假/离职场景的职责委托链
 US-ORG-3: 岗位角色关联 — Position.roleIds 多选 GovernanceRole
 US-ORG-4: EPC 引用组织 — OrgUnit 节点引用 Department/Position
 US-ORG-5: Excel 批量导入 — 模板新增「部门」和「岗位」Sheet

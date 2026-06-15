@@ -68,6 +68,8 @@
 | | 流程图 | @xyflow/react 自定义节点渲染 |
 | **组织** | 组织模型 | Department(树形)+Position(岗位)，OrganizationModel为一级模型 |
 | | 岗位关联 | Position.roleIds→GovernanceRole，EPC OrgUnit引用Department/Position |
+| | 结构化职责 | PositionResponsibility(scope+actions+decisionAuthority+delegateToPositionIds) |
+| | HR同步 | 飞书/钉钉/企微/SAP/Workday/自定义API定时同步，含字段映射+冲突策略 |
 | **生命周期** | State增强 | entryActions/exitActions/availableActions/constraints/allowedRoles/timeout/dataVisibility |
 | | Transition增强 | guardCondition/compensationAction/sideEffects/publishEventId/notifyRoleIds/requiresApproval/auditLog |
 | | Action增强 | aliases/triggerPhrases/successMessage/failureMessage/fallbackActionId/requiresConfirmation |
@@ -157,7 +159,7 @@
 | AI辅助生成 | 豆包大模型生成建议 | ✅ 保持 |
 | 手册导出 | Markdown格式 | ✅ 保持 |
 | EPC全域关联 | 事件-流程-动作链路+12大模型关联+流程图 | 🆕 新增 |
-| 组织体系建模 | 部门树+岗位+角色关联 | 🆕 新增 |
+| 组织体系建模 | 部门树+结构化岗位职责+HR系统同步+EPC引用 | 🆕 新增 |
 | Entity Lifecycle | State/Transition/Action增强+聚合视图+审计 | 🆕 新增 |
 | Agent Semantic Layer | 意图映射+槽位填充+语义关系+术语词典+Agent策略 | 🆕 新增 |
 | 双向校验 | EPC↔模型 71条规则(VE×17+VM×39+VX×15)+覆盖率 | 🆕 新增 |
@@ -451,7 +453,7 @@ interface EpcModelRef {
 
 ### 3.2.5 组织体系与岗位模型——详细设计
 
-> **可追溯**：与 `docs/Organization-Position-Spec.md` v1.0 对应
+> **可追溯**：与 `docs/Organization-Position-Spec.md` v2.0 对应
 
 #### 核心类型
 
@@ -466,6 +468,21 @@ interface Department {
   managerPositionId?: string;
   description?: string;
   status: 'active' | 'inactive';
+  syncSource?: string;         // HR同步来源
+  syncExternalId?: string;     // HR系统外部ID
+  syncUpdatedAt?: string;      // 最后同步时间
+}
+
+interface PositionResponsibility {
+  id: string;
+  name: string;                // 职责名称
+  description?: string;
+  scope: 'entity' | 'process' | 'domain' | 'custom';
+  scopeRefs: string[];         // 关联 Entity/Process/Domain IDs
+  actions: string[];           // 可执行 Action IDs
+  decisionAuthority: 'none' | 'recommend' | 'approve' | 'veto';
+  delegateToPositionIds?: string[]; // 可委托岗位IDs
+  isActive: boolean;
 }
 
 interface Position {
@@ -478,31 +495,50 @@ interface Position {
   level?: number;
   roleIds: string[];           // → GovernanceRole
   headcount?: number;
-  responsibilities?: string;
+  responsibilities: PositionResponsibility[];  // 结构化职责
   status: 'active' | 'inactive';
+  syncSource?: string;
+  syncExternalId?: string;
+  syncUpdatedAt?: string;
 }
 
 interface OrganizationModel {
   id: string;
   departments: Department[];
   positions: Position[];
+  syncConfig?: HRSyncConfig;
+  lastSyncResult?: HRSyncResult;
 }
 ```
+
+#### HR 系统同步
+
+- 支持 6 种 HR 数据源：飞书/钉钉/企微/SAP/Workday/自定义API
+- 同步频率：实时(Webhook)/每小时/每天/每周/手动
+- 字段映射：`HRFieldMapping` 定义 HR 字段 → 本体模型字段路径
+- 冲突策略：HR优先/本地优先/合并/人工审核
+- 差异比对：3-way diff，自动识别新增/更新/停用
+- 安全：API凭证存后端环境变量，同步日志脱敏
+- API: `POST /api/hr-sync/trigger`, `GET /api/hr-sync/config`, `GET /api/hr-sync/history`, `POST /api/hr-sync/resolve-conflict`
 
 #### 关联链路
 
 ```
 Department (组织树)
   └── Position (岗位)
-        └── roleIds → GovernanceRole (权限角色)
-              └── permissions → 实体/动作/字段权限
+        ├── roleIds → GovernanceRole (权限角色)
+        │     └── permissions → 实体/动作/字段权限
+        └── responsibilities[] → PositionResponsibility
+              ├── scopeRefs → Entity / Process / Domain
+              ├── actions → Action
+              └── delegateToPositionIds → Position (委托链)
 ```
 
 EPC 的 `EpcOrganizationalUnit` 通过 `refType/refId` 引用 Department 或 Position。
 
 #### UI
 
-建模工作台新增「组织」Tab，三栏布局：部门树 | 岗位列表 | 关联视图。
+建模工作台新增「组织」Tab，含部门树+岗位列表+结构化职责编辑+HR同步配置面板。
 
 #### 双向校验(新增)
 
@@ -513,6 +549,13 @@ EPC 的 `EpcOrganizationalUnit` 通过 `refType/refId` 引用 Department 或 Pos
 | VM-O03 | 活跃岗位必须有部门归属 | error |
 | VM-O04 | 岗位引用的Role必须存在 | error |
 | VM-O05 | 组织变更(部门/岗位)需EPC确认 | warning |
+| VM-O06 | 岗位职责无重叠冲突 | warning |
+| VM-O07 | 职责中的actions必须存在 | warning |
+| VM-O08 | 委托链无环路 | info |
+| VM-HR01 | syncExternalId引用HR侧记录存在 | error |
+| VM-HR02 | 同步时效告警 | warning |
+| VM-HR03 | 孤儿记录标记停用 | warning |
+| VM-HR04 | 同步配置完整性 | info |
 
 ---
 
@@ -1626,7 +1669,7 @@ Week 23-24: 订阅幂等+集成
 | **事件订阅幂等** | 同一事件被订阅者处理两次→第二次检测到已处理ID→跳过不重复执行 |
 | **EPC全域关联** | 聚合根实体创建EPC链路→添加Event/Function/OrgUnit节点→关联已有模型元素(含Lifecycle+Semantic)→流程图正确渲染 |
 | **EPC双向校验** | EPC引用不存在的模型元素→VE报error；模型Action未被EPC覆盖→VM报warning；EPC声明与模型定义矛盾→VX报error；71条规则全覆盖 |
-| **组织体系建模** | 创建部门树+岗位→岗位关联GovernanceRole→EPC OrgUnit引用Department/Position |
+| **组织体系建模** | 创建部门树+岗位→结构化职责(PositionResponsibility)→HR系统定时同步→EPC OrgUnit引用Department/Position |
 | **Excel导入** | 下载模板→填写数据→上传→校验通过→生成pending_review版本→审核通过→数据应用到工作区 |
 | **版本审核** | 上传Excel→生成待审核版本→审核通过→工作区数据更新；驳回→版本状态rejected+原因记录 |
 

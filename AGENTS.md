@@ -96,6 +96,17 @@ src/
 - JSON 格式导出
 - 实体维度/项目维度手册
 
+### 9.5. 组织体系与岗位模型 (Organization & Position)
+- **部门树**：Department 5种类型(集团/事业部/部门/团队/班组)，parentId 构建组织树
+- **岗位定义**：Position 归属部门、关联治理角色、汇报线、编制、任职要求
+- **结构化职责**：PositionResponsibility 定义职责项(scope+actions+decisionAuthority+delegateToPositionIds)
+- **职责重叠检测**：自动检测两个岗位的职责冲突
+- **HR系统同步**：支持飞书/钉钉/企微/SAP/Workday/自定义API定时同步
+- **同步配置**：HRSyncConfig(source/interval/fieldMapping/conflictStrategy/syncScope)
+- **冲突策略**：HR优先/本地优先/合并/人工审核
+- **EPC集成**：EpcOrganizationalUnit 通过 refType/refId 引用 Department/Position
+- **校验规则**：VM-O(8条)+VM-HR(4条)+VE-O(2条)+VX-O(4条)
+
 ### 10. Entity Lifecycle（实体生命周期）
 - **State 增强**：entryActions/exitActions/availableActions/constraints/allowedRoles/timeout/dataVisibility
 - **Transition 增强**：guardCondition/compensationAction/sideEffects/publishEventId/notifyRoleIds/requiresApproval/auditLog

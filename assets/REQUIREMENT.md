@@ -100,7 +100,7 @@ Ontology Modeling Tool - MVP Implementation Roadmap
 | AI辅助生成  | 豆包大模型生成建议（优先匹配元数据模板确保数据标准一致性，参考主数据记录确保业务相关性）      | ✅ 保持 |
 | Excel导入   | 模板下载+文件上传+数据校验+解析为模型对象+生成待审核版本+审核流程 | 新增 |
 | EPC全域关联   | 链路建模+模型关联+流程图渲染+双向校验(71条规则: VE×17+VM×39+VX×15) | 新增 |
-| 组织体系建模   | 部门树+岗位+角色关联+EPC引用 | 新增 |
+| 组织体系建模   | 部门树+结构化岗位职责+HR系统定时同步+EPC引用 | 新增 |
 | Entity Lifecycle | State/Transition/Action增强+聚合视图+审计追溯+15条校验规则 | 新增 |
 | Agent Semantic Layer | 意图映射+槽位填充+对话上下文+语义关系+术语词典+错误恢复+Agent策略 | 新增 |
 | 手册导出    | Markdown格式     | ✅ 保持 |
@@ -924,23 +924,39 @@ US-EPC-10: 交叉一致性校验
 
 8.1 功能概述
 
-新增 OrganizationModel 为一级模型，包含 Department(树形部门结构) + Position(岗位定义)。详见 `docs/Organization-Position-Spec.md`。
+新增 OrganizationModel 为一级模型，包含 Department(树形部门结构) + Position(岗位定义) + HR同步能力。详见 `docs/Organization-Position-Spec.md`。
 
 8.2 核心数据结构
 
-- Department：5 种类型(集团/事业部/部门/团队/班组)，parentId 构建组织树
+- Department：5 种类型(集团/事业部/部门/团队/班组)，parentId 构建组织树，含 HR 同步字段(syncSource/syncExternalId/syncUpdatedAt)
 - Position：归属部门(departmentId)，关联治理角色(roleIds → GovernanceRole)，含汇报线/编制/任职要求
+- PositionResponsibility：结构化职责(scope+actions+decisionAuthority+delegateToPositionIds)
+- HRSyncConfig：同步配置(source/interval/fieldMapping/conflictStrategy/syncScope)
+- HRSyncResult：同步结果(变更统计+冲突列表+错误列表)
 
 8.3 关联链路
 
 ```
 Department (组织树)
   └── Position (岗位)
-        └── roleIds → GovernanceRole (权限角色)
-              └── permissions → 实体/动作/字段权限
+        ├── roleIds → GovernanceRole (权限角色)
+        │     └── permissions → 实体/动作/字段权限
+        └── responsibilities[] → PositionResponsibility
+              ├── scopeRefs → Entity / Process / Domain
+              ├── actions → Action
+              └── delegateToPositionIds → Position (委托链)
 ```
 
-8.4 User Stories
+8.4 HR 系统同步
+
+- 支持 6 种 HR 数据源：飞书/钉钉/企微/SAP/Workday/自定义API
+- 同步频率：实时(Webhook)/每小时/每天/每周/手动
+- 字段映射：HRFieldMapping 定义 HR 字段 → 本体模型字段路径
+- 冲突策略：HR优先/本地优先/合并/人工审核
+- 差异比对：3-way diff，自动识别新增/更新/停用
+- 安全：API凭证存后端环境变量，同步日志脱敏
+
+8.5 User Stories
 
 US-ORG-1: 创建/编辑部门树
 - 角色：业务架构师
@@ -949,25 +965,35 @@ US-ORG-1: 创建/编辑部门树
 
 US-ORG-2: 创建/编辑岗位
 - 角色：业务架构师
-- 需求：归属部门+关联角色+汇报线+编制
-- 验收：岗位 CRUD 完整，roleIds 多选 GovernanceRole
+- 需求：归属部门+关联角色+汇报线+编制+结构化职责
+- 验收：岗位 CRUD 完整，responsibilities 可结构化编辑
 
-US-ORG-3: 岗位角色关联
+US-ORG-3: 职责重叠检测
 - 角色：业务架构师
-- 需求：Position.roleIds 多选 GovernanceRole
-- 验收：选择角色后岗位自动继承权限
+- 需求：自动检测两个岗位的职责冲突
+- 验收：scopeRefs+actions 交集非空时告警
 
-US-ORG-4: EPC 引用组织
+US-ORG-4: HR系统同步
+- 角色：管理员
+- 需求：配置数据源后一键同步部门和岗位
+- 验收：同步结果含变更统计+冲突列表
+
+US-ORG-5: 定时同步
+- 角色：管理员
+- 需求：配置同步频率后系统自动按计划同步
+- 验收：按配置频率自动执行，生成同步历史
+
+US-ORG-6: 同步冲突处理
+- 角色：管理员
+- 需求：冲突列表可逐条或批量处理
+- 验收：4种冲突策略可选，处理后更新本地数据
+
+US-ORG-7: 岗位职责委托
 - 角色：业务架构师
-- 需求：OrgUnit 节点引用 Department/Position
-- 验收：EPC OrgUnit 节点 refType 为 department/position 时 refId 下拉可选
+- 需求：支持请假/离职场景的职责委托链
+- 验收：delegateToPositionIds 无环路，委托链可追溯
 
-US-ORG-5: Excel 批量导入
-- 角色：业务架构师
-- 需求：模板新增「部门」和「岗位」2 个 Sheet
-- 验收：导入时解析 Department/Position 对象
-
-8.5 双向校验(新增)
+8.6 双向校验(新增)
 
 | 编号 | 规则 | 级别 |
 |------|------|------|
@@ -976,6 +1002,13 @@ US-ORG-5: Excel 批量导入
 | VM-O03 | 活跃岗位必须有部门归属 | error |
 | VM-O04 | 岗位引用的 Role 必须存在 | error |
 | VM-O05 | 组织变更需 EPC 确认 | warning |
+| VM-O06 | 岗位职责无重叠冲突 | warning |
+| VM-O07 | 职责中的 actions 必须存在 | warning |
+| VM-O08 | 委托链无环路 | info |
+| VM-HR01 | syncExternalId 引用 HR 侧记录存在 | error |
+| VM-HR02 | 同步时效告警 | warning |
+| VM-HR03 | 孤儿记录标记停用 | warning |
+| VM-HR04 | 同步配置完整性 | info |
 
 九、Entity Lifecycle（实体生命周期）
 

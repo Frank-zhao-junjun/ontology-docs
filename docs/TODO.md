@@ -24,7 +24,7 @@
 - [x] **LC-T3**: API 路由
   - POST /api/entity-lifecycle（返回 EntityLifecycle 聚合视图）
 
-- [ ] **LC-T4**: UI 增强
+- [x] **LC-T4**: UI 增强
   - behavior-model-editor.tsx: State 对话框新增 entryActions/exitActions/availableActions/constraints/allowedRoles/timeout/dataVisibility Tab
   - Transition 对话框新增 guardCondition/compensationAction/publishEventId/requiresApproval Tab
   - Action 对话框新增 aliases/triggerPhrases/fallbackActionId/requiresConfirmation Tab
@@ -57,7 +57,7 @@
 - [x] **AS-T3**: API 路由
   - GET /api/agent-semantic-layer（返回完整 AgentSemanticLayer JSON）
 
-- [ ] **AS-T4**: UI 新增
+- [x] **AS-T4**: UI 新增
   - 建模工作台新增「Agent 语义层」Tab
   - 意图映射编辑器（Intent → Action 绑定 + triggerPhrases + SlotFilling）
   - 术语词典编辑器（BusinessTerm CRUD + 同义词管理）
@@ -92,7 +92,7 @@
   - GET /api/hr-sync/history（同步历史）
   - POST /api/hr-sync/resolve-conflict（处理冲突）
 
-- [ ] **ORG-T4**: UI 新增
+- [x] **ORG-T4**: UI 新增
   - 岗位编辑器：结构化职责 Tab（scope/scopeRefs/actions/decisionAuthority/delegateToPositionIds）
   - 职责重叠检测面板
   - HRSyncPanel 配置面板（数据源选择/字段映射/冲突策略/同步频率）

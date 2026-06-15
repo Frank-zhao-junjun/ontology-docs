@@ -113,21 +113,21 @@
 - [x] **RD-T1**: 依赖安装
   - pnpm add mammoth pdf-parse（xlsx 已安装）
 
-- [ ] **RD-T2**: types/ontology.ts 新增
+- [x] **RD-T2**: types/ontology.ts 新增
   - ReferenceDocument（fileName/fileType/extractedText/parseStatus/title/summary/createdAt）
   - ExtractedEntity/ExtractedAttribute（实体提取结果，含置信度+来源定位）
 
-- [ ] **RD-T3**: Store 扩展
+- [x] **RD-T3**: Store 扩展
   - OntologyProject 新增 referenceDocuments: ReferenceDocument[]
   - addReferenceDocument / removeReferenceDocument / updateReferenceDocument
 
-- [ ] **RD-T4**: API 路由
+- [x] **RD-T4**: API 路由
   - POST /api/reference-documents/upload（上传+解析）
   - DELETE /api/reference-documents/{docId}（删除）
   - POST /api/reference-documents/extract-entities（AI 提取实体候选）
   - generate-model 扩展：referenceDocuments 字段自动注入 Prompt
 
-- [ ] **RD-T5**: UI 新增
+- [x] **RD-T5**: UI 新增
   - 参考文档管理面板（上传/预览/删除）
   - AI 生成面板增强：选择参考文档
   - 实体提取对话框（候选列表 + 批量创建）
@@ -163,7 +163,7 @@
 
 ## 二、测试与质量
 
-- [ ] **Q-T1**: 单元测试补充
+- [x] **Q-T1**: 单元测试补充
   - Entity Lifecycle: getEntityLifecycle / addLifecycleAuditEntry
   - Agent Semantic Layer: getSemanticCoverage / 10 维度评分
   - Organization: detectResponsibilityOverlap / HR 同步差异比对
@@ -195,19 +195,19 @@
 | 🔴 P0 | AS-T1 类型定义 | 无 | 中 | ✅ |
 | 🔴 P0 | ORG-T1 类型定义 | 无 | 中 | ✅ |
 | 🔴 P0 | RD-T1 依赖安装 | 无 | 低 | ✅ |
-| 🟡 P1 | LC-T2~T5 Lifecycle 实现 | LC-T1 | 高 | 🟡 T2/T3/T5 done |
-| 🟡 P1 | AS-T2~T5 Semantic 实现 | AS-T1 | 高 | 🟡 T2/T3/T5 done |
-| 🟡 P1 | ORG-T2~T4 组织增强 | ORG-T1 | 高 | 🟡 T2/T3/T5 done |
-| 🟡 P1 | RD-T2~T5 参考文档 | RD-T1 | 中 | ⬜ |
+| 🟡 P1 | LC-T2~T5 Lifecycle 实现 | LC-T1 | 高 | ✅ |
+| 🟡 P1 | AS-T2~T5 Semantic 实现 | AS-T1 | 高 | ✅ |
+| 🟡 P1 | ORG-T2~T4 组织增强 | ORG-T1 | 高 | ✅ |
+| 🟡 P1 | RD-T2~T5 参考文档 | RD-T1 | 中 | ✅ |
 | 🟡 P1 | ORG-T5 Excel 8 Sheet | ORG-T1 | 中 | ✅ |
 | 🔵 P2 | EPC-T1~T4 v3.1 | LC-T1+AS-T1 | 高 | ⬜ |
-| 🔵 P2 | Q-T1~T3 测试 | 全部 P0/P1 | 中 | ⬜ |
+| 🔵 P2 | Q-T1~T3 测试 | 全部 P0/P1 | 中 | 🟡 Q-T1 done |
 
-**建议实施顺序**：
-1. ~~先做所有 P0（类型定义 + 依赖安装），一次提交~~ ✅ 已完成
-2. ~~并行推进 P1 的 5 个模块~~ 🟡 Store+API+校验 done，UI待
-3. P1 UI 完成后做 EPC v3.1
-4. 最后补充测试
+**实施状态**：
+1. ~~先做所有 P0（类型定义 + 依赖安装），一次提交~~ ✅
+2. ~~并行推进 P1 的 5 个模块~~ ✅ 全部完成
+3. P2: EPC v3.1
+4. P2: 测试覆盖率提升
 
 ---
 

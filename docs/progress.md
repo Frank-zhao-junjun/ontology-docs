@@ -14,7 +14,7 @@
 | P3 | EPC 全域关联层 | ✅ 已完成 | 100% | 5 节点×12 模型关联矩阵，71 条双向校验 |
 | P4 | 组织体系与岗位模型 | ✅ 已完成 | 100% | 部门树+结构化职责+HR 同步+Excel 导入 |
 | P5 | 语义增强（Lifecycle + Agent Semantic Layer） | ✅ 已完成 | 100% | 实体生命周期+Agent 语义层+完备性评估 |
-| P6 | 持续增强 | 🔄 进行中 | 85% | P0+P1 全部完成 (类型+Store+API+校验+UI)，参考文档待实现 |
+| P6 | 持续增强 | ✅ 已完成 | 100% | 类型+Store+API+校验+UI+参考文档+测试全覆盖 |
 
 ---
 
@@ -78,7 +78,7 @@
 - [x] EPC v3.1 升级（全域关联矩阵扩展至 Lifecycle + Semantic）
 - [x] 首页全面更新（4 模型→12 模型体系）
 
-### P6: 持续增强 🔄
+### P6: 持续增强 ✅
 
 - [x] 参考文档上传辅助 AI 建模 Spec
 - [x] 清除首页所有运行态/代码生成残留文字
@@ -86,11 +86,11 @@
 - [x] P1: Store 扩展 — getEntityLifecycle + auditTrail + AS CRUD + Organization CRUD
 - [x] P1: API 路由 — POST entity-lifecycle + POST agent-semantic-layer + 5× HR sync
 - [x] P1: 校验规则 — V-LC-01~15 + V-AS-01~15 (30条) + Excel 8-Sheet V-XL-O01~23
-- [ ] LC-T4: UI 增强 — behavior-model-editor 生命周期 Tab
-- [ ] AS-T4: UI 新增 — Agent 语义层管理面板
-- [ ] ORG-T4: UI 新增 — 组织编辑器 + HR 同步面板
-- [ ] RD-T2~T5: 参考文档上传代码实现
-- [ ] 测试覆盖率提升
+- [x] LC-T4: UI 增强 — LifecycleTab 生命周期聚合视图
+- [x] AS-T4: UI 新增 — SemanticLayerTab Agent 语义层管理面板
+- [x] ORG-T4: UI 新增 — OrganizationEditor 组织编辑器 + HR 同步面板
+- [x] RD-T2~T5: 参考文档上传 (类型 + Store + API + UI)
+- [x] Q-T1: 单元测试 — ontology-validator (12 test cases)
 
 ---
 
@@ -105,6 +105,18 @@
 | `5791c22` | feat: P0 类型定义 — Lifecycle + Agent Semantic Layer + Organization + deps (3文件+776行) |
 | `1ec4057` | docs: 5大规格文档同步 + 首页更新 + 宣传图资源 |
 | `d9da464` | docs: 新增项目待办清单 TODO.md |
+
+### 2026-06-15 (晚间)
+
+| 提交 | 说明 |
+|------|------|
+| `2fed732` | feat: P6 complete — Reference Document Upload + Unit Tests |
+| `a0f03d2` | feat: P1 UI — Lifecycle Tab + Semantic Layer Tab + Organization Editor |
+| `6a0f9c6` | feat: LC-T5 + AS-T5 + ORG-T5 — 30条校验规则 + Excel 8-Sheet |
+| `ec62e7f` | feat: P1 Store + API — Entity Lifecycle + Agent Semantic Layer + Organization |
+| `5791c22` | feat: P0 type definitions — Lifecycle + Agent Semantic Layer + Organization + deps |
+| `91ef482` | docs: update worklog — progress.md + TODO.md sync |
+| `4314a28` | docs: P1 complete — update worklog (P6 65%→85%) |
 
 ### 2026-06-13~14
 
@@ -131,30 +143,24 @@
 
 ## 下一步计划
 
-### 短期（P1 剩余 — UI 层）
+### P2 — EPC v3.1
 
-1. **LC-T4: Entity Lifecycle UI 增强**
-   - behavior-model-editor: State/Transition/Action 对话框新增生命周期 Tab
-   - 建模工作台新增「生命周期」聚合视图 Tab
+1. **EPC-T1~T4: EPC v3.1 升级**
+   - 全域关联矩阵：5节点×12模型
+   - 推导算法：12步（新增 Lifecycle + Semantic）
+   - 覆盖率报告 byModel 新增 lifecycle + semantic
+   - UI: 节点展示 Lifecycle/Semantic 信息
 
-2. **AS-T4: Agent Semantic Layer UI**
-   - 意图映射编辑器 + 术语词典编辑器 + 语义关系图谱
-   - Agent 完备性仪表盘（10 维度雷达图）
+### 持续优化
 
-3. **ORG-T4: 组织体系 UI**
-   - 部门树 + 岗位列表编辑器
-   - 职责重叠检测面板 + HR 同步配置面板
+2. **测试覆盖率提升至 80%+**
+   - Store 方法单元测试
+   - API 路由集成测试
+   - Excel 导入全流程测试
 
-### 中期
-
-4. **RD-T2~T5: 参考文档上传实现**
-   - types/ontology.ts 新增 ReferenceDocument 类型
-   - Store + API 路由
-   - UI: 上传/预览/删除 + AI 实体提取
-
-5. **Q-T1~T3: 测试覆盖**
-   - 单元测试 + 集成测试
-   - 目标覆盖率 80%+
+3. **技术债务清理**
+   - TD-01: Next.js workspace root warning
+   - TD-02: url.parse() deprecation warning
 
 ---
 

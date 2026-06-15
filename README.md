@@ -196,7 +196,7 @@ src/
 │       └── projects/             # 项目持久化
 ├── components/
 │   ├── landing/                  # 产品介绍页组件
-│   └── ontology/                 # 建模工作台组件
+│   └── ontology/                 # 建模工作台组件 (20+ 组件)
 ├── lib/
 │   ├── ai/                       # AI 查询服务
 │   ├── epc-generator/            # EPC 文档生成器
@@ -204,8 +204,8 @@ src/
 │   ├── ralph-loop/               # Ralph Loop 代理流程
 │   └── superpowers/              # Agent skills 集成
 ├── storage/database/             # Supabase / 数据库适配
-├── store/ontology-store.ts       # 全局状态、迁移和建模动作
-└── types/ontology.ts             # 核心类型定义
+├── store/ontology-store.ts       # 全局状态 (50+ actions, Zustand persist)
+└── types/ontology.ts             # 核心类型定义 (70+ 类型, 1700+ 行)
 
 tests/
 ├── unit/
@@ -217,26 +217,39 @@ tests/
 ## 主要接口
 
 ```text
+# 项目与数据
 GET    /api/projects
 POST   /api/projects
 GET    /api/projects/:id
 PUT    /api/projects/:id
 DELETE /api/projects/:id
-
 GET    /api/metadata/init
 GET    /api/masterdata/init
 
+# Excel 导入
 GET    /api/excel-template
 POST   /api/excel-import
 
+# AI 辅助
 POST   /api/generate-model
 
+# 参考文档
 POST   /api/reference-documents/upload
 DELETE /api/reference-documents/:docId
 POST   /api/reference-documents/extract-entities
 
-GET    /api/entity-lifecycle
-GET    /api/agent-semantic-layer
+# Entity Lifecycle
+POST   /api/entity-lifecycle
+
+# Agent Semantic Layer
+POST   /api/agent-semantic-layer
+
+# HR 同步
+POST   /api/hr-sync/trigger
+GET    /api/hr-sync/config
+PUT    /api/hr-sync/config
+GET    /api/hr-sync/history
+POST   /api/hr-sync/resolve-conflict
 ```
 
 ## 核心契约
@@ -256,6 +269,10 @@ GET    /api/agent-semantic-layer
 - `ProjectVersion`
 - `ExcelParsedData`
 - `ExcelImportResult`
+- `AgentSemanticLayer` / `Intent` / `BusinessTerm` / `SemanticRelation` / `ErrorRecovery` / `AgentPolicy`
+- `EntityLifecycle` / `LifecycleAuditEntry` / `StateTimeout` / `StateDataVisibility`
+- `OrganizationModel` / `Department` / `Position` / `PositionResponsibility` / `HRSyncConfig` / `HRSyncResult`
+- `ReferenceDocument` / `ExtractedEntity` / `ExtractedAttribute`
 - `EpcChain` / `EpcNode` / `EpcEdge` / `EpcModelRef`
 - `EpcValidationResult` / `EpcCoverageReport`
 - `Department` / `Position`

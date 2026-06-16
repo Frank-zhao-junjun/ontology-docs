@@ -15,10 +15,13 @@ export async function GET(request: NextRequest) {
     const response = await client.fetch(METADATA_EXCEL_URL);
 
     if (response.status_code !== 0) {
-      return NextResponse.json(
-        { error: response.status_message || '获取元数据文件失败' },
-        { status: 500 }
-      );
+      // 远程文件不可用时返回空数据而非 500 错误
+      return NextResponse.json({
+        success: true,
+        data: [],
+        total: 0,
+        warning: '元数据文件暂不可用，请稍后重试或手动添加元数据'
+      });
     }
 
     // 解析Excel内容
@@ -38,10 +41,13 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Fetch metadata error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : '获取元数据失败' },
-      { status: 500 }
-    );
+    // 容错：返回空数据而非 500
+    return NextResponse.json({
+      success: true,
+      data: [],
+      total: 0,
+      warning: '元数据服务暂不可用，请稍后重试或手动添加元数据'
+    });
   }
 }
 

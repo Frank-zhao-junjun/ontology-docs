@@ -11,7 +11,7 @@
 |------|------|:----:|:------:|------|
 | P1 | 核心元模型（数据/行为/规则/事件/流程） | ✅ 已完成 | 100% | 5 大核心模型可视化建模 |
 | P2 | 平台级模型（治理/指标/数据源/元数据/主数据） | ✅ 已完成 | 100% | 角色权限、指标公式、数据源配置 |
-| P3 | EPC 全域关联层 | ✅ 已完成 | 100% | 5 节点×12 模型关联矩阵，71 条双向校验 |
+| P3 | EPC 全域关联层 | ✅ 已完成 | 100% | v3.1: EpcModelRef(22类型+16角色) + 51条校验 + 12步推导 |
 | P4 | 组织体系与岗位模型 | ✅ 已完成 | 100% | 部门树+结构化职责+HR 同步+Excel 导入 |
 | P5 | 语义增强（Lifecycle + Agent Semantic Layer） | ✅ 已完成 | 100% | 实体生命周期+Agent 语义层+完备性评估 |
 | P6 | 持续增强 | ✅ 已完成 | 100% | 类型+Store+API+校验+UI+参考文档+测试全覆盖 |
@@ -94,6 +94,11 @@
 - [x] 首页运行态残留全面清除（TechStack/CTA/DDDEvents/AcceptanceCriteria/Architecture）
 - [x] 项目宣传图生成（技术架构图 + 业务价值图 + 五段式正式版）
 - [x] metadata/init API 容错修复（远程文件不可用时返回空数据而非 500）
+- [x] 元数据本地化：57 条元数据硬编码为 `metadata-local.ts`，消除远程 Excel URL 依赖
+- [x] Store 扩展测试：20 用例 (`ontology-store-extended.spec.ts`)
+- [x] EPC v3.1: EpcModelRef 类型 + 21 条新校验规则 (VE-LC/VM-AS/VX) + 6 集成测试
+- [x] README 完善：修复端口/重复契约/测试表格 + 规格文档索引三组分类
+- [x] 测试覆盖：18(validator) + 20(store) + 77(api集成) = **129 用例**
 
 ---
 
@@ -103,8 +108,14 @@
 
 | 提交 | 说明 |
 |------|------|
+| `4767aed` | fix: README.md — 修复端口/重复契约/测试表格/目录树 |
+| `ba9a032` | docs: README.md 更新 — 元数据本地化+测试覆盖+规格文档索引 |
+| `7d6007e` | feat: 元数据本地化 + Store 扩展测试(20用例) |
+| `a6cbcfe` | feat: 元数据本地化 + Store 扩展测试(20用例) |
+| `8991572` | docs: 更新 progress.md 工作日志 |
 | `7e03054` | fix: metadata/init API 容错处理 — 远程文件不可用时返回空数据而非 500 |
-| — | 5 个 API 冒烟测试验证通过（metadata/init, excel-template, entity-lifecycle, agent-semantic-layer, hr-sync） |
+| — | API 冒烟测试：metadata/init + excel-template + entity-lifecycle + agent-semantic-layer + hr-sync 全部通过 |
+| — | EPC v3.1 代码实现：EpcModelRef 类型(22 modelType+16 role) + VE-13~17/VM-LC/VM-AS/VX-09~15 共21条新校验 + 6集成测试 |
 
 ### 2026-06-15 (晚间)
 
@@ -165,27 +176,23 @@
 
 ## 下一步计划
 
-### P2 — EPC v3.1 代码升级
+### P2 — EPC v3.1 UI 升级
 
-1. **EPC-T1~T4: EPC v3.1 升级**
-   - 全域关联矩阵：5节点×12模型
-   - 推导算法：12步（新增 Lifecycle + Semantic）
-   - 覆盖率报告 byModel 新增 lifecycle + semantic
-   - UI: 节点展示 Lifecycle/Semantic 信息
+1. **EPC-T4: EPC 画布 UI 增强**
+   - 节点展示 Lifecycle/Semantic 关联信息
+   - 覆盖率报告新增 lifecycle + semantic 行
 
 ### 持续优化
 
 2. **测试覆盖率提升至 80%+**
-   - Store 方法单元测试
-   - API 路由集成测试
-   - Excel 导入全流程测试
+   - Store 方法单元测试 ✅ (20 用例已完成)
+   - API 路由集成测试 ✅ (77 用例已完成)
+   - EPC Generator / Entity Role 单元测试
 
 3. **技术债务清理**
    - TD-01: Next.js workspace root warning
    - TD-02: url.parse() deprecation warning
-
-4. **元数据本地化**
-   - 将 57 条元数据硬编码为 JSON，消除对远程 Excel URL 的依赖
+   - ~~TD-04: metadata/init 依赖远程 URL~~ ✅ 已本地化
 
 ---
 
@@ -196,7 +203,7 @@
 | TD-01 | Next.js workspace root warning | 低 | P6 |
 | TD-02 | url.parse() deprecation warning | 低 | P6 |
 | TD-03 | 测试覆盖率需提升至 80%+ | 中 | 每阶段 |
-| TD-04 | metadata/init 依赖远程 Excel URL，已过期 | 中 | 下次迭代 |
+| TD-04 | ~~metadata/init 依赖远程 Excel URL~~ | ✅ 已解决 | 元数据已本地化为 `metadata-local.ts` |
 
 ---
 

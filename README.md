@@ -138,8 +138,8 @@ pnpm dev
 
 启动后访问：
 
-- 产品介绍页：`http://localhost:5000`
-- 建模工作台：`http://localhost:5000/tool`
+- 产品介绍页：`http://localhost:3000`
+- 建模工作台：`http://localhost:3000/tool`
 
 生产构建：
 
@@ -168,14 +168,12 @@ lint -> ts-check -> unit -> integration -> e2e smoke
 
 ## 测试覆盖
 
-| 层 | 已有 | 用例数 |
-|---|---|---|
-| Validator | 18 单元 | ontology-validator.test.ts |
-| Store | 20 单元 | ontology-store-extended.spec.ts |
-| EPC Generator | 6 单元 | epc-generator.test.ts |
-| Entity Role | 8 单元 | entity-role.test.ts |
-| API 集成 | 77 集成 | api.test.ts |
-| **合计** | **129 测试** | **47 文件 / 300 用例** |
+| 层 | 用例数 | 文件 |
+|---|:---:|---|
+| Validator (V-LC + V-AS + EPC) | 18 | `src/lib/__tests__/ontology-validator.test.ts` |
+| Store (Lifecycle + Semantic + Org) | 20 | `tests/unit/ontology-store-extended.spec.ts` |
+| API 集成 | 77 | `src/test/integration/api.test.ts` |
+| **合计** | **129** | |
 
 ## 环境变量
 
@@ -202,6 +200,9 @@ src/
 │       ├── reference-documents/  # 参考文档上传与解析
 │       ├── excel-import/         # Excel 文件上传与解析
 │       ├── excel-template/       # Excel 导入模板下载
+│       ├── entity-lifecycle/     # 实体生命周期 API
+│       ├── agent-semantic-layer/ # Agent 语义层 API
+│       ├── hr-sync/              # HR 同步 (trigger/config/history)
 │       ├── masterdata/init/      # 主数据初始化
 │       ├── metadata/init/        # 元数据初始化
 │       └── projects/             # 项目持久化
@@ -209,11 +210,10 @@ src/
 │   ├── landing/                  # 产品介绍页组件
 │   └── ontology/                 # 建模工作台组件 (20+ 组件)
 ├── lib/
-│   ├── ai/                       # AI 查询服务
-│   ├── epc-generator/            # EPC 文档生成器
-│   ├── gstack/                   # Gstack 工作流集成
-│   ├── ralph-loop/               # Ralph Loop 代理流程
-│   └── superpowers/              # Agent skills 集成
+│   ├── epc-generator/            # EPC 生成器
+│   ├── metadata-local.ts         # 本地元数据 (57 条)
+│   ├── ontology-validator.ts     # 校验引擎 (51 条规则)
+│   └── ontology-normalizer.ts    # 模型规范化
 ├── storage/database/             # Supabase / 数据库适配
 ├── store/ontology-store.ts       # 全局状态 (50+ actions, Zustand persist)
 └── types/ontology.ts             # 核心类型定义 (70+ 类型, 1700+ 行)
@@ -285,13 +285,10 @@ POST   /api/hr-sync/resolve-conflict
 - `OrganizationModel` / `Department` / `Position` / `PositionResponsibility` / `HRSyncConfig` / `HRSyncResult`
 - `ReferenceDocument` / `ExtractedEntity` / `ExtractedAttribute`
 - `EpcChain` / `EpcNode` / `EpcEdge` / `EpcModelRef`
-- `EpcValidationResult` / `EpcCoverageReport`
-- `Department` / `Position`
-- `Intent` / `IntentSlot` / `SlotFillingStrategy` / `DialogContext`
-- `SemanticRelation` / `BusinessTerm` / `ErrorRecovery` / `TemporalValidity`
-- `SemanticFieldMapping` / `AgentPolicy` / `AgentSemanticLayer`
-- `State` (增强) / `Transition` (增强) / `Action` (增强)
-- `EntityLifecycle` / `LifecycleAuditEntry` / `StateTimeout` / `StateDataVisibility`
+- `EpcValidationSummary` / `EpcModelCoverage`
+- `IntentSlot` / `SlotFillingStrategy` / `DialogContext`
+- `TemporalValidity` / `ExtractedAttribute`
+- `State` (增强 11 字段) / `Transition` (增强 10 字段) / `Action` (增强 10 字段)
 
 ## 开发约束
 

@@ -1,6 +1,6 @@
 # Ontology 项目开发进度
 
-> 最后更新：2026-06-15
+> 最后更新：2026-06-16
 > 当前版本：v2.0
 
 ---
@@ -91,10 +91,32 @@
 - [x] ORG-T4: UI 新增 — OrganizationEditor 组织编辑器 + HR 同步面板
 - [x] RD-T2~T5: 参考文档上传 (类型 + Store + API + UI)
 - [x] Q-T1: 单元测试 — ontology-validator (12 test cases)
+- [x] 首页运行态残留全面清除（TechStack/CTA/DDDEvents/AcceptanceCriteria/Architecture）
+- [x] 项目宣传图生成（技术架构图 + 业务价值图 + 五段式正式版）
+- [x] metadata/init API 容错修复（远程文件不可用时返回空数据而非 500）
 
 ---
 
 ## 近期完成记录
+
+### 2026-06-16
+
+| 提交 | 说明 |
+|------|------|
+| `7e03054` | fix: metadata/init API 容错处理 — 远程文件不可用时返回空数据而非 500 |
+| — | 5 个 API 冒烟测试验证通过（metadata/init, excel-template, entity-lifecycle, agent-semantic-layer, hr-sync） |
+
+### 2026-06-15 (晚间)
+
+| 提交 | 说明 |
+|------|------|
+| — | 首页运行态残留全面清除（TechStack/CTA/DDDEvents/AcceptanceCriteria/Architecture 5组件） |
+| — | 项目宣传图：技术架构图(promo-banner.png) + 业务价值图(promo-value.png) + 正式版(promo-final.png) |
+| — | 参考文档上传辅助 AI 建模 Spec v1.0 (6种格式/mammoth+pdf-parse+xlsx解析/AI注入/实体提取) |
+| — | 组织体系 v2.0 Spec (结构化职责/HR同步6数据源/4冲突策略/23条Excel校验) |
+| — | Entity Lifecycle Spec v2.0 修正 (与代码库对齐/11+10+10增强字段/5子类型/15校验) |
+| — | EPC v3.1 (71条校验/12 modelType/13 refRole/推导算法12步) |
+| — | Agent Semantic Layer Spec v1.0 (9子模型/完备性55→81/15校验/9 US) |
 
 ### 2026-06-15
 
@@ -106,25 +128,13 @@
 | `1ec4057` | docs: 5大规格文档同步 + 首页更新 + 宣传图资源 |
 | `d9da464` | docs: 新增项目待办清单 TODO.md |
 
-### 2026-06-15 (晚间)
-
-| 提交 | 说明 |
-|------|------|
-| `2fed732` | feat: P6 complete — Reference Document Upload + Unit Tests |
-| `a0f03d2` | feat: P1 UI — Lifecycle Tab + Semantic Layer Tab + Organization Editor |
-| `6a0f9c6` | feat: LC-T5 + AS-T5 + ORG-T5 — 30条校验规则 + Excel 8-Sheet |
-| `ec62e7f` | feat: P1 Store + API — Entity Lifecycle + Agent Semantic Layer + Organization |
-| `5791c22` | feat: P0 type definitions — Lifecycle + Agent Semantic Layer + Organization + deps |
-| `91ef482` | docs: update worklog — progress.md + TODO.md sync |
-| `4314a28` | docs: P1 complete — update worklog (P6 65%→85%) |
-
 ### 2026-06-13~14
 
 | 提交 | 说明 |
 |------|------|
-| `main` | docs: update URS&spec — EPC 全域关联 + 组织模型 + Excel 导入 |
-| `main` | docs: EPC v2.0/v3.0 — 全域关联层 + 双向校验体系 |
-| `main` | feat: Excel 导入全流程（模板下载→上传校验→解析→版本审核） |
+| — | docs: update URS&spec — EPC 全域关联 + 组织模型 + Excel 导入 |
+| — | docs: EPC v2.0/v3.0 — 全域关联层 + 双向校验体系 |
+| — | feat: Excel 导入全流程（模板下载→上传校验→解析→版本审核） |
 
 ---
 
@@ -137,13 +147,25 @@
 | `docs/Entity-Lifecycle-Spec.md` | v2.0 | 实体生命周期增强 + 审计追溯 + 15 条校验 |
 | `docs/Agent-Semantic-Layer-Spec.md` | v1.0 | Agent 语义层 9 大子模型 + 完备性评估 |
 | `docs/Reference-Doc-Upload-Spec.md` | v1.0 | 参考文档上传辅助 AI 建模 |
+| `docs/TODO.md` | v1.0 | 项目待办清单（5模块×27任务） |
 | `assets/ontology-ai-driven-system-specification-v2.0.md` | v2.0 | 系统完整需求规格说明书 |
+
+---
+
+## 资源文件
+
+| 文件 | 说明 |
+|------|------|
+| `public/promo-banner.png` | 技术架构宣传图（12模型放射状布局，深蓝科技风） |
+| `public/promo-value.png` | 业务价值宣传图（知识→模型→AI，商务风格） |
+| `public/promo-draft.png` | 五段式示意稿（痛点→方案→框架→路线图→价值） |
+| `public/promo-final.png` | 五段式正式版 4K 高清宣传图 |
 
 ---
 
 ## 下一步计划
 
-### P2 — EPC v3.1
+### P2 — EPC v3.1 代码升级
 
 1. **EPC-T1~T4: EPC v3.1 升级**
    - 全域关联矩阵：5节点×12模型
@@ -162,6 +184,9 @@
    - TD-01: Next.js workspace root warning
    - TD-02: url.parse() deprecation warning
 
+4. **元数据本地化**
+   - 将 57 条元数据硬编码为 JSON，消除对远程 Excel URL 的依赖
+
 ---
 
 ## 技术债务记录
@@ -171,6 +196,7 @@
 | TD-01 | Next.js workspace root warning | 低 | P6 |
 | TD-02 | url.parse() deprecation warning | 低 | P6 |
 | TD-03 | 测试覆盖率需提升至 80%+ | 中 | 每阶段 |
+| TD-04 | metadata/init 依赖远程 Excel URL，已过期 | 中 | 下次迭代 |
 
 ---
 
